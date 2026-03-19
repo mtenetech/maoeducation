@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: maoeducation_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: maoedu
+      POSTGRES_PASSWORD: maoedu_dev
+      POSTGRES_DB: maoeducation
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
