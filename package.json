@@ -5,9 +5,11 @@
     "postinstall": "pnpm --filter api db:generate",
     "dev": "turbo run dev",
     "build": "turbo run build",
+    "start:api": "pnpm --filter api start:prod",
     "lint": "turbo run lint",
     "test": "turbo run test",
     "db:migrate": "pnpm --filter api db:migrate",
+    "db:migrate:prod": "pnpm --filter api db:migrate:prod",
     "db:generate": "pnpm --filter api db:generate",
     "db:seed": "pnpm --filter api db:seed",
     "db:studio": "pnpm --filter api db:studio"
