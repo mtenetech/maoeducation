@@ -1,7 +1,7 @@
 import ky, { HTTPError } from 'ky'
 import { useAuthStore } from '@/store/auth.store'
 
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
+const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
 let isRefreshing = false
 
