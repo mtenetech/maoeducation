@@ -2,11 +2,13 @@
   "name": "maoeducation",
   "private": true,
   "scripts": {
+    "postinstall": "pnpm --filter api db:generate",
     "dev": "turbo run dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",
     "db:migrate": "pnpm --filter api db:migrate",
+    "db:generate": "pnpm --filter api db:generate",
     "db:seed": "pnpm --filter api db:seed",
     "db:studio": "pnpm --filter api db:studio"
   },

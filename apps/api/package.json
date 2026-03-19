@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "postinstall": "prisma generate",
     "dev": "tsx watch src/server.ts",
-    "build": "tsup src/server.ts --format cjs --out-dir dist",
+    "build": "pnpm db:generate && tsup src/server.ts --format cjs --out-dir dist",
     "start": "node dist/server.js",
     "lint": "tsc --noEmit",
     "test": "vitest run",
