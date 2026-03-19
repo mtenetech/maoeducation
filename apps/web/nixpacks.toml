@@ -5,4 +5,4 @@ cmds = ["pnpm install --frozen-lockfile"]
 cmds = ["pnpm build"]
 
 [start]
-cmd = "npx serve dist -l $PORT"
+cmd = "npx vite preview --host 0.0.0.0 --port $PORT"
