@@ -13,3 +13,14 @@ export interface EnrollmentReportQuery {
   yearId: string
   parallelId?: string
 }
+
+export interface BulletinOptionsQuery {
+  yearId?: string
+  parallelId?: string
+}
+
+export interface BulletinReportQuery {
+  yearId: string
+  parallelId: string
+  studentId: string
+}

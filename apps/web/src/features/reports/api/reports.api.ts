@@ -1,4 +1,4 @@
-import { apiGet } from '@/shared/lib/api-client'
+import { apiClient, apiGet, apiPut } from '@/shared/lib/api-client'
 
 export interface GradesReportData {
   assignment: {
@@ -59,6 +59,68 @@ export interface MyGradesSubject {
   total: number | null
 }
 
+export interface BulletinBranding {
+  enabled?: boolean
+  institutionName?: string
+  title?: string
+  subtitle?: string
+  logoUrl?: string
+  directorName?: string
+  directorRole?: string
+  teacherLabel?: string
+  behaviorLabel?: string
+  behaviorText?: string
+  observationsLabel?: string
+}
+
+export interface BulletinBrandingResponse {
+  global: BulletinBranding
+  own: BulletinBranding | null
+  effective: BulletinBranding
+}
+
+export interface BulletinOptionsData {
+  years: Array<{ id: string; name: string; isActive: boolean }>
+  parallels: Array<{ id: string; name: string; academicYearId: string; level: { name: string } }>
+  students: Array<{ id: string; profile: { firstName: string; lastName: string; dni?: string } }>
+}
+
+export interface StudentBulletinData {
+  institution: { id: string; name: string }
+  academicYear: { id: string; name: string }
+  parallel: {
+    id: string
+    name: string
+    level: { name: string }
+    tutor?: { id: string; profile: { firstName: string; lastName: string } } | null
+  }
+  student: { id: string; profile: { firstName: string; lastName: string; dni?: string } }
+  periods: Array<{ id: string; name: string; periodNumber: number }>
+  subjects: Array<{
+    assignmentId: string
+    subjectName: string
+    teacherName: string
+    finalAverage: number | null
+    periodGrades: Array<{
+      periodId: string
+      periodName: string
+      regularAvg: number | null
+      examAvg: number | null
+      total: number | null
+    }>
+  }>
+  attendanceByPeriod: Array<{
+    periodId: string
+    periodName: string
+    justifiedAbsences: number
+    unjustifiedAbsences: number
+    attendedDays: number
+    lateCount: number
+  }>
+  overallAverage: number | null
+  branding: BulletinBranding
+}
+
 export function getMyGrades(params: { periodId: string }) {
   return apiGet<MyGradesSubject[]>('reports/my-grades', params)
 }
@@ -75,4 +137,30 @@ export function getEnrollmentReport(params: { yearId: string; parallelId?: strin
   const p: Record<string, string> = { yearId: params.yearId }
   if (params.parallelId) p.parallelId = params.parallelId
   return apiGet<EnrollmentReportData>('reports/enrollment', p)
+}
+
+export function getBulletinBranding() {
+  return apiGet<BulletinBrandingResponse>('reports/bulletin-branding')
+}
+
+export function saveGlobalBulletinBranding(data: BulletinBranding) {
+  return apiPut('reports/bulletin-branding/global', data)
+}
+
+export function saveOwnBulletinBranding(data: BulletinBranding) {
+  return apiPut('reports/bulletin-branding/own', data)
+}
+
+export async function uploadBulletinLogo(scope: 'global' | 'own', file: File) {
+  const form = new FormData()
+  form.append('file', file)
+  return apiClient.post(`reports/bulletin-branding/${scope}/logo`, { body: form }).json<{ url: string }>()
+}
+
+export function getBulletinOptions(params?: { yearId?: string; parallelId?: string }) {
+  return apiGet<BulletinOptionsData>('reports/bulletin-options', params)
+}
+
+export function getStudentBulletin(params: { yearId: string; parallelId: string; studentId: string }) {
+  return apiGet<StudentBulletinData>('reports/bulletin', params)
 }
