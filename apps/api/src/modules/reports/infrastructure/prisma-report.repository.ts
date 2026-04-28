@@ -456,7 +456,7 @@ export class PrismaReportRepository {
     }
 
     const periods = await prisma.academicPeriod.findMany({
-      where: { institutionId, academicYearId: query.yearId },
+      where: { academicYearId: query.yearId },
       select: { id: true, name: true, periodNumber: true, startDate: true, endDate: true },
       orderBy: [{ periodNumber: 'asc' }, { startDate: 'asc' }],
     })
