@@ -89,13 +89,15 @@ function GradeRow({ grade, maxScore, localScore, isModified, onChange }: GradeRo
             min={0}
             max={maxScore}
             step={0.01}
+            inputMode="decimal"
+            pattern="[0-9]*[.,]?[0-9]*"
             value={displayScore ?? ''}
             onChange={(e) => {
               const val = e.target.value === '' ? null : parseFloat(e.target.value)
               onChange(grade.studentId, val)
             }}
             className={cn(
-              'w-24 text-center',
+              'w-20 text-center text-base md:w-24 md:text-sm',
               isModified && 'border-amber-400 focus-visible:ring-amber-400',
             )}
             placeholder="—"
@@ -478,19 +480,21 @@ function SummaryTab({ courseAssignmentId, periodId }: SummaryTabProps) {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 text-sm text-muted-foreground sm:flex-row sm:items-center sm:gap-3">
           <span>{data.students.length} estudiantes · {totalActivities} actividades</span>
           {editingWeight && (
-            <div className="flex items-center gap-1 text-xs">
+            <div className="flex flex-wrap items-center gap-1 text-xs">
               <span className="font-medium text-foreground">Peso examen:</span>
               <Input
                 type="number"
                 min={0}
                 max={100}
+                inputMode="numeric"
+                pattern="[0-9]*"
                 value={weightInput}
                 onChange={(e) => setWeightInput(e.target.value)}
-                className="w-16 h-6 text-xs text-center px-1"
+                className="h-7 w-16 px-1 text-center text-sm"
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleSaveWeight()
@@ -507,7 +511,7 @@ function SummaryTab({ courseAssignmentId, periodId }: SummaryTabProps) {
             </div>
           )}
         </div>
-        <div className="flex rounded-md border overflow-hidden text-xs">
+        <div className="flex rounded-md border overflow-hidden text-xs self-start">
           <button
             type="button"
             onClick={() => setView('compact')}
@@ -730,7 +734,7 @@ export function GradeEntryPage() {
   const canShowGrades = !!selectedAssignmentId && !!selectedPeriodId && !!selectedActivityId
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Notas</h1>
@@ -769,9 +773,9 @@ export function GradeEntryPage() {
       </div>
 
       {/* Filter bar */}
-      <div className="flex items-center gap-4 flex-wrap">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
         {!isStudentOrGuardian && (
-          <div className="w-64">
+          <div className="w-full sm:w-64">
             <Select value={selectedAssignmentId} onValueChange={setSelectedAssignmentId}>
               <SelectTrigger>
                 <SelectValue placeholder="Seleccionar asignación" />
@@ -787,7 +791,7 @@ export function GradeEntryPage() {
           </div>
         )}
 
-        <div className="w-44">
+        <div className="w-full sm:w-44">
           <Select
             value={selectedPeriodId}
             onValueChange={setSelectedPeriodId}
@@ -807,7 +811,7 @@ export function GradeEntryPage() {
         </div>
 
         {activeTab === 'entry' && !isStudentOrGuardian && (
-          <div className="w-52">
+          <div className="w-full sm:w-52">
             <Select
               value={selectedActivityId}
               onValueChange={setSelectedActivityId}
@@ -862,10 +866,10 @@ export function GradeEntryPage() {
       ) : (
         <div className="space-y-4">
           {/* Activity info + Save button */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex min-w-0 items-start gap-3">
               <div>
-                <p className="font-semibold text-sm">{selectedActivity?.name}</p>
+                <p className="break-words text-sm font-semibold">{selectedActivity?.name}</p>
                 <p className="text-xs text-muted-foreground">
                   Puntaje máximo: {selectedActivity?.maxScore} pts
                   {modified.size > 0 && (
@@ -885,6 +889,7 @@ export function GradeEntryPage() {
               onClick={handleSaveAll}
               loading={bulkSave.isPending}
               disabled={modified.size === 0}
+              className="w-full sm:w-auto"
             >
               <Save className="h-4 w-4" />
               Guardar todo

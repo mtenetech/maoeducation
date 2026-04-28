@@ -34,10 +34,10 @@ export function DashboardPage() {
   const greeting = getGreeting()
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-semibold">
+        <h1 className="text-3xl font-semibold leading-tight sm:text-2xl">
           {greeting}, {user?.fullName.split(' ')[0]}
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
@@ -65,7 +65,7 @@ export function DashboardPage() {
         <>
           {/* Stats row */}
           {stats && hasRole('admin') && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4 md:gap-4">
               <NumberCard icon={Users} label="Usuarios activos" value={stats.users.total} />
               <NumberCard icon={GraduationCap} label="Estudiantes" value={stats.users.students} />
               <NumberCard icon={BookOpen} label="Actividades" value={stats.academic.totalActivities} />
@@ -83,7 +83,7 @@ export function DashboardPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex gap-6 text-sm">
+                <div className="flex flex-col gap-2 text-sm sm:flex-row sm:gap-6">
                   <div><span className="font-semibold">{stats.academic.activeYear.parallels}</span> <span className="text-muted-foreground">paralelos</span></div>
                   <div><span className="font-semibold">{stats.academic.activeYear.enrollments}</span> <span className="text-muted-foreground">matrículas</span></div>
                   <div><span className="font-semibold">{stats.academic.activeYear.periods}</span> <span className="text-muted-foreground">períodos</span></div>
@@ -107,7 +107,7 @@ export function DashboardPage() {
 
 function AdminModules() {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4 md:gap-4">
       <ModuleCard icon={Users}         label="Usuarios"        href="/users" />
       <ModuleCard icon={Calendar}      label="Configuración"   href="/academic" />
       <ModuleCard icon={BookOpen}      label="Actividades"     href="/activities" />
@@ -122,7 +122,7 @@ function AdminModules() {
 
 function TeacherModules({ unread }: { unread?: number }) {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 md:gap-4">
       <ModuleCard icon={BookOpen}      label="Actividades"     href="/activities" />
       <ModuleCard icon={GraduationCap} label="Calificaciones"  href="/grades" />
       <ModuleCard icon={ClipboardList} label="Asistencia"      href="/attendance" />
@@ -134,7 +134,7 @@ function TeacherModules({ unread }: { unread?: number }) {
 
 function InspectorModules({ pending, unread }: { pending?: number; unread?: number }) {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 md:gap-4">
       <ModuleCard icon={AlertTriangle} label="Incidentes"      href="/incidents" badge={pending} />
       <ModuleCard icon={ClipboardList} label="Asistencia"      href="/attendance" />
       <ModuleCard icon={MessageSquare} label="Mensajes"        href="/messages" badge={unread} />
@@ -144,7 +144,7 @@ function InspectorModules({ pending, unread }: { pending?: number; unread?: numb
 
 function StudentModules({ unread }: { unread?: number }) {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 md:gap-4">
       <ModuleCard icon={GraduationCap} label="Calificaciones"  href="/grades" />
       <ModuleCard icon={ClipboardList} label="Asistencia"      href="/attendance" />
       <ModuleCard icon={Calendar}      label="Horario"         href="/schedules" />
@@ -195,7 +195,7 @@ function ModuleCard({
   return (
     <a href={href}>
       <Card className="hover:shadow-md hover:border-primary/30 transition-all cursor-pointer group">
-        <CardContent className="p-5 flex items-center gap-4">
+        <CardContent className="flex items-center gap-4 p-4 sm:p-5">
           <div className="rounded-lg bg-primary/10 p-2.5 group-hover:bg-primary/20 transition-colors">
             <Icon className="h-5 w-5 text-primary" />
           </div>

@@ -194,7 +194,7 @@ export function AttendancePage() {
   // ---- Render ----
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Page header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Asistencia</h1>
@@ -204,8 +204,8 @@ export function AttendancePage() {
       </div>
 
       {/* Filter bar */}
-      <div className="flex items-center gap-4 flex-wrap">
-        <div className="w-72">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+        <div className="w-full sm:w-72">
           <Select value={selectedAssignment} onValueChange={handleAssignmentChange}>
             <SelectTrigger>
               <SelectValue placeholder="Seleccionar asignación" />
@@ -220,12 +220,12 @@ export function AttendancePage() {
           </Select>
         </div>
 
-        <div>
+        <div className="w-full sm:w-auto">
           <input
             type="date"
             value={selectedDate}
             onChange={handleDateChange}
-            className="flex h-9 w-44 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:h-9 sm:w-44 sm:text-sm"
           />
         </div>
       </div>
@@ -248,7 +248,7 @@ export function AttendancePage() {
       ) : (
         <div className="space-y-4">
           {/* Summary counts + Save button */}
-          <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2 flex-wrap">
               {ALL_STATUSES.map((status) => (
                 <span
@@ -267,14 +267,76 @@ export function AttendancePage() {
             <Button
               onClick={() => saveMutation.mutate()}
               disabled={!isDirty || saveMutation.isPending}
+              className="w-full sm:w-auto"
             >
               <Save className="h-4 w-4 mr-1" />
               {saveMutation.isPending ? 'Guardando...' : 'Guardar'}
             </Button>
           </div>
 
-          {/* Attendance table */}
-          <Card>
+          <div className="space-y-3 md:hidden">
+            {attendanceData.map((entry, index) => {
+              const studentId = entry.student.id
+              const local = localRecords.get(studentId) ?? {
+                status: 'present' as AttendanceStatus,
+                notes: '',
+              }
+              const fullName = `${entry.student.profile.firstName} ${entry.student.profile.lastName}`
+
+              return (
+                <Card key={studentId}>
+                  <div className="space-y-3 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs text-muted-foreground">#{index + 1}</p>
+                        <p className="font-medium">{fullName}</p>
+                        {entry.student.profile.dni && (
+                          <p className="text-xs text-muted-foreground">
+                            {entry.student.profile.dni}
+                          </p>
+                        )}
+                      </div>
+                      <span
+                        className={cn(
+                          'inline-flex items-center rounded-full border px-2 py-1 text-[11px] font-medium',
+                          STATUS_CONFIG[local.status].className,
+                        )}
+                      >
+                        {STATUS_CONFIG[local.status].label}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      {ALL_STATUSES.map((status) => (
+                        <button
+                          key={status}
+                          type="button"
+                          onClick={() => handleStatusChange(studentId, status)}
+                          className={cn(
+                            'rounded-md border px-3 py-2 text-sm font-medium transition-colors',
+                            local.status === status
+                              ? STATUS_CONFIG[status].className
+                              : 'bg-transparent text-muted-foreground border-border hover:bg-muted',
+                          )}
+                        >
+                          {STATUS_CONFIG[status].label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <Input
+                      value={local.notes}
+                      onChange={(e) => handleNotesChange(studentId, e.target.value)}
+                      placeholder="Observación..."
+                      className="h-10"
+                    />
+                  </div>
+                </Card>
+              )
+            })}
+          </div>
+
+          <Card className="hidden md:block">
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
@@ -334,7 +396,7 @@ export function AttendancePage() {
                             handleNotesChange(studentId, e.target.value)
                           }
                           placeholder="Observación..."
-                          className="h-7 text-xs w-44"
+                          className="h-7 w-44 text-xs"
                         />
                       </TableCell>
                     </TableRow>

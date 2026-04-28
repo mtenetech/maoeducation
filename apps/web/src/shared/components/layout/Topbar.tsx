@@ -31,8 +31,8 @@ export function Topbar({ onMobileMenuClick }: TopbarProps) {
     <header className="h-14 border-b bg-background flex items-center px-4 gap-3 shrink-0">
       {/* Toggle sidebar (desktop) / open drawer (mobile) */}
       <button
-        onClick={() => { toggleSidebar(); onMobileMenuClick() }}
-        className="p-1.5 rounded-md hover:bg-muted transition-colors md:block"
+        onClick={toggleSidebar}
+        className="hidden p-1.5 rounded-md hover:bg-muted transition-colors md:block"
         aria-label="Toggle menu"
       >
         <Menu className="h-5 w-5" />
