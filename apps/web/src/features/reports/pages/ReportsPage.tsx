@@ -139,7 +139,11 @@ function BulletinReportTab() {
     setOwnForm({ ...DEFAULT_BRANDING, enabled: false, ...(branding.own ?? {}) })
   }, [branding])
 
-  const { data: options } = useQuery({
+  const {
+    data: options,
+    error: optionsError,
+    isError: optionsIsError,
+  } = useQuery({
     queryKey: ['bulletin-options', selectedYearId, selectedParallelId],
     queryFn: () => getBulletinOptions({
       ...(selectedYearId ? { yearId: selectedYearId } : {}),
@@ -171,7 +175,12 @@ function BulletinReportTab() {
     onError: (err) => toast.error(getErrorMessage(err)),
   })
 
-  const { data: report, isLoading } = useQuery({
+  const {
+    data: report,
+    isLoading,
+    error: reportError,
+    isError: reportIsError,
+  } = useQuery({
     queryKey: ['student-bulletin', selectedYearId, selectedParallelId, selectedStudentId],
     queryFn: () =>
       getStudentBulletin({
@@ -181,6 +190,14 @@ function BulletinReportTab() {
       }),
     enabled: enabled && !!selectedYearId && !!selectedParallelId && !!selectedStudentId,
   })
+
+  React.useEffect(() => {
+    if (optionsError) toast.error(getErrorMessage(optionsError))
+  }, [optionsError])
+
+  React.useEffect(() => {
+    if (reportError) toast.error(getErrorMessage(reportError))
+  }, [reportError])
 
   async function handleLogoUpload(scope: 'global' | 'own', file: File) {
     try {
@@ -199,6 +216,8 @@ function BulletinReportTab() {
   const years = options?.years ?? []
   const parallels = options?.parallels ?? []
   const students = options?.students ?? []
+
+  const reportHasContent = !!report && (report.subjects.length > 0 || report.attendanceByPeriod.length > 0)
 
   return (
     <div className="space-y-6">
@@ -318,7 +337,28 @@ function BulletinReportTab() {
           </div>
 
           {isLoading && <PageLoader />}
-          {report && !isLoading && <BulletinReportView data={report} />}
+          {optionsIsError && (
+            <EmptyState
+              icon={ScrollText}
+              title="No se pudieron cargar las opciones"
+              description={getErrorMessage(optionsError)}
+            />
+          )}
+          {reportIsError && !isLoading && (
+            <EmptyState
+              icon={ScrollText}
+              title="No se pudo generar el boletín"
+              description={getErrorMessage(reportError)}
+            />
+          )}
+          {reportHasContent && !isLoading && !reportIsError && <BulletinReportView data={report} />}
+          {enabled && report && !reportHasContent && !isLoading && !reportIsError && (
+            <EmptyState
+              icon={ScrollText}
+              title="Sin datos para este boletín"
+              description="El estudiante no tiene suficientes notas o registros para generar el formato todavía."
+            />
+          )}
           {!enabled && (
             <EmptyState
               icon={ScrollText}
