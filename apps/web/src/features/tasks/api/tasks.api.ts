@@ -65,6 +65,8 @@ export const tasksApi = {
     apiDelete(`tasks/${taskId}/attachments/${attachmentId}`),
 }
 
+const API_BASE = import.meta.env.VITE_API_URL ?? ''
+
 export function getAttachmentUrl(storedName: string) {
-  return `/uploads/tasks/${storedName}`
+  return `${API_BASE}/uploads/tasks/${storedName}`
 }

@@ -1,1 +1,386 @@
-mao
+Quiero que actúes como un Senior/Staff Software Engineer y Product Engineer experto en arquitectura de software, React, Node.js, PostgreSQL, diseño de sistemas SaaS escalables para educación, y diseño de interfaces modernas con excelente UX/UI.
+
+Necesito que me ayudes a diseñar y construir un sistema web escolar moderno, escalable, mantenible y visualmente muy agradable usando React para el frontend y Node.js para el backend, aplicando mejores prácticas reales de ingeniería de software, clean architecture, modularidad, seguridad, mantenibilidad, testing y estructura profesional de nivel senior.
+
+## Objetivo del sistema
+Construir un sistema de gestión académica para una escuela/colegio que permita manejar:
+- registro de notas
+- asistencia
+- actividades académicas evaluables
+- mensajería
+- incidencias disciplinarias
+- justificación de faltas
+- calendario/horario de clases
+- reportes
+- certificados de calificaciones
+- parametrización del comportamiento académico
+
+## Stack base esperado
+Quiero que propongas e implementes una arquitectura moderna con:
+- Frontend: React
+- Backend: Node.js
+- Base de datos: PostgreSQL
+
+Puedes proponer frameworks, librerías y herramientas modernas, pero debes justificar por qué las eliges. Prioriza:
+- escalabilidad
+- mantenibilidad
+- legibilidad
+- seguridad
+- performance
+- facilidad de evolución en el tiempo
+
+## Enfoque de diseño UX/UI
+NO quiero depender de Stitch ni de herramientas externas como base del sistema.
+Quiero que el frontend sea diseñado directamente con buenas prácticas de producto y frontend engineering.
+
+El sistema debe tener una UX/UI:
+- moderna
+- limpia
+- profesional
+- muy agradable visualmente
+- fácil de entender
+- fácil de usar
+- rápida y muy reactiva
+- compatible con desktop, tablet y móviles
+- altamente responsive
+- estilo dashboard/admin panel moderno
+- con jerarquía visual clara
+- con navegación intuitiva
+- con componentes reutilizables
+- con foco en accesibilidad, feedback visual y productividad
+
+Quiero que propongas una experiencia tipo dashboard para cada rol, con una interfaz:
+- ordenada
+- consistente
+- minimalista pero útil
+- con tablas, cards, filtros, formularios y calendarios bien diseñados
+- con buen manejo de estados vacíos, loading, errores, validaciones y confirmaciones
+- con excelente experiencia en móvil
+- mobile-first o al menos fully responsive
+- optimizada para uso diario por profesores, inspectores, administrativos y padres/alumnos
+
+## Requisitos funcionales principales
+
+### 1. Gestión académica por niveles
+- El sistema debe permitir precargar y administrar niveles/cursos desde:
+  - 1ro de básica
+  - 2do de básica
+  - ...
+  - hasta 9no de básica
+- Pero debe ser extensible para poder agregar más cursos/niveles en el futuro sin romper el sistema.
+- No quiero lógica quemada únicamente para esos grados; quiero un diseño parametrizable.
+
+### 2. Roles del sistema
+Debe existir un sistema robusto de roles y permisos. Los roles iniciales serán:
+- Admin
+- Inspector
+- Profesor
+- Alumno / Padre de familia
+
+Debes diseñar el sistema para que en el futuro sea fácil agregar más roles o permisos más granulares.
+
+### 3. Funcionalidades por rol
+
+#### Admin
+- administrar usuarios
+- administrar roles y permisos
+- administrar cursos, paralelos, materias y periodos académicos
+- parametrizar cómo funciona el sistema
+- administrar catálogos configurables del sistema
+- generar reportes
+- configurar plantillas genéricas de certificados o libretas
+
+#### Inspector
+- registrar incidencias disciplinarias
+- justificar faltas
+- consultar historial de asistencia e incidencias
+- dar seguimiento a novedades de alumnos
+
+#### Profesor
+- registrar faltas/asistencia
+- registrar notas
+- crear actividades académicas evaluables
+- seleccionar el tipo de actividad desde un catálogo configurable
+- subir notas de cada actividad
+- cargar o administrar horario de clases según el alcance
+- visualizar sus cursos, materias, estudiantes y calendario
+
+#### Alumno / Padre de familia
+- ver tareas y demás actividades enviadas
+- ver notas
+- ver asistencia/faltas
+- ver justificaciones
+- acceder a mensajería
+- ver calendario/horario de clases
+
+### 4. Sistema genérico de tipos de actividad
+Este punto es muy importante.
+
+No quiero que el sistema quede hardcodeado solamente para “tareas” y “lecciones”.
+Quiero que exista una estructura genérica basada en:
+
+- tipos de actividad
+- actividades creadas a partir de esos tipos
+- agrupación flexible de actividades en insumos o categorías de evaluación
+
+Ejemplos de tipos de actividad:
+- tarea
+- lección
+- prueba
+- examen
+- proyecto
+- participación
+- refuerzo
+- otro
+
+Requisitos:
+- los tipos de actividad deben poder configurarse
+- el administrador debe poder crear, editar, activar o desactivar tipos
+- el profesor debe poder seleccionar un tipo al momento de crear una actividad
+- una actividad debe heredar comportamiento base común, pero permitir metadatos o configuraciones futuras según el tipo
+- no quiero lógica rígida ni hardcoded
+
+### 5. Sistema de insumos académicos
+El sistema debe permitir que las actividades creadas por el profesor se agrupen dentro de “insumos” o categorías de evaluación, por ejemplo:
+- tarea 1 + tarea 2 = insumo 1
+- lección 1 = insumo 2
+- pruebas = insumo 3
+
+Quiero que el diseño sea flexible:
+- que los insumos puedan configurarse
+- que el profesor o el administrador pueda decidir cómo agrupar actividades
+- que no quede rígido ni hardcoded
+- que la estructura permita en el futuro cambiar cómo se calculan los promedios
+
+Por ahora no quiero que definas reglas finales complejas de promedio, pero sí quiero que diseñes el sistema de forma genérica y extensible para soportarlas luego.
+
+### 6. Parametrización del sistema académico
+El sistema debe ser parametrizable para definir cómo funciona académicamente:
+- si trabaja por trimestres
+- o por quimestres
+- y potencialmente otros esquemas en el futuro
+
+Por defecto, el sistema debe arrancar funcionando por trimestres.
+
+Quiero una solución donde esta parametrización esté bien modelada y no obligue a reescribir lógica de negocio cuando cambie el esquema.
+
+### 7. Mensajería
+Debe existir un módulo de mensajería interna entre actores del sistema.
+Por ejemplo:
+- profesor ↔ padre/alumno
+- inspector ↔ padre/alumno
+- admin ↔ usuarios
+
+No hace falta que sea chat en tiempo real complejo al inicio, pero sí debe quedar preparada una base sólida para evolucionarlo.
+
+### 8. Calendario y horario de clases
+- Debe existir una vista de calendario u horario
+- El horario de clases podrá ser subido o gestionado por cada profesor
+- Padres/alumnos deben poder visualizarlo
+- Debe ser modelado correctamente para crecer luego
+
+### 9. Reportería y certificados
+- Debe existir capacidad de generar reportes
+- Debe existir generación de certificados o reporte de calificaciones con un formato genérico inicialmente
+- Quiero que el diseño contemple plantillas o mecanismos para modificar esos formatos en el futuro sin rehacer todo
+
+### 10. Notificaciones y correos
+- El sistema debería quedar preparado para enviar correos y notificaciones
+- No es necesario implementarlo completamente ahora, pero sí dejar una arquitectura preparada para agregarlo luego de forma limpia
+
+## Requisitos no funcionales
+Quiero que priorices:
+- escalabilidad
+- mantenibilidad
+- seguridad
+- diseño limpio
+- separación de responsabilidades
+- extensibilidad
+- performance
+- auditabilidad
+- buena experiencia de usuario
+- base lista para crecer a producción
+
+## Enfoque técnico esperado
+Quiero una solución profesional, no improvisada ni junior.
+
+Debes pensar en:
+- clean architecture o una modularidad equivalente clara y mantenible
+- separación entre dominio, aplicación, infraestructura y presentación
+- autenticación y autorización robustas
+- RBAC extensible
+- validaciones sólidas
+- manejo de errores profesional
+- logging
+- testing
+- versionado de API
+- DTOs / schemas / validators
+- políticas de permisos por rol y por recurso
+- diseño consistente de entidades y relaciones
+- configurabilidad del negocio
+- posibilidad de crecimiento futuro a múltiples instituciones si se necesitara
+
+## UX/UI esperado en detalle
+Quiero que propongas y luego construyas una interfaz con estas características:
+
+### Principios de UX
+- navegación simple e intuitiva
+- reducir fricción en tareas frecuentes
+- minimizar cantidad de clics para acciones comunes
+- excelente legibilidad
+- feedback inmediato de acciones del usuario
+- formularios claros y rápidos
+- diseño consistente entre módulos
+- experiencia fluida para usuarios no técnicos
+- dashboards útiles por rol con información relevante
+
+### Principios de UI
+- look moderno tipo dashboard SaaS
+- sidebar clara
+- topbar limpia
+- cards resumidas
+- tablas bien estructuradas
+- filtros rápidos
+- formularios agradables
+- modales bien usados
+- badges de estados
+- calendario visual claro
+- colores sobrios y profesionales
+- tipografía legible
+- espaciado consistente
+- diseño limpio sin saturación visual
+
+### Responsive / Mobile
+- debe funcionar muy bien en móviles
+- debe adaptarse a tablet y desktop
+- navegación colapsable en móvil
+- tablas con estrategia responsive
+- formularios optimizados para pantallas pequeñas
+- dashboard usable en celular
+- componentes reactivos y ligeros
+- buen rendimiento y sensación de rapidez
+
+## Lo que espero de ti
+Quiero que NO respondas superficialmente.
+Necesito que trabajes como arquitecto senior + frontend product engineer y me ayudes paso a paso a aterrizar este sistema profesionalmente.
+
+### Quiero que me entregues en orden:
+
+#### Fase 1: Análisis y arquitectura
+1. análisis completo del dominio
+2. módulos principales del sistema
+3. actores, roles y permisos
+4. flujos funcionales principales
+5. entidades principales del dominio
+6. relaciones entre entidades
+7. riesgos de diseño y cómo mitigarlos
+8. arquitectura general frontend + backend
+9. propuesta de estructura de carpetas profesional
+10. decisiones tecnológicas justificadas
+
+#### Fase 2: Modelo de datos
+11. diseño inicial de base de datos PostgreSQL
+12. tablas principales
+13. relaciones
+14. campos importantes
+15. tablas de configuración/parametrización
+16. tablas de auditoría si aplican
+17. modelado de insumos, actividades, tipos de actividad, periodos académicos, trimestres/quimestres, asistencia, incidencias y mensajería
+
+#### Fase 3: Backend
+18. propuesta de arquitectura backend
+19. framework recomendado en Node.js y por qué
+20. organización por módulos/domains
+21. patrones a usar
+22. autenticación y autorización
+23. estrategia de RBAC
+24. validaciones
+25. manejo de errores
+26. logs
+27. preparación para notificaciones y correos
+28. endpoints iniciales sugeridos por módulo
+29. estrategia de versionado de API
+
+#### Fase 4: Frontend
+30. propuesta de arquitectura frontend profesional
+31. organización de React por features o módulos
+32. manejo de estado
+33. manejo de formularios
+34. manejo de tablas, vistas complejas y calendario
+35. rutas protegidas por rol
+36. propuesta UX/UI por rol
+37. vistas principales por rol
+38. estrategia de reutilización de componentes
+39. manejo de loading, errores, empty states, permisos y feedback visual
+40. design system base del proyecto
+41. propuesta de layout dashboard responsive
+
+#### Fase 5: MVP realista
+42. definir un MVP ordenado por prioridades
+43. qué construir primero
+44. qué dejar preparado para después
+45. módulos core y módulos diferibles
+46. roadmap técnico por fases
+
+#### Fase 6: Implementación
+47. luego de proponer la arquitectura, empieza a generar el proyecto base
+48. genera una estructura profesional de monorepo o repos separados, justificando la mejor opción
+49. crea el backend base
+50. crea el frontend base
+51. configura PostgreSQL
+52. crea el esquema inicial
+53. implementa autenticación
+54. implementa RBAC
+55. implementa primeros módulos mínimos funcionales
+56. usa nombres consistentes y profesionales
+57. evita código improvisado o demasiado junior
+
+## Lineamientos de implementación
+- quiero código limpio, tipado y mantenible
+- evita lógica duplicada
+- evita hardcodear reglas académicas
+- diseña para configurabilidad
+- prefiere buenas abstracciones antes que hacks rápidos
+- usa principios SOLID cuando tenga sentido
+- usa convenciones consistentes
+- documenta decisiones relevantes
+- si detectas ambigüedades del negocio, no inventes mal: propón una solución genérica/extensible y deja documentado qué supuestos estás haciendo
+- siempre piensa en cómo esto crecería a múltiples instituciones o más niveles educativos en el futuro, aunque inicialmente sea para una sola escuela
+
+## Consideraciones importantes del dominio
+- padres o alumnos deben tener una vista clara de tareas, notas, asistencia y mensajes
+- inspectores deben gestionar incidencias y justificaciones
+- profesores deben registrar asistencia y calificaciones por actividades
+- el sistema debe soportar agrupación flexible de actividades dentro de insumos
+- la forma de cálculo de promedios se definirá mejor después, por lo que el modelo debe ser genérico
+- el sistema académico debe parametrizarse para usar trimestres o quimestres
+- por defecto usar trimestres
+- reportes y certificados deben ser genéricos inicialmente
+- correos/notificaciones no son prioritarios ahora, pero sí la preparación arquitectónica
+
+## Formato de respuesta que quiero
+Quiero que trabajes por etapas y no saltes directo a codificar todo sin análisis.
+Primero entrégame:
+
+1. visión general de la solución
+2. arquitectura propuesta
+3. módulos del sistema
+4. modelo de dominio
+5. diseño de base de datos inicial
+6. estructura de carpetas sugerida
+7. stack recomendado con justificación
+8. propuesta UX/UI y layout dashboard responsive
+9. MVP priorizado
+10. riesgos y decisiones clave
+
+Después de eso, empieza a generar el código base del proyecto.
+
+Cuando generes código:
+- hazlo con estructura profesional
+- piensa como senior
+- evita sobreingeniería innecesaria
+- pero deja una base muy sólida para crecer
+
+Si consideras que alguna tecnología es mejor que otra para este caso, explícame por qué antes de implementarla.
+
+Quiero que seas muy riguroso con arquitectura, dominio, entidades, permisos, escalabilidad, mantenibilidad y UX/UI.

@@ -1,4 +1,5 @@
 import path from 'path'
+import fs from 'fs'
 import Fastify from 'fastify'
 import cookie from '@fastify/cookie'
 import cors from '@fastify/cors'
@@ -39,9 +40,13 @@ export function buildApp() {
   // File uploads (max 10 MB)
   app.register(multipart, { limits: { fileSize: 10 * 1024 * 1024 } })
 
+  // Ensure uploads directory exists before registering static file server
+  const uploadsDir = path.join(process.cwd(), 'uploads')
+  fs.mkdirSync(uploadsDir, { recursive: true })
+
   // Serve uploaded files
   app.register(staticFiles, {
-    root: path.join(process.cwd(), 'uploads'),
+    root: uploadsDir,
     prefix: '/uploads/',
     decorateReply: false,
   })

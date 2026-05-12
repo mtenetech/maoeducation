@@ -75,6 +75,8 @@ export function uploadMessageAttachment(messageId: string, file: File): Promise<
   return apiClient.post(`messages/${messageId}/attachments`, { body: form }).json<MessageAttachment>()
 }
 
+const API_BASE = import.meta.env.VITE_API_URL ?? ''
+
 export function getMessageAttachmentUrl(storedName: string) {
-  return `/uploads/messages/${storedName}`
+  return `${API_BASE}/uploads/messages/${storedName}`
 }

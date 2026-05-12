@@ -527,7 +527,7 @@ function BulletinReportView({ data }: { data: StudentBulletinData }) {
             <div className="flex items-start gap-3">
               {data.branding.logoUrl ? (
                 <img
-                  src={data.branding.logoUrl}
+                  src={data.branding.logoUrl.startsWith('http') ? data.branding.logoUrl : `${import.meta.env.VITE_API_URL ?? ''}${data.branding.logoUrl}`}
                   alt="Logo institución"
                   className="h-16 w-16 object-contain"
                 />
