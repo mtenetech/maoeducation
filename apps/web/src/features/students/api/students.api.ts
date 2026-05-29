@@ -63,6 +63,10 @@ export const getStudent = (id: string) => apiGet<StudentDetail>(`users/${id}`)
 export const updateStudent = (id: string, data: Partial<StudentProfile> & { isActive?: boolean }) =>
   apiPut<StudentDetail>(`users/${id}`, data)
 
+// Restablece la contraseña de cualquier usuario del tenant (admin)
+export const resetUserPassword = (userId: string, password: string) =>
+  apiPut<StudentDetail>(`users/${userId}`, { password })
+
 // ---- Representantes ----
 export const getGuardians = (id: string) => apiGet<Guardian[]>(`students/${id}/guardians`)
 

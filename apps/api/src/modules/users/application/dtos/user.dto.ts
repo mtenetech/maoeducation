@@ -28,6 +28,7 @@ export interface UpdateUserDto extends ProfileFieldsDto {
   phone?: string
   birthDate?: string
   isActive?: boolean
+  password?: string
 }
 
 export interface ListUsersQueryDto {

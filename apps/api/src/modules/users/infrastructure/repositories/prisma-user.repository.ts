@@ -168,10 +168,13 @@ export class PrismaUserRepository {
     const user = await prisma.user.findFirst({ where: { id, institutionId } })
     if (!user) throw new NotFoundError('Usuario no encontrado')
 
+    const passwordHash = dto.password ? await bcrypt.hash(dto.password, 12) : undefined
+
     await prisma.user.update({
       where: { id },
       data: {
         isActive: dto.isActive,
+        ...(passwordHash ? { passwordHash } : {}),
         profile: {
           update: {
             ...(dto.firstName  !== undefined && { firstName: dto.firstName }),

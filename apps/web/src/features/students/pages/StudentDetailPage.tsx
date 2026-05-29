@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { ArrowLeft, Plus, Trash2, UserPlus } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, UserPlus, KeyRound } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
@@ -19,7 +19,8 @@ import { DynamicForm } from '@/shared/components/form/DynamicForm'
 import { cn, getErrorMessage } from '@/shared/lib/utils'
 import {
   getStudent, updateStudent, getGuardians, addGuardian, updateGuardianLink, removeGuardian,
-  getStudentAnamnesis, saveStudentAnamnesis, type StudentProfile, type CreateGuardianPayload,
+  resetUserPassword, getStudentAnamnesis, saveStudentAnamnesis,
+  type StudentProfile, type CreateGuardianPayload,
 } from '../api/students.api'
 
 type Tab = 'datos' | 'representantes' | 'anamnesis'
@@ -127,8 +128,16 @@ function RepresentantesTab({ id }: { id: string }) {
   const { data: guardians = [], isLoading } = useQuery({ queryKey: ['guardians', id], queryFn: () => getGuardians(id) })
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState<CreateGuardianPayload>({ relationship: 'padre' })
+  const [pwTarget, setPwTarget] = useState<{ id: string; name: string } | null>(null)
+  const [pwValue, setPwValue] = useState('')
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['guardians', id] })
+
+  const mResetPw = useMutation({
+    mutationFn: () => resetUserPassword(pwTarget!.id, pwValue),
+    onSuccess: () => { toast.success('Contraseña actualizada'); setPwTarget(null); setPwValue('') },
+    onError: (e) => toast.error(getErrorMessage(e)),
+  })
 
   const mAdd = useMutation({
     mutationFn: () => addGuardian(id, form),
@@ -164,9 +173,17 @@ function RepresentantesTab({ id }: { id: string }) {
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center justify-between text-base">
                 {g.fullName}
-                <Button variant="ghost" size="sm" onClick={() => mRemove.mutate(g.guardianId)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <span className="flex gap-1">
+                  <Button
+                    variant="ghost" size="sm" title="Cambiar contraseña"
+                    onClick={() => { setPwTarget({ id: g.guardianId, name: g.fullName }); setPwValue('') }}
+                  >
+                    <KeyRound className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" title="Desvincular" onClick={() => mRemove.mutate(g.guardianId)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
@@ -230,6 +247,28 @@ function RepresentantesTab({ id }: { id: string }) {
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
             <Button onClick={() => mAdd.mutate()} loading={mAdd.isPending}>
               <UserPlus className="mr-2 h-4 w-4" /> Crear y vincular
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!pwTarget} onOpenChange={(o) => { if (!o) setPwTarget(null) }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Cambiar contraseña</DialogTitle>
+            <DialogDescription>Nueva contraseña para {pwTarget?.name}.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5 py-2">
+            <Label htmlFor="newpw">Nueva contraseña</Label>
+            <Input
+              id="newpw" type="text" value={pwValue} placeholder="Mínimo 6 caracteres"
+              onChange={(e) => setPwValue(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPwTarget(null)}>Cancelar</Button>
+            <Button onClick={() => mResetPw.mutate()} loading={mResetPw.isPending} disabled={pwValue.length < 6}>
+              Guardar
             </Button>
           </DialogFooter>
         </DialogContent>

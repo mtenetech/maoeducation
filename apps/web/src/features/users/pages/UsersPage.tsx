@@ -57,6 +57,7 @@ interface UpdateUserPayload {
   dni?: string
   phone?: string
   isActive?: boolean
+  password?: string
 }
 
 // ---- Hooks (inline) ----
@@ -138,6 +139,7 @@ const editUserSchema = z.object({
   dni: z.string().optional(),
   phone: z.string().optional(),
   isActive: z.boolean(),
+  password: z.string().optional(),
 })
 type EditUserForm = z.infer<typeof editUserSchema>
 
@@ -204,7 +206,10 @@ export function UsersPage() {
 
   function onEditSubmit(values: EditUserForm) {
     if (!editingUser) return
-    updateUser.mutate({ id: editingUser.id, data: values }, { onSuccess: () => setEditOpen(false) })
+    // No enviar password vacío (significa "no cambiar")
+    const data = { ...values }
+    if (!data.password) delete data.password
+    updateUser.mutate({ id: editingUser.id, data }, { onSuccess: () => setEditOpen(false) })
   }
 
   const watchedRoles = createForm.watch('roleNames')
@@ -454,6 +459,14 @@ export function UsersPage() {
                 <Label>Teléfono</Label>
                 <Input {...editForm.register('phone')} />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Nueva contraseña</Label>
+              <Input
+                type="text"
+                {...editForm.register('password')}
+                placeholder="Dejar vacío para no cambiar"
+              />
             </div>
             <div className="flex items-center gap-3">
               <input

@@ -1,9 +1,11 @@
-import { Menu, LogOut, User } from 'lucide-react'
+import { useState } from 'react'
+import { Menu, LogOut, KeyRound } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useUIStore } from '@/store/ui.store'
 import { useAuthStore } from '@/store/auth.store'
 import { Button } from '@/shared/components/ui/button'
 import { apiPost } from '@/shared/lib/api-client'
+import { ChangePasswordDialog } from '@/features/auth/components/ChangePasswordDialog'
 
 interface TopbarProps {
   onMobileMenuClick: () => void
@@ -13,6 +15,7 @@ export function Topbar({ onMobileMenuClick }: TopbarProps) {
   const toggleSidebar = useUIStore((s) => s.toggleSidebar)
   const { user, clearAuth } = useAuthStore()
   const navigate = useNavigate()
+  const [pwOpen, setPwOpen] = useState(false)
 
   async function handleLogout() {
     try { await apiPost('/auth/logout') } catch { /* ignore */ }
@@ -74,6 +77,16 @@ export function Topbar({ onMobileMenuClick }: TopbarProps) {
         <Button
           variant="ghost"
           size="icon"
+          onClick={() => setPwOpen(true)}
+          title="Cambiar mi contraseña"
+          className="h-8 w-8"
+        >
+          <KeyRound className="h-4 w-4" />
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={handleLogout}
           title="Cerrar sesión"
           className="h-8 w-8"
@@ -81,6 +94,8 @@ export function Topbar({ onMobileMenuClick }: TopbarProps) {
           <LogOut className="h-4 w-4" />
         </Button>
       </div>
+
+      <ChangePasswordDialog open={pwOpen} onOpenChange={setPwOpen} />
     </header>
   )
 }

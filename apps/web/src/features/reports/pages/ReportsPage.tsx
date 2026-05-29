@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { BarChart2, ClipboardList, FileText, Printer, ScrollText, Upload } from 'lucide-react'
+import { BarChart2, ClipboardList, Download, FileText, Printer, ScrollText, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
@@ -27,6 +27,7 @@ import {
   saveGlobalBulletinBranding,
   saveOwnBulletinBranding,
   uploadBulletinLogo,
+  downloadBulletinPdf,
   type AttendanceReportData,
   type BulletinBranding,
   type BulletinOptionsData,
@@ -332,6 +333,22 @@ function BulletinReportTab() {
               <Button variant="outline" onClick={() => window.print()} className="w-full sm:w-auto print:hidden">
                 <Printer className="h-4 w-4" />
                 Imprimir
+              </Button>
+            )}
+            {report && (
+              <Button
+                variant="outline"
+                onClick={() =>
+                  downloadBulletinPdf({
+                    yearId: selectedYearId,
+                    parallelId: selectedParallelId,
+                    studentId: selectedStudentId,
+                  })
+                }
+                className="w-full sm:w-auto print:hidden"
+              >
+                <Download className="h-4 w-4" />
+                Descargar PDF
               </Button>
             )}
           </div>

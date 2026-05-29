@@ -157,6 +157,16 @@ export async function uploadBulletinLogo(scope: 'global' | 'own', file: File) {
   return apiClient.post(`reports/bulletin-branding/${scope}/logo`, { body: form }).json<{ url: string }>()
 }
 
+export async function downloadBulletinPdf(params: { yearId: string; parallelId: string; studentId: string }) {
+  const blob = await apiClient.get('reports/bulletin/pdf', { searchParams: params }).blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'boletin.pdf'
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export function getBulletinOptions(params?: { yearId?: string; parallelId?: string }) {
   return apiGet<BulletinOptionsData>('reports/bulletin-options', params)
 }

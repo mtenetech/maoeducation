@@ -4,6 +4,7 @@ import path from 'node:path'
 import crypto from 'node:crypto'
 import { pipeline } from 'node:stream/promises'
 import { PrismaReportRepository } from '../infrastructure/prisma-report.repository'
+import { buildBulletinPdf } from '../application/services/bulletin-pdf.service'
 import { authMiddleware } from '../../../shared/infrastructure/middleware/auth.middleware'
 import { requirePermission } from '../../../shared/infrastructure/middleware/rbac.middleware'
 import { prisma } from '../../../shared/infrastructure/database/prisma'
@@ -40,7 +41,7 @@ function mergeBranding(globalBranding: BulletinBranding, ownBranding?: BulletinB
   return {
     ...globalBranding,
     ...Object.fromEntries(
-      Object.entries(ownBranding).filter(([, value]) => value !== undefined && value !== ''),
+      Object.entries(ownBranding ?? {}).filter(([, value]) => value !== undefined && value !== ''),
     ),
   }
 }
@@ -49,7 +50,7 @@ async function getBranding(institutionId: string, userId: string) {
   const [institution, globalTemplate, ownTemplate] = await Promise.all([
     prisma.institution.findUnique({
       where: { id: institutionId },
-      select: { name: true },
+      select: { name: true, settings: true },
     }),
     prisma.reportTemplate.findFirst({
       where: { institutionId, type: REPORT_TYPE, createdBy: null },
@@ -61,6 +62,11 @@ async function getBranding(institutionId: string, userId: string) {
 
   const globalVars = (globalTemplate?.variables ?? {}) as BulletinBranding
   const ownVars = (ownTemplate?.variables ?? null) as BulletinBranding | null
+
+  // Logo por defecto: el del branding de la institución (Personalización),
+  // para que al subirlo ahí aparezca en el boletín sin configurar nada aparte.
+  const instSettings = (institution?.settings ?? {}) as { branding?: { logoUrl?: string | null } }
+  const institutionLogo = instSettings.branding?.logoUrl ?? ''
 
   const globalBranding: BulletinBranding = {
     institutionName: institution?.name ?? 'Institución educativa',
@@ -76,10 +82,14 @@ async function getBranding(institutionId: string, userId: string) {
     ...globalVars,
   }
 
+  const effective = mergeBranding(globalBranding, ownVars)
+  // Fallback al logo de la institución si ni el branding global ni el propio lo definen
+  if (!effective.logoUrl) effective.logoUrl = institutionLogo
+
   return {
-    global: globalBranding,
+    global: { ...globalBranding, logoUrl: globalBranding.logoUrl || institutionLogo },
     own: ownVars,
-    effective: mergeBranding(globalBranding, ownVars),
+    effective,
   }
 }
 
@@ -153,6 +163,59 @@ export default async function reportRoutes(app: FastifyInstance) {
         ...bulletin,
         branding: branding.effective,
       })
+    },
+  )
+
+  app.get<{ Querystring: BulletinReportQuery }>(
+    '/reports/bulletin/pdf',
+    async (req, reply) => {
+      const [branding, bulletin] = await Promise.all([
+        getBranding(req.user.institutionId, req.user.sub),
+        repo.getStudentBulletin(req.user.institutionId, req.query, {
+          userId: req.user.sub,
+          roles: req.user.roles,
+        }),
+      ])
+      const b = branding.effective
+      const tutor = bulletin.parallel?.tutor?.profile
+      const pdf = await buildBulletinPdf({
+        institutionName: b.institutionName || bulletin.institution?.name || '',
+        title: b.title ?? '',
+        logoUrl: b.logoUrl || null,
+        directorName: b.directorName ?? '',
+        directorRole: b.directorRole ?? '',
+        teacherLabel: b.teacherLabel ?? '',
+        studentName: `${bulletin.student.profile?.firstName ?? ''} ${bulletin.student.profile?.lastName ?? ''}`.trim(),
+        studentDni: bulletin.student.profile?.dni ?? null,
+        parallelName: bulletin.parallel?.name ?? '',
+        levelName: bulletin.parallel?.level?.name ?? '',
+        tutorName: tutor ? `${tutor.firstName} ${tutor.lastName}` : '',
+        yearName: bulletin.academicYear?.name ?? '',
+        periods: bulletin.periods.map((p: { id: string; name: string }) => ({ id: p.id, name: p.name })),
+        subjects: bulletin.subjects.map((s: {
+          subjectName: string
+          periodGrades: Array<{ periodId: string; periodName: string; total: number | null }>
+          finalAverage: number | null
+        }) => ({
+          subjectName: s.subjectName,
+          periodGrades: s.periodGrades.map((g) => ({ periodId: g.periodId, periodName: g.periodName, total: g.total })),
+          finalAverage: s.finalAverage,
+        })),
+        overallAverage: bulletin.overallAverage ?? null,
+        attendanceByPeriod: (bulletin.attendanceByPeriod ?? []).map((a: {
+          periodName: string; justifiedAbsences: number; unjustifiedAbsences: number; lateCount: number
+        }) => ({
+          periodName: a.periodName,
+          justifiedAbsences: a.justifiedAbsences,
+          unjustifiedAbsences: a.unjustifiedAbsences,
+          lateCount: a.lateCount,
+        })),
+      })
+      const studentSlug = `${bulletin.student.profile?.lastName ?? 'boletin'}`.replace(/\s+/g, '_')
+      return reply
+        .header('Content-Type', 'application/pdf')
+        .header('Content-Disposition', `attachment; filename="boletin-${studentSlug}.pdf"`)
+        .send(pdf)
     },
   )
 
