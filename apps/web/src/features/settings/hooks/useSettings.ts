@@ -2,11 +2,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { getErrorMessage } from '@/shared/lib/utils'
 import { useAuthStore } from '@/store/auth.store'
-import { settingsApi, type InstitutionSettings } from '../api/settings.api'
+import { settingsApi, type GradingConfig, type InstitutionSettings } from '../api/settings.api'
 import type { InstitutionBranding } from '@/store/auth.store'
 
 export const settingsKeys = {
   institution: ['institution-settings'] as const,
+  gradingConfig: ['grading-config'] as const,
 }
 
 function syncStore(settings: InstitutionSettings) {
@@ -48,6 +49,25 @@ export function useUploadLogo() {
       qc.setQueryData(settingsKeys.institution, settings)
       syncStore(settings)
       toast.success('Logo actualizado')
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  })
+}
+
+export function useGradingConfig() {
+  return useQuery({
+    queryKey: settingsKeys.gradingConfig,
+    queryFn: settingsApi.getGradingConfig,
+  })
+}
+
+export function useUpdateGradingConfig() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: GradingConfig) => settingsApi.updateGradingConfig(data),
+    onSuccess: (config) => {
+      qc.setQueryData(settingsKeys.gradingConfig, config)
+      toast.success('Configuración de calificación guardada')
     },
     onError: (err) => toast.error(getErrorMessage(err)),
   })

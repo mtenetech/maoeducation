@@ -119,6 +119,9 @@ export interface StudentBulletinData {
   }>
   overallAverage: number | null
   branding: BulletinBranding
+  gradingConfig?: {
+    qualitativeScale: Array<{ min: number; max: number; code: string; label: string }>
+  }
 }
 
 export function getMyGrades(params: { periodId: string }) {

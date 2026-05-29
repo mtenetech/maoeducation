@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify'
 import { authMiddleware } from '../../../shared/infrastructure/middleware/auth.middleware'
 import { requirePermission } from '../../../shared/infrastructure/middleware/rbac.middleware'
 import { PrismaInstitutionRepository } from '../infrastructure/repositories/prisma-institution.repository'
-import type { UpdateInstitutionSettingsDto } from '../application/dtos/institution.dto'
+import type { UpdateGradingConfigDto, UpdateInstitutionSettingsDto } from '../application/dtos/institution.dto'
 
 const ALLOWED_LOGO_MIME = ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp']
 const MAX_LOGO_BYTES = 500 * 1024 // 500 KB (se guarda en BD como data URI)
@@ -41,6 +41,20 @@ export default async function institutionRoutes(app: FastifyInstance) {
     },
     async (req, reply) => {
       return reply.send(await repo.updateSettings(req.user.institutionId, req.body))
+    },
+  )
+
+  // GET /institution/grading-config — config de calificación (cualquiera autenticado)
+  app.get('/institution/grading-config', async (req, reply) => {
+    return reply.send(await repo.getGradingConfig(req.user.institutionId))
+  })
+
+  // PUT /institution/grading-config — solo admin
+  app.put<{ Body: UpdateGradingConfigDto }>(
+    '/institution/grading-config',
+    { preHandler: [requirePermission('academic_config', 'manage')] },
+    async (req, reply) => {
+      return reply.send(await repo.updateGradingConfig(req.user.institutionId, req.body))
     },
   )
 

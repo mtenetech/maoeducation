@@ -23,6 +23,13 @@ interface AttendanceRow {
   lateCount: number
 }
 
+export interface QualitativeLevel {
+  min: number
+  max: number
+  code: string
+  label: string
+}
+
 export interface BulletinPdfData {
   institutionName: string
   title: string
@@ -40,17 +47,16 @@ export interface BulletinPdfData {
   subjects: SubjectRow[]
   overallAverage: number | null
   attendanceByPeriod: AttendanceRow[]
+  qualitativeScale: QualitativeLevel[]
 }
 
 const NUM = (n: number | null) => (n == null ? '—' : n.toFixed(2))
 
-// Equivalencia cualitativa (misma escala que el boletín HTML actual)
-function cualitativa(v: number | null): string {
+// Equivalencia cualitativa según la escala configurable de la institución
+function cualitativa(v: number | null, scale: QualitativeLevel[]): string {
   if (v == null) return '—'
-  if (v >= 9) return 'DA'
-  if (v >= 7) return 'AA'
-  if (v >= 4.01) return 'PA'
-  return 'NA'
+  const lvl = scale.find((s) => v >= s.min && v <= s.max)
+  return lvl ? lvl.code : '—'
 }
 
 /** Resuelve el logo a algo que pdfkit pueda embeber: Buffer (data URI) o ruta en disco. */
@@ -155,7 +161,7 @@ export function buildBulletinPdf(data: BulletinPdfData): Promise<Buffer> {
         doc.text(NUM(pg?.total ?? null), xs.periods[i], y + 5, { width: periodColW, align: 'center' })
       })
       doc.font('Helvetica-Bold').text(NUM(s.finalAverage), xs.final, y + 5, { width: finalColW, align: 'center' })
-      doc.text(cualitativa(s.finalAverage), xs.cual, y + 5, { width: cualColW, align: 'center' })
+      doc.text(cualitativa(s.finalAverage, data.qualitativeScale), xs.cual, y + 5, { width: cualColW, align: 'center' })
       doc.font('Helvetica')
       // borde inferior
       doc.moveTo(left, y + rowH).lineTo(left + tableW, y + rowH).strokeColor('#cbd5e1').lineWidth(0.5).stroke()
@@ -166,7 +172,7 @@ export function buildBulletinPdf(data: BulletinPdfData): Promise<Buffer> {
     doc.font('Helvetica-Bold').fontSize(8.5)
     doc.text('PROMEDIO GENERAL', xs.subj + 4, y + 5, { width: subjColW + periods.length * periodColW - 6 })
     doc.text(NUM(data.overallAverage), xs.final, y + 5, { width: finalColW, align: 'center' })
-    doc.text(cualitativa(data.overallAverage), xs.cual, y + 5, { width: cualColW, align: 'center' })
+    doc.text(cualitativa(data.overallAverage, data.qualitativeScale), xs.cual, y + 5, { width: cualColW, align: 'center' })
     y += rowH + 10
 
     // ── Asistencia ──
@@ -186,7 +192,12 @@ export function buildBulletinPdf(data: BulletinPdfData): Promise<Buffer> {
 
     // ── Escala + Firmas ──
     doc.font('Helvetica').fontSize(7).fill('#475569')
-    doc.text('Escala: DA = Domina (9–10) · AA = Alcanza (7–8.99) · PA = Próximo (4.01–6.99) · NA = No alcanza (≤4)', left, y)
+    const escalaTxt =
+      'Escala: ' +
+      data.qualitativeScale
+        .map((s) => `${s.code} = ${s.label} (${s.min}–${s.max})`)
+        .join(' · ')
+    doc.text(escalaTxt, left, y, { width: pageW })
     doc.fill('#000000')
 
     const signY = doc.page.height - doc.page.margins.bottom - 38

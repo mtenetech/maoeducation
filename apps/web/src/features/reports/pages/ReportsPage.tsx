@@ -520,12 +520,22 @@ function BulletinReportView({ data }: { data: StudentBulletinData }) {
     ),
   }))
 
-  const scaleRows = [
-    { range: '9.00 - 10.00', qualitative: 'Domina los aprendizajes', value: 'A+' },
-    { range: '7.00 - 8.99', qualitative: 'Alcanza los aprendizajes', value: 'B-' },
-    { range: '4.01 - 6.99', qualitative: 'Está próximo a alcanzar', value: 'C+' },
-    { range: 'Menos o igual a 4', qualitative: 'No alcanza los aprendizajes', value: 'E-' },
+  // Escala cualitativa configurable por la institución (con fallback)
+  const qualScale = data.gradingConfig?.qualitativeScale ?? [
+    { min: 9, max: 10, code: 'DAR', label: 'Domina los aprendizajes' },
+    { min: 7, max: 8.99, code: 'AAR', label: 'Alcanza los aprendizajes' },
+    { min: 4.01, max: 6.99, code: 'PAAR', label: 'Está próximo a alcanzar' },
+    { min: 0, max: 4, code: 'NAAR', label: 'No alcanza los aprendizajes' },
   ]
+  const qualValue = (v: number | null) => {
+    if (v == null) return '—'
+    return qualScale.find((s) => v >= s.min && v <= s.max)?.code ?? '—'
+  }
+  const scaleRows = qualScale.map((s) => ({
+    range: `${s.min.toFixed(2)} - ${s.max.toFixed(2)}`,
+    qualitative: s.label,
+    value: s.code,
+  }))
 
   return (
     <div className="space-y-4">
@@ -615,7 +625,7 @@ function BulletinReportView({ data }: { data: StudentBulletinData }) {
                     )
                   })}
                   <td className="border px-2 py-1 text-center font-bold">{formatScore(subject.finalAverage)}</td>
-                  <td className="border px-2 py-1 text-center">{qualitativeValue(subject.finalAverage)}</td>
+                  <td className="border px-2 py-1 text-center">{qualValue(subject.finalAverage)}</td>
                 </tr>
               ))}
             </tbody>
@@ -647,11 +657,11 @@ function BulletinReportView({ data }: { data: StudentBulletinData }) {
                       return (
                         <React.Fragment key={`behavior-body-${period.id}`}>
                           <td className="border px-2 py-2 align-top">{data.branding.behaviorText || ' '}</td>
-                          <td className="border px-2 py-2 text-center align-top">{qualitativeValue(periodAverage)}</td>
+                          <td className="border px-2 py-2 text-center align-top">{qualValue(periodAverage)}</td>
                         </React.Fragment>
                       )
                     })}
-                    <td className="border px-2 py-2 text-center align-top">{qualitativeValue(data.overallAverage)}</td>
+                    <td className="border px-2 py-2 text-center align-top">{qualValue(data.overallAverage)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -758,16 +768,6 @@ function average(values: Array<number | null>) {
 
 function formatScore(value: number | null) {
   return value != null ? value.toFixed(2) : '—'
-}
-
-function qualitativeValue(value: number | null) {
-  if (value == null) return '—'
-  if (value >= 9) return 'A+'
-  if (value >= 8) return 'A-'
-  if (value >= 7) return 'B-'
-  if (value >= 6) return 'C+'
-  if (value >= 5) return 'D+'
-  return 'E-'
 }
 
 function GradesReportTab() {

@@ -49,6 +49,7 @@ const NAV_ITEMS: NavItem[] = [
       { label: 'Paralelos',  path: '/academic/parallels' },
       { label: 'Asignaciones', path: '/academic/assignments' },
       { label: 'Insumos por paralelo', path: '/academic/insumo-setup' },
+      { label: 'Escala de calificación', path: '/settings/calificacion' },
     ],
   },
   {

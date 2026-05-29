@@ -15,3 +15,39 @@ export interface UpdateInstitutionSettingsDto {
   name?: string
   branding?: InstitutionBranding
 }
+
+// ---- Configuración de calificación (MINEDUC, parametrizable) ----
+
+export interface QualitativeLevel {
+  min: number
+  max: number
+  code: string
+  label: string
+}
+
+export interface BehaviorLevel {
+  code: string
+  label: string
+}
+
+export interface PromotionConfig {
+  minToPass: number // nota mínima para aprobar (ej. 7)
+  supletorioMin: number // desde (inclusive) → va a supletorio
+  supletorioMax: number // hasta (inclusive) → va a supletorio
+  passWithExam: number // nota con la que aprueba tras el supletorio
+  maxFailedSubjects: number // materias reprobadas permitidas antes de repetir
+}
+
+export interface GradingConfig {
+  qualitativeScale: QualitativeLevel[]
+  behaviorScale: BehaviorLevel[]
+  promotion: PromotionConfig
+  defaultExamWeight: number
+}
+
+export interface UpdateGradingConfigDto {
+  qualitativeScale?: QualitativeLevel[]
+  behaviorScale?: BehaviorLevel[]
+  promotion?: Partial<PromotionConfig>
+  defaultExamWeight?: number
+}

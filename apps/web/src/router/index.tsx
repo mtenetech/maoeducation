@@ -292,6 +292,20 @@ export const router = createBrowserRouter([
           },
         ],
       },
+      // ---- Settings / Grading config ----
+      {
+        path: 'settings/calificacion',
+        element: <PermissionGuard permission="academic_config:manage" />,
+        children: [
+          {
+            index: true,
+            lazy: () =>
+              import('@/features/settings/pages/GradingConfigPage').then((m) => ({
+                Component: m.GradingConfigPage,
+              })),
+          },
+        ],
+      },
       // ---- Settings / Anamnesis template ----
       {
         path: 'settings/anamnesis',
