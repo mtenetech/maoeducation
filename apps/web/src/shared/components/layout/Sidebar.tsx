@@ -83,7 +83,11 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Incidentes',
     icon: AlertTriangle,
     path: '/incidents',
-    permission: 'incidents:write',
+    permission: 'incidents:read',
+    children: [
+      { label: 'Casos', path: '/incidents' },
+      { label: 'Tipos de falta', path: '/incidents/types' },
+    ],
   },
   {
     label: 'Mensajes',

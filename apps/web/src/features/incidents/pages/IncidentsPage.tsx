@@ -6,7 +6,8 @@ import { z } from 'zod'
 import { type ColumnDef } from '@tanstack/react-table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { AlertTriangle, Plus, Edit2 } from 'lucide-react'
+import { AlertTriangle, Plus, Edit2, Eye } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
@@ -67,6 +68,28 @@ const STATUS_VARIANT: Record<string, StatusVariant> = {
   closed: 'secondary',
 }
 
+const WORKFLOW_LABELS: Record<string, string> = {
+  reportado: 'Reportado',
+  en_revision: 'En revisión',
+  derivado_dece: 'Derivado al DECE',
+  medidas_definidas: 'Medidas definidas',
+  acta_firmada: 'Acta firmada',
+  en_seguimiento: 'En seguimiento',
+  resuelto: 'Resuelto',
+  cerrado: 'Cerrado',
+}
+
+const WORKFLOW_VARIANT: Record<string, StatusVariant> = {
+  reportado: 'destructive',
+  en_revision: 'warning',
+  derivado_dece: 'warning',
+  medidas_definidas: 'warning',
+  acta_firmada: 'secondary',
+  en_seguimiento: 'warning',
+  resuelto: 'success',
+  cerrado: 'secondary',
+}
+
 // ---- Zod Schemas ----
 
 const createSchema = z.object({
@@ -89,6 +112,7 @@ type UpdateFormValues = z.infer<typeof updateSchema>
 
 export function IncidentsPage() {
   const qc = useQueryClient()
+  const navigate = useNavigate()
 
   const [statusFilter, setStatusFilter] = useState('all')
   const [severityFilter, setSeverityFilter] = useState('all')
@@ -111,7 +135,7 @@ export function IncidentsPage() {
 
   const { data: students = [] } = useQuery({
     queryKey: ['users', 'student'],
-    queryFn: () => getUsers({ role: 'student' }),
+    queryFn: () => getUsers({ role: 'student' }).then((r) => r.data),
   })
 
   // ---- Create mutation ----
@@ -157,7 +181,7 @@ export function IncidentsPage() {
   function handleEditOpen(incident: Incident) {
     setEditIncident(incident)
     updateForm.reset({
-      status: incident.status,
+      status: incident.status as UpdateFormValues['status'],
       resolutionNotes: incident.resolutionNotes ?? '',
     })
   }
@@ -198,13 +222,13 @@ export function IncidentsPage() {
       },
     },
     {
-      accessorKey: 'status',
-      header: 'Estado',
+      accessorKey: 'workflowState',
+      header: 'Estado del proceso',
       cell: ({ row }) => {
-        const st = row.original.status
+        const ws = row.original.workflowState
         return (
-          <Badge variant={STATUS_VARIANT[st] ?? 'secondary'}>
-            {STATUS_LABELS[st] ?? st}
+          <Badge variant={WORKFLOW_VARIANT[ws] ?? 'secondary'}>
+            {WORKFLOW_LABELS[ws] ?? ws}
           </Badge>
         )
       },
@@ -233,13 +257,14 @@ export function IncidentsPage() {
       id: 'actions',
       header: 'Acciones',
       cell: ({ row }) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => handleEditOpen(row.original)}
-        >
-          <Edit2 className="h-4 w-4" />
-        </Button>
+        <div className="flex gap-1">
+          <Button variant="ghost" size="sm" onClick={() => navigate(`/incidents/${row.original.id}`)}>
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => handleEditOpen(row.original)}>
+            <Edit2 className="h-4 w-4" />
+          </Button>
+        </div>
       ),
     },
   ]

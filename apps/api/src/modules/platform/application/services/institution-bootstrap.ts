@@ -10,7 +10,9 @@ import bcrypt from 'bcryptjs'
 
 export const SYSTEM_ROLES = [
   { name: 'admin', label: 'Administrador', isSystem: true },
+  { name: 'rector', label: 'Rector/Autoridad', isSystem: true },
   { name: 'inspector', label: 'Inspector', isSystem: true },
+  { name: 'dece', label: 'DECE', isSystem: true },
   { name: 'teacher', label: 'Profesor', isSystem: true },
   { name: 'student', label: 'Alumno', isSystem: true },
   { name: 'guardian', label: 'Padre/Representante', isSystem: true },
@@ -42,7 +44,12 @@ export const BASE_PERMISSIONS = [
   // incidents
   { resource: 'incidents', action: 'read', scope: 'all' },
   { resource: 'incidents', action: 'read', scope: 'own' },
+  { resource: 'incidents', action: 'write', scope: 'own' },
   { resource: 'incidents', action: 'write', scope: 'all' },
+  { resource: 'incidents', action: 'manage', scope: 'all' },
+  // incident_types (catálogo configurable de faltas)
+  { resource: 'incident_types', action: 'read', scope: 'all' },
+  { resource: 'incident_types', action: 'manage', scope: 'all' },
   // reports
   { resource: 'reports', action: 'read', scope: 'all' },
   { resource: 'reports', action: 'read', scope: 'own' },
@@ -65,16 +72,31 @@ export const ROLE_PERMISSIONS: Array<{ roleName: string; permKey: string }> = [
   { roleName: 'admin', permKey: 'activities:read:all' },
   { roleName: 'admin', permKey: 'grades:read:all' },
   { roleName: 'admin', permKey: 'attendance:read:all' },
+  { roleName: 'admin', permKey: 'incidents:manage:all' },
   { roleName: 'admin', permKey: 'incidents:read:all' },
   { roleName: 'admin', permKey: 'incidents:write:all' },
+  { roleName: 'admin', permKey: 'incident_types:manage:all' },
   { roleName: 'admin', permKey: 'reports:manage:all' },
   { roleName: 'admin', permKey: 'insumos:manage:all' },
   { roleName: 'admin', permKey: 'tasks:read:all' },
+  // Rector / Autoridad — gestiona incidentes y aprueba medidas
+  { roleName: 'rector', permKey: 'users:read:all' },
+  { roleName: 'rector', permKey: 'incidents:manage:all' },
+  { roleName: 'rector', permKey: 'incidents:read:all' },
+  { roleName: 'rector', permKey: 'incidents:write:all' },
+  { roleName: 'rector', permKey: 'incident_types:manage:all' },
+  { roleName: 'rector', permKey: 'reports:read:all' },
+  // DECE — gestiona casos derivados y seguimiento
+  { roleName: 'dece', permKey: 'users:read:all' },
+  { roleName: 'dece', permKey: 'incidents:read:all' },
+  { roleName: 'dece', permKey: 'incidents:write:all' },
+  { roleName: 'dece', permKey: 'incident_types:read:all' },
   // Inspector
   { roleName: 'inspector', permKey: 'users:read:all' },
   { roleName: 'inspector', permKey: 'attendance:read:all' },
   { roleName: 'inspector', permKey: 'incidents:read:all' },
   { roleName: 'inspector', permKey: 'incidents:write:all' },
+  { roleName: 'inspector', permKey: 'incident_types:read:all' },
   { roleName: 'inspector', permKey: 'reports:read:all' },
   // Profesor
   { roleName: 'teacher', permKey: 'academic_config:read:all' },
@@ -85,6 +107,8 @@ export const ROLE_PERMISSIONS: Array<{ roleName: string; permKey: string }> = [
   { roleName: 'teacher', permKey: 'attendance:read:own' },
   { roleName: 'teacher', permKey: 'attendance:write:own' },
   { roleName: 'teacher', permKey: 'incidents:read:own' },
+  { roleName: 'teacher', permKey: 'incidents:write:own' },
+  { roleName: 'teacher', permKey: 'incident_types:read:all' },
   { roleName: 'teacher', permKey: 'insumos:read:own' },
   { roleName: 'teacher', permKey: 'insumos:write:own' },
   { roleName: 'teacher', permKey: 'tasks:read:own' },
@@ -112,6 +136,15 @@ export const DEFAULT_LEVELS = [
   { code: '7B', name: '7mo de Básica', sortOrder: 7 },
   { code: '8B', name: '8vo de Básica', sortOrder: 8 },
   { code: '9B', name: '9no de Básica', sortOrder: 9 },
+] as const
+
+export const DEFAULT_INCIDENT_TYPES = [
+  { code: 'atraso', name: 'Atraso reiterado', severity: 'leve', requiresDece: false, requiresCommitment: false, sortOrder: 1 },
+  { code: 'indisciplina_aula', name: 'Indisciplina en el aula', severity: 'leve', requiresDece: false, requiresCommitment: false, sortOrder: 2 },
+  { code: 'danio_bienes', name: 'Daño a bienes de la institución', severity: 'grave', requiresDece: false, requiresCommitment: true, sortOrder: 3 },
+  { code: 'agresion_verbal', name: 'Agresión verbal', severity: 'grave', requiresDece: true, requiresCommitment: true, sortOrder: 4 },
+  { code: 'agresion_fisica', name: 'Agresión física', severity: 'muy_grave', requiresDece: true, requiresCommitment: true, sortOrder: 5 },
+  { code: 'acoso_escolar', name: 'Acoso escolar (bullying)', severity: 'muy_grave', requiresDece: true, requiresCommitment: true, sortOrder: 6 },
 ] as const
 
 export const BASE_ACTIVITY_TYPES = [
@@ -202,6 +235,11 @@ export async function bootstrapInstitution(
   // 7. Tipos de actividad base
   await tx.activityType.createMany({
     data: BASE_ACTIVITY_TYPES.map((t) => ({ ...t, institutionId: inst.id })),
+  })
+
+  // 7b. Tipos de falta base (debido proceso)
+  await tx.incidentType.createMany({
+    data: DEFAULT_INCIDENT_TYPES.map((t) => ({ ...t, institutionId: inst.id })),
   })
 
   // 8. Usuario admin inicial

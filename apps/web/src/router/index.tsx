@@ -204,6 +204,26 @@ export const router = createBrowserRouter([
                 Component: m.IncidentsPage,
               })),
           },
+          {
+            path: 'types',
+            element: <PermissionGuard permission="incident_types:manage" />,
+            children: [
+              {
+                index: true,
+                lazy: () =>
+                  import('@/features/incidents/pages/IncidentTypesPage').then((m) => ({
+                    Component: m.IncidentTypesPage,
+                  })),
+              },
+            ],
+          },
+          {
+            path: ':id',
+            lazy: () =>
+              import('@/features/incidents/pages/IncidentDetailPage').then((m) => ({
+                Component: m.IncidentDetailPage,
+              })),
+          },
         ],
       },
       // ---- Schedules ----
