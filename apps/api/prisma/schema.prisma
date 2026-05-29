@@ -40,6 +40,7 @@ model Institution {
   incidentAttachments   IncidentAttachment[]
   anamnesisTemplates    AnamnesisTemplate[]
   anamnesisRecords      AnamnesisRecord[]
+  behaviorGrades        BehaviorGrade[]
   messageThreads        MessageThread[]
   scheduleEntries       ScheduleEntry[]
   reportTemplates       ReportTemplate[]
@@ -94,6 +95,10 @@ model User {
   // Anamnesis
   studentAnamnesis  AnamnesisRecord[] @relation("StudentAnamnesis")
   createdAnamnesis  AnamnesisRecord[] @relation("AnamnesisCreator")
+
+  // Comportamiento
+  studentBehavior   BehaviorGrade[]   @relation("StudentBehavior")
+  recordedBehavior  BehaviorGrade[]   @relation("BehaviorRecorder")
 
   // Relaciones de tutor/padre
   guardianOf       GuardianStudent[] @relation("GuardianRelation")
@@ -255,10 +260,11 @@ model AcademicPeriod {
   endDate        DateTime @map("end_date") @db.Date
   isActive       Boolean  @default(false) @map("is_active")
 
-  academicYear AcademicYear         @relation(fields: [academicYearId], references: [id])
-  scheme       AcademicPeriodScheme @relation(fields: [schemeId], references: [id])
-  activities   Activity[]
-  insumos      Insumo[]
+  academicYear   AcademicYear         @relation(fields: [academicYearId], references: [id])
+  scheme         AcademicPeriodScheme @relation(fields: [schemeId], references: [id])
+  activities     Activity[]
+  insumos        Insumo[]
+  behaviorGrades BehaviorGrade[]
 
   @@unique([academicYearId, periodNumber])
   @@map("academic_periods")
@@ -363,6 +369,30 @@ model StudentEnrollment {
 
   @@unique([studentId, academicYearId])
   @@map("student_enrollments")
+}
+
+// ============================================================
+// COMPORTAMIENTO (cualitativo por periodo)
+// ============================================================
+
+model BehaviorGrade {
+  id               String   @id @default(uuid())
+  institutionId    String   @map("institution_id")
+  studentId        String   @map("student_id")
+  academicPeriodId String   @map("academic_period_id")
+  code             String   @db.VarChar(10) // de gradingConfig.behaviorScale (A–E)
+  notes            String?
+  recordedBy       String   @map("recorded_by")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  institution    Institution    @relation(fields: [institutionId], references: [id])
+  student        User           @relation("StudentBehavior", fields: [studentId], references: [id])
+  academicPeriod AcademicPeriod @relation(fields: [academicPeriodId], references: [id])
+  recorder       User           @relation("BehaviorRecorder", fields: [recordedBy], references: [id])
+
+  @@unique([studentId, academicPeriodId])
+  @@map("behavior_grades")
 }
 
 // ============================================================
