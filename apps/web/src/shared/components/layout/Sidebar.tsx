@@ -154,14 +154,18 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
         'flex items-center h-14 px-4 border-b border-sidebar-border shrink-0',
         collapsed ? 'justify-center' : 'gap-3',
       )}>
-        <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary text-primary-foreground shrink-0 overflow-hidden">
-          {logoUrl ? (
-            <img src={logoUrl} alt={brandName} className="h-full w-full object-contain" />
-          ) : (
+        {logoUrl ? (
+          <img
+            src={logoUrl}
+            alt={brandName}
+            className={cn('object-contain shrink-0', collapsed ? 'h-8 w-8' : 'h-9 max-w-[150px]')}
+          />
+        ) : (
+          <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary text-primary-foreground shrink-0">
             <BookMarked className="h-4 w-4" />
-          )}
-        </div>
-        {!collapsed && (
+          </div>
+        )}
+        {!collapsed && !logoUrl && (
           <span className="font-semibold text-sidebar-foreground text-sm truncate">{brandName}</span>
         )}
       </div>
