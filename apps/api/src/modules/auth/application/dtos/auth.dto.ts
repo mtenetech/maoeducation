@@ -4,6 +4,18 @@ export interface LoginDto {
   institutionCode: string
 }
 
+export interface InstitutionBrandingDto {
+  logoUrl: string | null
+  primaryColor: string | null
+  sidebarColor: string | null
+}
+
+export interface AuthInstitutionDto {
+  id: string
+  name: string
+  branding: InstitutionBrandingDto
+}
+
 export interface AuthUserDto {
   id: string
   email: string
@@ -12,6 +24,7 @@ export interface AuthUserDto {
   roles: string[]
   permissions: string[]
   institutionId: string
+  institution: AuthInstitutionDto
   tutorParallelIds: string[]
 }
 

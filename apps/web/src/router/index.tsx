@@ -258,6 +258,20 @@ export const router = createBrowserRouter([
           },
         ],
       },
+      // ---- Settings / Branding ----
+      {
+        path: 'settings/branding',
+        element: <PermissionGuard permission="institution_config:manage" />,
+        children: [
+          {
+            index: true,
+            lazy: () =>
+              import('@/features/settings/pages/BrandingPage').then((m) => ({
+                Component: m.BrandingPage,
+              })),
+          },
+        ],
+      },
     ],
   },
   // ---- Plataforma (superadmin global, fuera del tenant) ----

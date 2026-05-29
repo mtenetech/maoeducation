@@ -1,6 +1,18 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+export interface InstitutionBranding {
+  logoUrl: string | null
+  primaryColor: string | null
+  sidebarColor: string | null
+}
+
+export interface AuthInstitution {
+  id: string
+  name: string
+  branding: InstitutionBranding
+}
+
 export interface AuthUser {
   id: string
   email: string
@@ -9,6 +21,7 @@ export interface AuthUser {
   roles: string[]
   permissions: string[]
   institutionId: string
+  institution: AuthInstitution | null
   tutorParallelIds: string[]
 }
 
@@ -17,6 +30,7 @@ interface AuthState {
   accessToken: string | null
   setAuth: (user: AuthUser, token: string) => void
   setAccessToken: (token: string) => void
+  setInstitution: (institution: AuthInstitution) => void
   clearAuth: () => void
   isAuthenticated: () => boolean
 }
@@ -30,6 +44,11 @@ export const useAuthStore = create<AuthState>()(
       setAuth: (user, accessToken) => set({ user, accessToken }),
 
       setAccessToken: (accessToken) => set({ accessToken }),
+
+      setInstitution: (institution) => {
+        const user = get().user
+        if (user) set({ user: { ...user, institution } })
+      },
 
       clearAuth: () => set({ user: null, accessToken: null }),
 

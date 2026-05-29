@@ -4,6 +4,7 @@ import { LoginDto, LoginResponseDto } from '../dtos/auth.dto'
 import { TokenService } from '../../../../shared/infrastructure/services/token.service'
 import { UnauthorizedError } from '../../../../shared/domain/errors/app.errors'
 import { prisma } from '../../../../shared/infrastructure/database/prisma'
+import { buildAuthInstitution } from '../services/auth-institution.mapper'
 
 export class LoginUseCase {
   constructor(
@@ -15,7 +16,7 @@ export class LoginUseCase {
     // Buscar institución por código
     const institution = await prisma.institution.findUnique({
       where: { code: dto.institutionCode },
-      select: { id: true, isActive: true },
+      select: { id: true, name: true, settings: true, isActive: true },
     })
 
     if (!institution || !institution.isActive) {
@@ -70,6 +71,7 @@ export class LoginUseCase {
         roles: userWithPerms.roles,
         permissions: userWithPerms.permissions,
         institutionId: user.institutionId,
+        institution: buildAuthInstitution(institution),
         tutorParallelIds: tutoredParallels.map((p) => p.id),
       },
     }

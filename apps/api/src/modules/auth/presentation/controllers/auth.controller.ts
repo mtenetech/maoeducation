@@ -5,6 +5,8 @@ import { PrismaAuthUserRepository } from '../../infrastructure/repositories/pris
 import { tokenService } from '../../../../shared/infrastructure/services/token.service'
 import { LoginBody } from '../validators/auth.schema'
 import { UnauthorizedError } from '../../../../shared/domain/errors/app.errors'
+import { prisma } from '../../../../shared/infrastructure/database/prisma'
+import { buildAuthInstitution } from '../../application/services/auth-institution.mapper'
 
 const userRepo = new PrismaAuthUserRepository()
 const loginUseCase = new LoginUseCase(userRepo, tokenService)
@@ -53,6 +55,11 @@ export const authController = {
       ? `${user.profile.firstName} ${user.profile.lastName}`
       : user.email
 
+    const institution = await prisma.institution.findUnique({
+      where: { id: user.institutionId },
+      select: { id: true, name: true, settings: true },
+    })
+
     return reply.send({
       id: user.id,
       email: user.email,
@@ -61,6 +68,7 @@ export const authController = {
       roles: user.roles,
       permissions: user.permissions,
       institutionId: user.institutionId,
+      institution: institution ? buildAuthInstitution(institution) : null,
     })
   },
 }

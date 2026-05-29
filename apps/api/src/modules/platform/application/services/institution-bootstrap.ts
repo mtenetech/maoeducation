@@ -24,6 +24,9 @@ export const BASE_PERMISSIONS = [
   // academic_config
   { resource: 'academic_config', action: 'read', scope: 'all' },
   { resource: 'academic_config', action: 'manage', scope: 'all' },
+  // institution_config (branding, ajustes de la institución)
+  { resource: 'institution_config', action: 'read', scope: 'own' },
+  { resource: 'institution_config', action: 'manage', scope: 'all' },
   // activities
   { resource: 'activities', action: 'read', scope: 'all' },
   { resource: 'activities', action: 'read', scope: 'own' },
@@ -58,6 +61,7 @@ export const ROLE_PERMISSIONS: Array<{ roleName: string; permKey: string }> = [
   // Admin tiene todo
   { roleName: 'admin', permKey: 'users:manage:all' },
   { roleName: 'admin', permKey: 'academic_config:manage:all' },
+  { roleName: 'admin', permKey: 'institution_config:manage:all' },
   { roleName: 'admin', permKey: 'activities:read:all' },
   { roleName: 'admin', permKey: 'grades:read:all' },
   { roleName: 'admin', permKey: 'attendance:read:all' },

@@ -3,11 +3,12 @@ import {
   Home, Users, Settings, BookOpen, GraduationCap,
   ClipboardList, AlertTriangle, MessageSquare, Calendar,
   FileText, ChevronDown, BookMarked, X, UserPlus, ShieldCheck,
-  ClipboardCheck, CalendarDays,
+  ClipboardCheck, CalendarDays, Palette,
 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { usePermissions } from '@/shared/hooks/usePermissions'
 import { useUIStore } from '@/store/ui.store'
+import { useAuthStore } from '@/store/auth.store'
 import { useState } from 'react'
 
 interface NavItem {
@@ -110,6 +111,12 @@ const NAV_ITEMS: NavItem[] = [
     path: '/reports',
     permission: 'reports:read',
   },
+  {
+    label: 'Personalización',
+    icon: Palette,
+    path: '/settings/branding',
+    permission: 'institution_config:manage',
+  },
 ]
 
 interface SidebarProps {
@@ -122,6 +129,9 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const { hasPermission } = usePermissions()
   const location   = useLocation()
   const [expanded, setExpanded] = useState<string | null>(null)
+  const institution = useAuthStore((s) => s.user?.institution ?? null)
+  const brandName = institution?.name ?? 'MaoEducación'
+  const logoUrl = institution?.branding?.logoUrl ?? null
 
   const visible = NAV_ITEMS.filter(
     (item) => !item.permission || hasPermission(item.permission),
@@ -134,11 +144,15 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
         'flex items-center h-14 px-4 border-b border-sidebar-border shrink-0',
         collapsed ? 'justify-center' : 'gap-3',
       )}>
-        <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary text-primary-foreground shrink-0">
-          <BookMarked className="h-4 w-4" />
+        <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary text-primary-foreground shrink-0 overflow-hidden">
+          {logoUrl ? (
+            <img src={logoUrl} alt={brandName} className="h-full w-full object-contain" />
+          ) : (
+            <BookMarked className="h-4 w-4" />
+          )}
         </div>
         {!collapsed && (
-          <span className="font-semibold text-sidebar-foreground text-sm">MaoEducación</span>
+          <span className="font-semibold text-sidebar-foreground text-sm truncate">{brandName}</span>
         )}
       </div>
 

@@ -1,0 +1,54 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import { getErrorMessage } from '@/shared/lib/utils'
+import { useAuthStore } from '@/store/auth.store'
+import { settingsApi, type InstitutionSettings } from '../api/settings.api'
+import type { InstitutionBranding } from '@/store/auth.store'
+
+export const settingsKeys = {
+  institution: ['institution-settings'] as const,
+}
+
+function syncStore(settings: InstitutionSettings) {
+  useAuthStore.getState().setInstitution({
+    id: settings.id,
+    name: settings.name,
+    branding: settings.branding,
+  })
+}
+
+export function useInstitutionSettings() {
+  return useQuery({
+    queryKey: settingsKeys.institution,
+    queryFn: settingsApi.getSettings,
+  })
+}
+
+export function useUpdateBranding() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { name?: string; branding?: Partial<InstitutionBranding> }) =>
+      settingsApi.updateSettings(data),
+    onSuccess: (settings) => {
+      qc.setQueryData(settingsKeys.institution, settings)
+      syncStore(settings)
+      toast.success('Configuración actualizada')
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  })
+}
+
+export function useUploadLogo() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (file: File) => settingsApi.uploadLogo(file),
+    onSuccess: async () => {
+      // Releer settings para tener el logoUrl persistido y sincronizar el store
+      const settings = await settingsApi.getSettings()
+      qc.setQueryData(settingsKeys.institution, settings)
+      syncStore(settings)
+      toast.success('Logo actualizado')
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  })
+}
