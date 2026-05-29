@@ -1,5 +1,12 @@
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import {
+  SYSTEM_ROLES,
+  BASE_PERMISSIONS,
+  ROLE_PERMISSIONS,
+  DEFAULT_LEVELS,
+  BASE_ACTIVITY_TYPES,
+} from '../../src/modules/platform/application/services/institution-bootstrap'
 
 const prisma = new PrismaClient()
 
@@ -34,17 +41,7 @@ async function main() {
   console.log('✓ Academic period scheme: Trimestral')
 
   // 3. Niveles educativos
-  const levels = [
-    { code: '1B', name: '1ro de Básica', sortOrder: 1 },
-    { code: '2B', name: '2do de Básica', sortOrder: 2 },
-    { code: '3B', name: '3ro de Básica', sortOrder: 3 },
-    { code: '4B', name: '4to de Básica', sortOrder: 4 },
-    { code: '5B', name: '5to de Básica', sortOrder: 5 },
-    { code: '6B', name: '6to de Básica', sortOrder: 6 },
-    { code: '7B', name: '7mo de Básica', sortOrder: 7 },
-    { code: '8B', name: '8vo de Básica', sortOrder: 8 },
-    { code: '9B', name: '9no de Básica', sortOrder: 9 },
-  ]
+  const levels = DEFAULT_LEVELS
 
   for (const l of levels) {
     await prisma.level.upsert({
@@ -56,16 +53,7 @@ async function main() {
   console.log(`✓ Levels: ${levels.length} niveles creados`)
 
   // 4. Tipos de actividad base
-  const activityTypes = [
-    { code: 'task',          name: 'Tarea',          sortOrder: 1 },
-    { code: 'lesson',        name: 'Lección',         sortOrder: 2 },
-    { code: 'quiz',          name: 'Prueba',          sortOrder: 3 },
-    { code: 'exam',          name: 'Examen',          sortOrder: 4 },
-    { code: 'project',       name: 'Proyecto',        sortOrder: 5 },
-    { code: 'participation', name: 'Participación',   sortOrder: 6 },
-    { code: 'reinforcement', name: 'Refuerzo',        sortOrder: 7 },
-    { code: 'other',         name: 'Otro',            sortOrder: 8 },
-  ]
+  const activityTypes = BASE_ACTIVITY_TYPES
 
   for (const t of activityTypes) {
     await prisma.activityType.upsert({
@@ -77,13 +65,7 @@ async function main() {
   console.log(`✓ Activity types: ${activityTypes.length} tipos creados`)
 
   // 5. Roles del sistema
-  const roles = [
-    { name: 'admin',     label: 'Administrador',       isSystem: true },
-    { name: 'inspector', label: 'Inspector',            isSystem: true },
-    { name: 'teacher',   label: 'Profesor',             isSystem: true },
-    { name: 'student',   label: 'Alumno',               isSystem: true },
-    { name: 'guardian',  label: 'Padre/Representante',  isSystem: true },
-  ]
+  const roles = SYSTEM_ROLES
 
   const roleMap: Record<string, string> = {}
   for (const r of roles) {
@@ -97,43 +79,7 @@ async function main() {
   console.log(`✓ Roles: ${roles.length} roles creados`)
 
   // 6. Permisos base
-  const permissions = [
-    // users
-    { resource: 'users', action: 'read',   scope: 'all' },
-    { resource: 'users', action: 'write',  scope: 'all' },
-    { resource: 'users', action: 'manage', scope: 'all' },
-    // academic_config
-    { resource: 'academic_config', action: 'read',   scope: 'all' },
-    { resource: 'academic_config', action: 'manage', scope: 'all' },
-    // activities
-    { resource: 'activities', action: 'read',  scope: 'all' },
-    { resource: 'activities', action: 'read',  scope: 'own' },
-    { resource: 'activities', action: 'write', scope: 'own' },
-    // grades
-    { resource: 'grades', action: 'read',  scope: 'all' },
-    { resource: 'grades', action: 'read',  scope: 'own' },
-    { resource: 'grades', action: 'write', scope: 'own' },
-    // attendance
-    { resource: 'attendance', action: 'read',  scope: 'all' },
-    { resource: 'attendance', action: 'read',  scope: 'own' },
-    { resource: 'attendance', action: 'write', scope: 'own' },
-    // incidents
-    { resource: 'incidents', action: 'read',  scope: 'all' },
-    { resource: 'incidents', action: 'read',  scope: 'own' },
-    { resource: 'incidents', action: 'write', scope: 'all' },
-    // reports
-    { resource: 'reports', action: 'read',   scope: 'all' },
-    { resource: 'reports', action: 'read',   scope: 'own' },
-    { resource: 'reports', action: 'manage', scope: 'all' },
-    // insumos
-    { resource: 'insumos', action: 'manage', scope: 'all' },
-    { resource: 'insumos', action: 'read',   scope: 'own' },
-    { resource: 'insumos', action: 'write',  scope: 'own' },
-    // tasks
-    { resource: 'tasks', action: 'read',  scope: 'all' },
-    { resource: 'tasks', action: 'read',  scope: 'own' },
-    { resource: 'tasks', action: 'write', scope: 'own' },
-  ]
+  const permissions = BASE_PERMISSIONS
 
   const permMap: Record<string, string> = {}
   for (const p of permissions) {
@@ -147,49 +93,7 @@ async function main() {
   console.log(`✓ Permissions: ${permissions.length} permisos creados`)
 
   // 7. Asignación de permisos a roles
-  const rolePermissions: Array<{ roleName: string; permKey: string }> = [
-    // Admin tiene todo
-    { roleName: 'admin', permKey: 'users:manage:all' },
-    { roleName: 'admin', permKey: 'academic_config:manage:all' },
-    { roleName: 'admin', permKey: 'activities:read:all' },
-    { roleName: 'admin', permKey: 'grades:read:all' },
-    { roleName: 'admin', permKey: 'attendance:read:all' },
-    { roleName: 'admin', permKey: 'incidents:read:all' },
-    { roleName: 'admin', permKey: 'incidents:write:all' },
-    { roleName: 'admin', permKey: 'reports:manage:all' },
-    { roleName: 'admin', permKey: 'insumos:manage:all' },
-    { roleName: 'admin', permKey: 'tasks:read:all' },
-    // Inspector
-    { roleName: 'inspector', permKey: 'users:read:all' },
-    { roleName: 'inspector', permKey: 'attendance:read:all' },
-    { roleName: 'inspector', permKey: 'incidents:read:all' },
-    { roleName: 'inspector', permKey: 'incidents:write:all' },
-    { roleName: 'inspector', permKey: 'reports:read:all' },
-    // Profesor
-    { roleName: 'teacher', permKey: 'academic_config:read:all' },
-    { roleName: 'teacher', permKey: 'activities:read:own' },
-    { roleName: 'teacher', permKey: 'activities:write:own' },
-    { roleName: 'teacher', permKey: 'grades:read:own' },
-    { roleName: 'teacher', permKey: 'grades:write:own' },
-    { roleName: 'teacher', permKey: 'attendance:read:own' },
-    { roleName: 'teacher', permKey: 'attendance:write:own' },
-    { roleName: 'teacher', permKey: 'incidents:read:own' },
-    { roleName: 'teacher', permKey: 'insumos:read:own' },
-    { roleName: 'teacher', permKey: 'insumos:write:own' },
-    { roleName: 'teacher', permKey: 'tasks:read:own' },
-    { roleName: 'teacher', permKey: 'tasks:write:own' },
-    // Alumno/Padre
-    { roleName: 'student',  permKey: 'activities:read:own' },
-    { roleName: 'student',  permKey: 'grades:read:own' },
-    { roleName: 'student',  permKey: 'attendance:read:own' },
-    { roleName: 'student',  permKey: 'incidents:read:own' },
-    { roleName: 'student',  permKey: 'tasks:read:own' },
-    { roleName: 'guardian', permKey: 'activities:read:own' },
-    { roleName: 'guardian', permKey: 'grades:read:own' },
-    { roleName: 'guardian', permKey: 'attendance:read:own' },
-    { roleName: 'guardian', permKey: 'incidents:read:own' },
-    { roleName: 'guardian', permKey: 'tasks:read:own' },
-  ]
+  const rolePermissions = ROLE_PERMISSIONS
 
   for (const rp of rolePermissions) {
     const roleId = roleMap[rp.roleName]
@@ -257,6 +161,20 @@ async function main() {
     })
   }
   console.log(`✓ Demo users: ${demoUsers.length} usuarios creados (contraseña: Demo1234!)`)
+
+  // 10. Superadmin de plataforma (NO pertenece a ninguna institución)
+  const platformPasswordHash = await bcrypt.hash('Super1234!', 12)
+  await prisma.platformAdmin.upsert({
+    where: { email: 'superadmin@mao.edu' },
+    update: {},
+    create: {
+      email: 'superadmin@mao.edu',
+      passwordHash: platformPasswordHash,
+      name: 'Superadmin',
+    },
+  })
+  console.log('✓ Platform superadmin: superadmin@mao.edu / Super1234!')
+
   console.log('\n✅ Seed completado exitosamente')
 }
 

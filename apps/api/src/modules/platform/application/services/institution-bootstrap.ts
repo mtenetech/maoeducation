@@ -1,0 +1,216 @@
+import { Prisma } from '@prisma/client'
+import bcrypt from 'bcryptjs'
+
+/**
+ * Configuración por defecto de una institución nueva.
+ * Estas constantes son la ÚNICA fuente de verdad de la matriz RBAC y los
+ * catálogos base: las usan tanto el seed (`prisma/seeds/index.ts`) como el
+ * superadmin al crear una institución (`create-institution.use-case.ts`).
+ */
+
+export const SYSTEM_ROLES = [
+  { name: 'admin', label: 'Administrador', isSystem: true },
+  { name: 'inspector', label: 'Inspector', isSystem: true },
+  { name: 'teacher', label: 'Profesor', isSystem: true },
+  { name: 'student', label: 'Alumno', isSystem: true },
+  { name: 'guardian', label: 'Padre/Representante', isSystem: true },
+] as const
+
+export const BASE_PERMISSIONS = [
+  // users
+  { resource: 'users', action: 'read', scope: 'all' },
+  { resource: 'users', action: 'write', scope: 'all' },
+  { resource: 'users', action: 'manage', scope: 'all' },
+  // academic_config
+  { resource: 'academic_config', action: 'read', scope: 'all' },
+  { resource: 'academic_config', action: 'manage', scope: 'all' },
+  // activities
+  { resource: 'activities', action: 'read', scope: 'all' },
+  { resource: 'activities', action: 'read', scope: 'own' },
+  { resource: 'activities', action: 'write', scope: 'own' },
+  // grades
+  { resource: 'grades', action: 'read', scope: 'all' },
+  { resource: 'grades', action: 'read', scope: 'own' },
+  { resource: 'grades', action: 'write', scope: 'own' },
+  // attendance
+  { resource: 'attendance', action: 'read', scope: 'all' },
+  { resource: 'attendance', action: 'read', scope: 'own' },
+  { resource: 'attendance', action: 'write', scope: 'own' },
+  // incidents
+  { resource: 'incidents', action: 'read', scope: 'all' },
+  { resource: 'incidents', action: 'read', scope: 'own' },
+  { resource: 'incidents', action: 'write', scope: 'all' },
+  // reports
+  { resource: 'reports', action: 'read', scope: 'all' },
+  { resource: 'reports', action: 'read', scope: 'own' },
+  { resource: 'reports', action: 'manage', scope: 'all' },
+  // insumos
+  { resource: 'insumos', action: 'manage', scope: 'all' },
+  { resource: 'insumos', action: 'read', scope: 'own' },
+  { resource: 'insumos', action: 'write', scope: 'own' },
+  // tasks
+  { resource: 'tasks', action: 'read', scope: 'all' },
+  { resource: 'tasks', action: 'read', scope: 'own' },
+  { resource: 'tasks', action: 'write', scope: 'own' },
+] as const
+
+export const ROLE_PERMISSIONS: Array<{ roleName: string; permKey: string }> = [
+  // Admin tiene todo
+  { roleName: 'admin', permKey: 'users:manage:all' },
+  { roleName: 'admin', permKey: 'academic_config:manage:all' },
+  { roleName: 'admin', permKey: 'activities:read:all' },
+  { roleName: 'admin', permKey: 'grades:read:all' },
+  { roleName: 'admin', permKey: 'attendance:read:all' },
+  { roleName: 'admin', permKey: 'incidents:read:all' },
+  { roleName: 'admin', permKey: 'incidents:write:all' },
+  { roleName: 'admin', permKey: 'reports:manage:all' },
+  { roleName: 'admin', permKey: 'insumos:manage:all' },
+  { roleName: 'admin', permKey: 'tasks:read:all' },
+  // Inspector
+  { roleName: 'inspector', permKey: 'users:read:all' },
+  { roleName: 'inspector', permKey: 'attendance:read:all' },
+  { roleName: 'inspector', permKey: 'incidents:read:all' },
+  { roleName: 'inspector', permKey: 'incidents:write:all' },
+  { roleName: 'inspector', permKey: 'reports:read:all' },
+  // Profesor
+  { roleName: 'teacher', permKey: 'academic_config:read:all' },
+  { roleName: 'teacher', permKey: 'activities:read:own' },
+  { roleName: 'teacher', permKey: 'activities:write:own' },
+  { roleName: 'teacher', permKey: 'grades:read:own' },
+  { roleName: 'teacher', permKey: 'grades:write:own' },
+  { roleName: 'teacher', permKey: 'attendance:read:own' },
+  { roleName: 'teacher', permKey: 'attendance:write:own' },
+  { roleName: 'teacher', permKey: 'incidents:read:own' },
+  { roleName: 'teacher', permKey: 'insumos:read:own' },
+  { roleName: 'teacher', permKey: 'insumos:write:own' },
+  { roleName: 'teacher', permKey: 'tasks:read:own' },
+  { roleName: 'teacher', permKey: 'tasks:write:own' },
+  // Alumno/Padre
+  { roleName: 'student', permKey: 'activities:read:own' },
+  { roleName: 'student', permKey: 'grades:read:own' },
+  { roleName: 'student', permKey: 'attendance:read:own' },
+  { roleName: 'student', permKey: 'incidents:read:own' },
+  { roleName: 'student', permKey: 'tasks:read:own' },
+  { roleName: 'guardian', permKey: 'activities:read:own' },
+  { roleName: 'guardian', permKey: 'grades:read:own' },
+  { roleName: 'guardian', permKey: 'attendance:read:own' },
+  { roleName: 'guardian', permKey: 'incidents:read:own' },
+  { roleName: 'guardian', permKey: 'tasks:read:own' },
+]
+
+export const DEFAULT_LEVELS = [
+  { code: '1B', name: '1ro de Básica', sortOrder: 1 },
+  { code: '2B', name: '2do de Básica', sortOrder: 2 },
+  { code: '3B', name: '3ro de Básica', sortOrder: 3 },
+  { code: '4B', name: '4to de Básica', sortOrder: 4 },
+  { code: '5B', name: '5to de Básica', sortOrder: 5 },
+  { code: '6B', name: '6to de Básica', sortOrder: 6 },
+  { code: '7B', name: '7mo de Básica', sortOrder: 7 },
+  { code: '8B', name: '8vo de Básica', sortOrder: 8 },
+  { code: '9B', name: '9no de Básica', sortOrder: 9 },
+] as const
+
+export const BASE_ACTIVITY_TYPES = [
+  { code: 'task', name: 'Tarea', sortOrder: 1 },
+  { code: 'lesson', name: 'Lección', sortOrder: 2 },
+  { code: 'quiz', name: 'Prueba', sortOrder: 3 },
+  { code: 'exam', name: 'Examen', sortOrder: 4 },
+  { code: 'project', name: 'Proyecto', sortOrder: 5 },
+  { code: 'participation', name: 'Participación', sortOrder: 6 },
+  { code: 'reinforcement', name: 'Refuerzo', sortOrder: 7 },
+  { code: 'other', name: 'Otro', sortOrder: 8 },
+] as const
+
+export interface BootstrapAdminInput {
+  email: string
+  firstName: string
+  lastName: string
+  password: string
+}
+
+export interface BootstrapInstitutionResult {
+  institutionId: string
+  adminUserId: string
+}
+
+/**
+ * Crea una institución NUEVA con toda su configuración por defecto:
+ * roles del sistema, permisos, asignación de permisos a roles, esquema de
+ * periodos trimestral, niveles, tipos de actividad y el usuario admin inicial.
+ *
+ * Debe ejecutarse dentro de una transacción (`tx`) y asume que ni el código de
+ * institución ni el email del admin existen aún (validar antes en el use-case).
+ */
+export async function bootstrapInstitution(
+  tx: Prisma.TransactionClient,
+  institution: { name: string; code: string },
+  admin: BootstrapAdminInput,
+): Promise<BootstrapInstitutionResult> {
+  // 1. Institución
+  const inst = await tx.institution.create({
+    data: { name: institution.name, code: institution.code, settings: {} },
+  })
+
+  // 2. Roles del sistema
+  const roleMap: Record<string, string> = {}
+  for (const r of SYSTEM_ROLES) {
+    const role = await tx.role.create({
+      data: { name: r.name, label: r.label, isSystem: r.isSystem, institutionId: inst.id },
+    })
+    roleMap[r.name] = role.id
+  }
+
+  // 3. Permisos (globales, idempotentes vía upsert por la unique resource+action+scope)
+  const permMap: Record<string, string> = {}
+  for (const p of BASE_PERMISSIONS) {
+    const perm = await tx.permission.upsert({
+      where: { resource_action_scope: { resource: p.resource, action: p.action, scope: p.scope } },
+      update: {},
+      create: { resource: p.resource, action: p.action, scope: p.scope },
+    })
+    permMap[`${p.resource}:${p.action}:${p.scope}`] = perm.id
+  }
+
+  // 4. Asignación de permisos a roles
+  for (const rp of ROLE_PERMISSIONS) {
+    const roleId = roleMap[rp.roleName]
+    const permId = permMap[rp.permKey]
+    if (!roleId || !permId) continue
+    await tx.rolePermission.create({ data: { roleId, permissionId: permId } })
+  }
+
+  // 5. Esquema de periodos trimestral (por defecto)
+  await tx.academicPeriodScheme.create({
+    data: {
+      institutionId: inst.id,
+      name: 'Trimestral',
+      code: 'trimester',
+      periodsCount: 3,
+      isDefault: true,
+    },
+  })
+
+  // 6. Niveles educativos
+  await tx.level.createMany({
+    data: DEFAULT_LEVELS.map((l) => ({ ...l, institutionId: inst.id })),
+  })
+
+  // 7. Tipos de actividad base
+  await tx.activityType.createMany({
+    data: BASE_ACTIVITY_TYPES.map((t) => ({ ...t, institutionId: inst.id })),
+  })
+
+  // 8. Usuario admin inicial
+  const passwordHash = await bcrypt.hash(admin.password, 12)
+  const adminUser = await tx.user.create({
+    data: {
+      institutionId: inst.id,
+      email: admin.email,
+      passwordHash,
+      profile: { create: { firstName: admin.firstName, lastName: admin.lastName } },
+    },
+  })
+  await tx.userRole.create({ data: { userId: adminUser.id, roleId: roleMap['admin'] } })
+
+  return { institutionId: inst.id, adminUserId: adminUser.id }
+}
