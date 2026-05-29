@@ -204,6 +204,26 @@ export const router = createBrowserRouter([
                 Component: m.IncidentsPage,
               })),
           },
+          {
+            path: 'types',
+            element: <PermissionGuard permission="incident_types:manage" />,
+            children: [
+              {
+                index: true,
+                lazy: () =>
+                  import('@/features/incidents/pages/IncidentTypesPage').then((m) => ({
+                    Component: m.IncidentTypesPage,
+                  })),
+              },
+            ],
+          },
+          {
+            path: ':id',
+            lazy: () =>
+              import('@/features/incidents/pages/IncidentDetailPage').then((m) => ({
+                Component: m.IncidentDetailPage,
+              })),
+          },
         ],
       },
       // ---- Schedules ----
@@ -257,6 +277,42 @@ export const router = createBrowserRouter([
               })),
           },
         ],
+      },
+      // ---- Settings / Branding ----
+      {
+        path: 'settings/branding',
+        element: <PermissionGuard permission="institution_config:manage" />,
+        children: [
+          {
+            index: true,
+            lazy: () =>
+              import('@/features/settings/pages/BrandingPage').then((m) => ({
+                Component: m.BrandingPage,
+              })),
+          },
+        ],
+      },
+      // ---- Settings / Anamnesis template ----
+      {
+        path: 'settings/anamnesis',
+        element: <PermissionGuard permission="anamnesis:manage" />,
+        children: [
+          {
+            index: true,
+            lazy: () =>
+              import('@/features/students/pages/AnamnesisTemplatePage').then((m) => ({
+                Component: m.AnamnesisTemplatePage,
+              })),
+          },
+        ],
+      },
+      // ---- Student detail (ficha) ----
+      {
+        path: 'students/:id',
+        lazy: () =>
+          import('@/features/students/pages/StudentDetailPage').then((m) => ({
+            Component: m.StudentDetailPage,
+          })),
       },
     ],
   },

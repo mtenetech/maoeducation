@@ -10,7 +10,9 @@ import bcrypt from 'bcryptjs'
 
 export const SYSTEM_ROLES = [
   { name: 'admin', label: 'Administrador', isSystem: true },
+  { name: 'rector', label: 'Rector/Autoridad', isSystem: true },
   { name: 'inspector', label: 'Inspector', isSystem: true },
+  { name: 'dece', label: 'DECE', isSystem: true },
   { name: 'teacher', label: 'Profesor', isSystem: true },
   { name: 'student', label: 'Alumno', isSystem: true },
   { name: 'guardian', label: 'Padre/Representante', isSystem: true },
@@ -24,6 +26,12 @@ export const BASE_PERMISSIONS = [
   // academic_config
   { resource: 'academic_config', action: 'read', scope: 'all' },
   { resource: 'academic_config', action: 'manage', scope: 'all' },
+  // institution_config (branding, ajustes de la institución)
+  { resource: 'institution_config', action: 'read', scope: 'own' },
+  { resource: 'institution_config', action: 'manage', scope: 'all' },
+  // anamnesis (ficha + plantillas)
+  { resource: 'anamnesis', action: 'read', scope: 'all' },
+  { resource: 'anamnesis', action: 'manage', scope: 'all' },
   // activities
   { resource: 'activities', action: 'read', scope: 'all' },
   { resource: 'activities', action: 'read', scope: 'own' },
@@ -39,7 +47,12 @@ export const BASE_PERMISSIONS = [
   // incidents
   { resource: 'incidents', action: 'read', scope: 'all' },
   { resource: 'incidents', action: 'read', scope: 'own' },
+  { resource: 'incidents', action: 'write', scope: 'own' },
   { resource: 'incidents', action: 'write', scope: 'all' },
+  { resource: 'incidents', action: 'manage', scope: 'all' },
+  // incident_types (catálogo configurable de faltas)
+  { resource: 'incident_types', action: 'read', scope: 'all' },
+  { resource: 'incident_types', action: 'manage', scope: 'all' },
   // reports
   { resource: 'reports', action: 'read', scope: 'all' },
   { resource: 'reports', action: 'read', scope: 'own' },
@@ -58,19 +71,37 @@ export const ROLE_PERMISSIONS: Array<{ roleName: string; permKey: string }> = [
   // Admin tiene todo
   { roleName: 'admin', permKey: 'users:manage:all' },
   { roleName: 'admin', permKey: 'academic_config:manage:all' },
+  { roleName: 'admin', permKey: 'institution_config:manage:all' },
+  { roleName: 'admin', permKey: 'anamnesis:manage:all' },
   { roleName: 'admin', permKey: 'activities:read:all' },
   { roleName: 'admin', permKey: 'grades:read:all' },
   { roleName: 'admin', permKey: 'attendance:read:all' },
+  { roleName: 'admin', permKey: 'incidents:manage:all' },
   { roleName: 'admin', permKey: 'incidents:read:all' },
   { roleName: 'admin', permKey: 'incidents:write:all' },
+  { roleName: 'admin', permKey: 'incident_types:manage:all' },
   { roleName: 'admin', permKey: 'reports:manage:all' },
   { roleName: 'admin', permKey: 'insumos:manage:all' },
   { roleName: 'admin', permKey: 'tasks:read:all' },
+  // Rector / Autoridad — gestiona incidentes y aprueba medidas
+  { roleName: 'rector', permKey: 'users:read:all' },
+  { roleName: 'rector', permKey: 'incidents:manage:all' },
+  { roleName: 'rector', permKey: 'incidents:read:all' },
+  { roleName: 'rector', permKey: 'incidents:write:all' },
+  { roleName: 'rector', permKey: 'incident_types:manage:all' },
+  { roleName: 'rector', permKey: 'reports:read:all' },
+  // DECE — gestiona casos derivados y seguimiento
+  { roleName: 'dece', permKey: 'users:read:all' },
+  { roleName: 'dece', permKey: 'incidents:read:all' },
+  { roleName: 'dece', permKey: 'incidents:write:all' },
+  { roleName: 'dece', permKey: 'incident_types:read:all' },
   // Inspector
   { roleName: 'inspector', permKey: 'users:read:all' },
   { roleName: 'inspector', permKey: 'attendance:read:all' },
   { roleName: 'inspector', permKey: 'incidents:read:all' },
   { roleName: 'inspector', permKey: 'incidents:write:all' },
+  { roleName: 'inspector', permKey: 'incident_types:read:all' },
+  { roleName: 'inspector', permKey: 'anamnesis:manage:all' },
   { roleName: 'inspector', permKey: 'reports:read:all' },
   // Profesor
   { roleName: 'teacher', permKey: 'academic_config:read:all' },
@@ -81,6 +112,8 @@ export const ROLE_PERMISSIONS: Array<{ roleName: string; permKey: string }> = [
   { roleName: 'teacher', permKey: 'attendance:read:own' },
   { roleName: 'teacher', permKey: 'attendance:write:own' },
   { roleName: 'teacher', permKey: 'incidents:read:own' },
+  { roleName: 'teacher', permKey: 'incidents:write:own' },
+  { roleName: 'teacher', permKey: 'incident_types:read:all' },
   { roleName: 'teacher', permKey: 'insumos:read:own' },
   { roleName: 'teacher', permKey: 'insumos:write:own' },
   { roleName: 'teacher', permKey: 'tasks:read:own' },
@@ -110,6 +143,15 @@ export const DEFAULT_LEVELS = [
   { code: '9B', name: '9no de Básica', sortOrder: 9 },
 ] as const
 
+export const DEFAULT_INCIDENT_TYPES = [
+  { code: 'atraso', name: 'Atraso reiterado', severity: 'leve', requiresDece: false, requiresCommitment: false, sortOrder: 1 },
+  { code: 'indisciplina_aula', name: 'Indisciplina en el aula', severity: 'leve', requiresDece: false, requiresCommitment: false, sortOrder: 2 },
+  { code: 'danio_bienes', name: 'Daño a bienes de la institución', severity: 'grave', requiresDece: false, requiresCommitment: true, sortOrder: 3 },
+  { code: 'agresion_verbal', name: 'Agresión verbal', severity: 'grave', requiresDece: true, requiresCommitment: true, sortOrder: 4 },
+  { code: 'agresion_fisica', name: 'Agresión física', severity: 'muy_grave', requiresDece: true, requiresCommitment: true, sortOrder: 5 },
+  { code: 'acoso_escolar', name: 'Acoso escolar (bullying)', severity: 'muy_grave', requiresDece: true, requiresCommitment: true, sortOrder: 6 },
+] as const
+
 export const BASE_ACTIVITY_TYPES = [
   { code: 'task', name: 'Tarea', sortOrder: 1 },
   { code: 'lesson', name: 'Lección', sortOrder: 2 },
@@ -120,6 +162,47 @@ export const BASE_ACTIVITY_TYPES = [
   { code: 'reinforcement', name: 'Refuerzo', sortOrder: 7 },
   { code: 'other', name: 'Otro', sortOrder: 8 },
 ] as const
+
+// Plantilla de anamnesis por defecto (alineada al Ministerio): editable por institución
+export const DEFAULT_ANAMNESIS_SCHEMA = {
+  sections: [
+    {
+      title: 'Datos de nacimiento',
+      fields: [
+        { key: 'tipo_parto', label: 'Tipo de parto', type: 'select', required: false, options: ['Normal', 'Cesárea'] },
+        { key: 'semanas_gestacion', label: 'Semanas de gestación', type: 'text', required: false },
+        { key: 'complicaciones_parto', label: 'Complicaciones en el parto', type: 'textarea', required: false },
+      ],
+    },
+    {
+      title: 'Salud',
+      fields: [
+        { key: 'tipo_sangre', label: 'Tipo de sangre', type: 'text', required: false },
+        { key: 'alergias', label: 'Alergias', type: 'textarea', required: false },
+        { key: 'enfermedades_cronicas', label: 'Enfermedades crónicas', type: 'textarea', required: false },
+        { key: 'medicacion_actual', label: 'Medicación actual', type: 'textarea', required: false },
+        { key: 'discapacidad', label: '¿Tiene alguna discapacidad?', type: 'checkbox', required: false },
+        { key: 'discapacidad_detalle', label: 'Detalle de la discapacidad', type: 'textarea', required: false },
+      ],
+    },
+    {
+      title: 'Desarrollo',
+      fields: [
+        { key: 'edad_camino', label: 'Edad en que caminó', type: 'text', required: false },
+        { key: 'edad_hablo', label: 'Edad en que habló', type: 'text', required: false },
+        { key: 'dificultades_aprendizaje', label: 'Dificultades de aprendizaje', type: 'textarea', required: false },
+      ],
+    },
+    {
+      title: 'Entorno familiar',
+      fields: [
+        { key: 'vive_con', label: 'Vive con', type: 'text', required: false },
+        { key: 'num_hermanos', label: 'Número de hermanos', type: 'text', required: false },
+        { key: 'observaciones', label: 'Observaciones', type: 'textarea', required: false },
+      ],
+    },
+  ],
+} as const
 
 export interface BootstrapAdminInput {
   email: string
@@ -198,6 +281,21 @@ export async function bootstrapInstitution(
   // 7. Tipos de actividad base
   await tx.activityType.createMany({
     data: BASE_ACTIVITY_TYPES.map((t) => ({ ...t, institutionId: inst.id })),
+  })
+
+  // 7b. Tipos de falta base (debido proceso)
+  await tx.incidentType.createMany({
+    data: DEFAULT_INCIDENT_TYPES.map((t) => ({ ...t, institutionId: inst.id })),
+  })
+
+  // 7c. Plantilla de anamnesis por defecto
+  await tx.anamnesisTemplate.create({
+    data: {
+      institutionId: inst.id,
+      name: 'Ficha de anamnesis',
+      isDefault: true,
+      schema: DEFAULT_ANAMNESIS_SCHEMA as unknown as Prisma.InputJsonValue,
+    },
   })
 
   // 8. Usuario admin inicial

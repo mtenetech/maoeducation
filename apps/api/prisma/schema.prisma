@@ -34,6 +34,12 @@ model Institution {
   attendanceRecords     AttendanceRecord[]
   absenceJustifications AbsenceJustification[]
   disciplinaryIncidents DisciplinaryIncident[]
+  incidentTypes         IncidentType[]
+  incidentEvents        IncidentEvent[]
+  incidentCommitments   IncidentCommitment[]
+  incidentAttachments   IncidentAttachment[]
+  anamnesisTemplates    AnamnesisTemplate[]
+  anamnesisRecords      AnamnesisRecord[]
   messageThreads        MessageThread[]
   scheduleEntries       ScheduleEntry[]
   reportTemplates       ReportTemplate[]
@@ -79,6 +85,16 @@ model User {
   studentIncidents      DisciplinaryIncident[] @relation("StudentIncidents")
   studentJustifications AbsenceJustification[] @relation("StudentJustifications")
 
+  // Relaciones de incidentes (debido proceso)
+  deceIncidents               DisciplinaryIncident[] @relation("IncidentDece")
+  incidentEvents              IncidentEvent[]        @relation("IncidentEventActor")
+  incidentCommitments         IncidentCommitment[]   @relation("IncidentCommitmentCreator")
+  incidentAttachmentsUploaded IncidentAttachment[]   @relation("IncidentAttachmentUploader")
+
+  // Anamnesis
+  studentAnamnesis  AnamnesisRecord[] @relation("StudentAnamnesis")
+  createdAnamnesis  AnamnesisRecord[] @relation("AnamnesisCreator")
+
   // Relaciones de tutor/padre
   guardianOf       GuardianStudent[] @relation("GuardianRelation")
   studentGuardians GuardianStudent[] @relation("StudentRelation")
@@ -99,6 +115,16 @@ model Profile {
   phone     String?  @db.VarChar(30)
   birthDate DateTime? @map("birth_date") @db.Date
   avatarUrl String?  @map("avatar_url") @db.VarChar(500)
+  // Datos ampliados (matrícula / representante)
+  phoneAlt              String?   @map("phone_alt") @db.VarChar(30)
+  address               String?   @db.VarChar(300)
+  occupation            String?   @db.VarChar(120)
+  nationality           String?   @db.VarChar(60)
+  placeOfBirth          String?   @map("place_of_birth") @db.VarChar(120)
+  bloodType             String?   @map("blood_type") @db.VarChar(10)
+  gender                String?   @db.VarChar(20)
+  emergencyContactName  String?   @map("emergency_contact_name") @db.VarChar(150)
+  emergencyContactPhone String?   @map("emergency_contact_phone") @db.VarChar(30)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -108,10 +134,13 @@ model Profile {
 }
 
 model GuardianStudent {
-  guardianId   String @map("guardian_id")
-  studentId    String @map("student_id")
-  relationship String @default("guardian") @db.VarChar(50)
-  isPrimary    Boolean @default(false) @map("is_primary")
+  guardianId        String  @map("guardian_id")
+  studentId         String  @map("student_id")
+  relationship      String  @default("guardian") @db.VarChar(50) // padre | madre | tutor_legal | otro
+  isPrimary         Boolean @default(false) @map("is_primary")
+  isLegalRep        Boolean @default(false) @map("is_legal_rep")
+  livesWithStudent  Boolean @default(false) @map("lives_with_student")
+  isEmergencyContact Boolean @default(false) @map("is_emergency_contact")
 
   guardian User @relation("GuardianRelation", fields: [guardianId], references: [id], onDelete: Cascade)
   student  User @relation("StudentRelation", fields: [studentId], references: [id], onDelete: Cascade)
@@ -337,6 +366,45 @@ model StudentEnrollment {
 }
 
 // ============================================================
+// FICHA DE ANAMNESIS (configurable por institución)
+// ============================================================
+
+model AnamnesisTemplate {
+  id            String   @id @default(uuid())
+  institutionId String   @map("institution_id")
+  name          String   @db.VarChar(150)
+  isDefault     Boolean  @default(false) @map("is_default")
+  isActive      Boolean  @default(true) @map("is_active")
+  schema        Json     @default("{}") // { sections: [{ title, fields: [{ key, label, type, required, options }] }] }
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  institution Institution        @relation(fields: [institutionId], references: [id])
+  records     AnamnesisRecord[]
+
+  @@map("anamnesis_templates")
+}
+
+model AnamnesisRecord {
+  id            String   @id @default(uuid())
+  institutionId String   @map("institution_id")
+  studentId     String   @map("student_id")
+  templateId    String   @map("template_id")
+  answers       Json     @default("{}")
+  createdBy     String   @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  institution Institution       @relation(fields: [institutionId], references: [id])
+  student     User              @relation("StudentAnamnesis", fields: [studentId], references: [id], onDelete: Cascade)
+  template    AnamnesisTemplate @relation(fields: [templateId], references: [id])
+  creator     User              @relation("AnamnesisCreator", fields: [createdBy], references: [id])
+
+  @@unique([studentId])
+  @@map("anamnesis_records")
+}
+
+// ============================================================
 // ACTIVIDADES Y CALIFICACIONES
 // ============================================================
 
@@ -491,27 +559,118 @@ model JustificationAttendance {
 // DISCIPLINA
 // ============================================================
 
-model DisciplinaryIncident {
-  id              String    @id @default(uuid())
-  institutionId   String    @map("institution_id")
-  studentId       String    @map("student_id")
-  reportedBy      String    @map("reported_by")
-  incidentDate    DateTime  @map("incident_date") @db.Date
-  category        String    @db.VarChar(100)
-  description     String
-  severity        String    @default("low") @db.VarChar(20)
-  status          String    @default("open") @db.VarChar(20)
-  resolutionNotes String?   @map("resolution_notes")
-  resolvedAt      DateTime? @map("resolved_at")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+// Catálogo configurable de tipos de falta (espejo de ActivityType)
+model IncidentType {
+  id                 String   @id @default(uuid())
+  institutionId      String   @map("institution_id")
+  name               String   @db.VarChar(100)
+  code               String   @db.VarChar(50)
+  severity           String   @default("leve") @db.VarChar(20) // leve | grave | muy_grave
+  description        String?
+  requiresDece       Boolean  @default(false) @map("requires_dece")
+  requiresCommitment Boolean  @default(false) @map("requires_commitment")
+  isActive           Boolean  @default(true) @map("is_active")
+  sortOrder          Int      @default(0) @map("sort_order") @db.SmallInt
+  createdAt          DateTime @default(now()) @map("created_at")
 
-  institution Institution @relation(fields: [institutionId], references: [id])
-  student     User        @relation("StudentIncidents", fields: [studentId], references: [id])
-  reporter    User        @relation("IncidentReporter", fields: [reportedBy], references: [id])
+  institution Institution            @relation(fields: [institutionId], references: [id])
+  incidents   DisciplinaryIncident[]
+
+  @@unique([institutionId, code])
+  @@map("incident_types")
+}
+
+model DisciplinaryIncident {
+  id                 String    @id @default(uuid())
+  institutionId      String    @map("institution_id")
+  studentId          String    @map("student_id")
+  reportedBy         String    @map("reported_by")
+  incidentTypeId     String?   @map("incident_type_id")
+  incidentDate       DateTime  @map("incident_date") @db.Date
+  category           String    @db.VarChar(100)
+  description        String
+  severity           String    @default("low") @db.VarChar(20)
+  status             String    @default("open") @db.VarChar(20)
+  // Debido proceso
+  workflowState      String    @default("reportado") @map("workflow_state") @db.VarChar(30)
+  assignedDeceId     String?   @map("assigned_dece_id")
+  assignedDeceAt     DateTime? @map("assigned_dece_at")
+  guardianNotifiedAt DateTime? @map("guardian_notified_at")
+  resolutionNotes    String?   @map("resolution_notes")
+  resolvedAt         DateTime? @map("resolved_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  institution  Institution    @relation(fields: [institutionId], references: [id])
+  student      User           @relation("StudentIncidents", fields: [studentId], references: [id])
+  reporter     User           @relation("IncidentReporter", fields: [reportedBy], references: [id])
+  incidentType IncidentType?  @relation(fields: [incidentTypeId], references: [id])
+  assignedDece User?          @relation("IncidentDece", fields: [assignedDeceId], references: [id])
+  events       IncidentEvent[]
+  commitments  IncidentCommitment[]
+  attachments  IncidentAttachment[]
 
   @@index([studentId, incidentDate])
   @@map("disciplinary_incidents")
+}
+
+// Bitácora / línea de tiempo del debido proceso
+model IncidentEvent {
+  id          String   @id @default(uuid())
+  incidentId  String   @map("incident_id")
+  institutionId String @map("institution_id")
+  actorId     String   @map("actor_id")
+  type        String   @db.VarChar(40) // created | state_changed | note | dece_assigned | guardian_notified | commitment_created | attachment_added
+  description String?
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  incident    DisciplinaryIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  institution Institution          @relation(fields: [institutionId], references: [id])
+  actor       User                 @relation("IncidentEventActor", fields: [actorId], references: [id])
+
+  @@index([incidentId, createdAt])
+  @@map("incident_events")
+}
+
+// Acta de compromiso
+model IncidentCommitment {
+  id           String    @id @default(uuid())
+  incidentId   String    @map("incident_id")
+  institutionId String   @map("institution_id")
+  terms        String
+  followUpDate DateTime? @map("follow_up_date") @db.Date
+  status       String    @default("draft") @db.VarChar(20) // draft | signed
+  signatories  Json      @default("{}")
+  createdBy    String    @map("created_by")
+  signedAt     DateTime? @map("signed_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  incident    DisciplinaryIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  institution Institution          @relation(fields: [institutionId], references: [id])
+  creator     User                 @relation("IncidentCommitmentCreator", fields: [createdBy], references: [id])
+
+  @@map("incident_commitments")
+}
+
+// Evidencias (espejo de TaskAttachment)
+model IncidentAttachment {
+  id           String   @id @default(uuid())
+  incidentId   String   @map("incident_id")
+  institutionId String  @map("institution_id")
+  fileName     String   @map("file_name") @db.VarChar(255)
+  storedName   String   @map("stored_name") @db.VarChar(255)
+  mimeType     String   @map("mime_type") @db.VarChar(100)
+  fileSize     Int      @map("file_size")
+  uploadedBy   String   @map("uploaded_by")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  incident    DisciplinaryIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  institution Institution          @relation(fields: [institutionId], references: [id])
+  uploader    User                 @relation("IncidentAttachmentUploader", fields: [uploadedBy], references: [id])
+
+  @@map("incident_attachments")
 }
 
 // ============================================================

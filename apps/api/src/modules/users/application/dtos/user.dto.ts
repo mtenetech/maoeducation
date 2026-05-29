@@ -1,4 +1,16 @@
-export interface CreateUserDto {
+export interface ProfileFieldsDto {
+  phoneAlt?: string
+  address?: string
+  occupation?: string
+  nationality?: string
+  placeOfBirth?: string
+  bloodType?: string
+  gender?: string
+  emergencyContactName?: string
+  emergencyContactPhone?: string
+}
+
+export interface CreateUserDto extends ProfileFieldsDto {
   email: string
   password: string
   firstName: string
@@ -9,7 +21,7 @@ export interface CreateUserDto {
   birthDate?: string
 }
 
-export interface UpdateUserDto {
+export interface UpdateUserDto extends ProfileFieldsDto {
   firstName?: string
   lastName?: string
   dni?: string

@@ -16,5 +16,14 @@ export interface UserDetail extends UserListItem {
     dni: string | null
     phone: string | null
     birthDate: Date | null
+    phoneAlt: string | null
+    address: string | null
+    occupation: string | null
+    nationality: string | null
+    placeOfBirth: string | null
+    bloodType: string | null
+    gender: string | null
+    emergencyContactName: string | null
+    emergencyContactPhone: string | null
   } | null
 }

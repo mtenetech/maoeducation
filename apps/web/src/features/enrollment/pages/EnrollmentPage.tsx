@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { type ColumnDef } from '@tanstack/react-table'
 import { toast } from 'sonner'
-import { UserPlus, Users, Edit2 } from 'lucide-react'
+import { UserPlus, Users, Edit2, FileText } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
@@ -237,6 +238,7 @@ function StudentPicker({
 // ---- Main Page ----
 
 export function EnrollmentPage() {
+  const navigate = useNavigate()
   // Filter state
   const [yearId, setYearId] = useState('')
   const [parallelId, setParallelId] = useState('')
@@ -395,11 +397,21 @@ export function EnrollmentPage() {
       id: 'acciones',
       header: 'Acciones',
       cell: ({ row }) => (
-        <StatusDropdown
-          enrollment={row.original}
-          onUpdate={(id, status) => statusMutation.mutate({ id, status })}
-          isPending={statusMutation.isPending}
-        />
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            title="Ficha del estudiante"
+            onClick={() => navigate(`/students/${row.original.student.id}`)}
+          >
+            <FileText className="h-4 w-4" />
+          </Button>
+          <StatusDropdown
+            enrollment={row.original}
+            onUpdate={(id, status) => statusMutation.mutate({ id, status })}
+            isPending={statusMutation.isPending}
+          />
+        </div>
       ),
     },
   ]

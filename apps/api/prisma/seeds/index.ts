@@ -6,6 +6,8 @@ import {
   ROLE_PERMISSIONS,
   DEFAULT_LEVELS,
   BASE_ACTIVITY_TYPES,
+  DEFAULT_INCIDENT_TYPES,
+  DEFAULT_ANAMNESIS_SCHEMA,
 } from '../../src/modules/platform/application/services/institution-bootstrap'
 
 const prisma = new PrismaClient()
@@ -63,6 +65,32 @@ async function main() {
     })
   }
   console.log(`✓ Activity types: ${activityTypes.length} tipos creados`)
+
+  // 4b. Tipos de falta (debido proceso)
+  for (const t of DEFAULT_INCIDENT_TYPES) {
+    await prisma.incidentType.upsert({
+      where: { institutionId_code: { institutionId: institution.id, code: t.code } },
+      update: {},
+      create: { ...t, institutionId: institution.id },
+    })
+  }
+  console.log(`✓ Incident types: ${DEFAULT_INCIDENT_TYPES.length} tipos de falta creados`)
+
+  // 4c. Plantilla de anamnesis por defecto
+  const existingTemplate = await prisma.anamnesisTemplate.findFirst({
+    where: { institutionId: institution.id, isDefault: true },
+  })
+  if (!existingTemplate) {
+    await prisma.anamnesisTemplate.create({
+      data: {
+        institutionId: institution.id,
+        name: 'Ficha de anamnesis',
+        isDefault: true,
+        schema: DEFAULT_ANAMNESIS_SCHEMA as object,
+      },
+    })
+  }
+  console.log('✓ Anamnesis template: plantilla por defecto creada')
 
   // 5. Roles del sistema
   const roles = SYSTEM_ROLES
@@ -134,6 +162,8 @@ async function main() {
   const demoPassword = await bcrypt.hash('Demo1234!', 12)
 
   const demoUsers = [
+    { email: 'rector@escuela.edu',    firstName: 'Patricia', lastName: 'Salazar', role: 'rector' },
+    { email: 'dece@escuela.edu',      firstName: 'Elena',    lastName: 'Vaca',    role: 'dece' },
     { email: 'inspector@escuela.edu', firstName: 'Carlos', lastName: 'Mendoza', role: 'inspector' },
     { email: 'profesor1@escuela.edu', firstName: 'María', lastName: 'González', role: 'teacher' },
     { email: 'profesor2@escuela.edu', firstName: 'Luis', lastName: 'Ramírez', role: 'teacher' },
