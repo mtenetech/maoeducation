@@ -29,6 +29,9 @@ export const BASE_PERMISSIONS = [
   // institution_config (branding, ajustes de la institución)
   { resource: 'institution_config', action: 'read', scope: 'own' },
   { resource: 'institution_config', action: 'manage', scope: 'all' },
+  // anamnesis (ficha + plantillas)
+  { resource: 'anamnesis', action: 'read', scope: 'all' },
+  { resource: 'anamnesis', action: 'manage', scope: 'all' },
   // activities
   { resource: 'activities', action: 'read', scope: 'all' },
   { resource: 'activities', action: 'read', scope: 'own' },
@@ -69,6 +72,7 @@ export const ROLE_PERMISSIONS: Array<{ roleName: string; permKey: string }> = [
   { roleName: 'admin', permKey: 'users:manage:all' },
   { roleName: 'admin', permKey: 'academic_config:manage:all' },
   { roleName: 'admin', permKey: 'institution_config:manage:all' },
+  { roleName: 'admin', permKey: 'anamnesis:manage:all' },
   { roleName: 'admin', permKey: 'activities:read:all' },
   { roleName: 'admin', permKey: 'grades:read:all' },
   { roleName: 'admin', permKey: 'attendance:read:all' },
@@ -97,6 +101,7 @@ export const ROLE_PERMISSIONS: Array<{ roleName: string; permKey: string }> = [
   { roleName: 'inspector', permKey: 'incidents:read:all' },
   { roleName: 'inspector', permKey: 'incidents:write:all' },
   { roleName: 'inspector', permKey: 'incident_types:read:all' },
+  { roleName: 'inspector', permKey: 'anamnesis:manage:all' },
   { roleName: 'inspector', permKey: 'reports:read:all' },
   // Profesor
   { roleName: 'teacher', permKey: 'academic_config:read:all' },
@@ -157,6 +162,47 @@ export const BASE_ACTIVITY_TYPES = [
   { code: 'reinforcement', name: 'Refuerzo', sortOrder: 7 },
   { code: 'other', name: 'Otro', sortOrder: 8 },
 ] as const
+
+// Plantilla de anamnesis por defecto (alineada al Ministerio): editable por institución
+export const DEFAULT_ANAMNESIS_SCHEMA = {
+  sections: [
+    {
+      title: 'Datos de nacimiento',
+      fields: [
+        { key: 'tipo_parto', label: 'Tipo de parto', type: 'select', required: false, options: ['Normal', 'Cesárea'] },
+        { key: 'semanas_gestacion', label: 'Semanas de gestación', type: 'text', required: false },
+        { key: 'complicaciones_parto', label: 'Complicaciones en el parto', type: 'textarea', required: false },
+      ],
+    },
+    {
+      title: 'Salud',
+      fields: [
+        { key: 'tipo_sangre', label: 'Tipo de sangre', type: 'text', required: false },
+        { key: 'alergias', label: 'Alergias', type: 'textarea', required: false },
+        { key: 'enfermedades_cronicas', label: 'Enfermedades crónicas', type: 'textarea', required: false },
+        { key: 'medicacion_actual', label: 'Medicación actual', type: 'textarea', required: false },
+        { key: 'discapacidad', label: '¿Tiene alguna discapacidad?', type: 'checkbox', required: false },
+        { key: 'discapacidad_detalle', label: 'Detalle de la discapacidad', type: 'textarea', required: false },
+      ],
+    },
+    {
+      title: 'Desarrollo',
+      fields: [
+        { key: 'edad_camino', label: 'Edad en que caminó', type: 'text', required: false },
+        { key: 'edad_hablo', label: 'Edad en que habló', type: 'text', required: false },
+        { key: 'dificultades_aprendizaje', label: 'Dificultades de aprendizaje', type: 'textarea', required: false },
+      ],
+    },
+    {
+      title: 'Entorno familiar',
+      fields: [
+        { key: 'vive_con', label: 'Vive con', type: 'text', required: false },
+        { key: 'num_hermanos', label: 'Número de hermanos', type: 'text', required: false },
+        { key: 'observaciones', label: 'Observaciones', type: 'textarea', required: false },
+      ],
+    },
+  ],
+} as const
 
 export interface BootstrapAdminInput {
   email: string
@@ -240,6 +286,16 @@ export async function bootstrapInstitution(
   // 7b. Tipos de falta base (debido proceso)
   await tx.incidentType.createMany({
     data: DEFAULT_INCIDENT_TYPES.map((t) => ({ ...t, institutionId: inst.id })),
+  })
+
+  // 7c. Plantilla de anamnesis por defecto
+  await tx.anamnesisTemplate.create({
+    data: {
+      institutionId: inst.id,
+      name: 'Ficha de anamnesis',
+      isDefault: true,
+      schema: DEFAULT_ANAMNESIS_SCHEMA as unknown as Prisma.InputJsonValue,
+    },
   })
 
   // 8. Usuario admin inicial

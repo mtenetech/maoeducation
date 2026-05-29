@@ -58,6 +58,12 @@ const NAV_ITEMS: NavItem[] = [
     permission: 'academic_config:manage',
   },
   {
+    label: 'Ficha de anamnesis',
+    icon: ClipboardCheck,
+    path: '/settings/anamnesis',
+    permission: 'anamnesis:manage',
+  },
+  {
     label: 'Actividades',
     icon: BookOpen,
     path: '/activities',

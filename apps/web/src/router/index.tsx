@@ -292,6 +292,28 @@ export const router = createBrowserRouter([
           },
         ],
       },
+      // ---- Settings / Anamnesis template ----
+      {
+        path: 'settings/anamnesis',
+        element: <PermissionGuard permission="anamnesis:manage" />,
+        children: [
+          {
+            index: true,
+            lazy: () =>
+              import('@/features/students/pages/AnamnesisTemplatePage').then((m) => ({
+                Component: m.AnamnesisTemplatePage,
+              })),
+          },
+        ],
+      },
+      // ---- Student detail (ficha) ----
+      {
+        path: 'students/:id',
+        lazy: () =>
+          import('@/features/students/pages/StudentDetailPage').then((m) => ({
+            Component: m.StudentDetailPage,
+          })),
+      },
     ],
   },
   // ---- Plataforma (superadmin global, fuera del tenant) ----

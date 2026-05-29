@@ -3,6 +3,40 @@ import { prisma } from '../../../../shared/infrastructure/database/prisma'
 import { CreateUserDto, ListUsersQueryDto, UpdateUserDto } from '../../application/dtos/user.dto'
 import { UserDetail, UserListItem } from '../../domain/entities/user.entity'
 import { ConflictError, NotFoundError } from '../../../../shared/domain/errors/app.errors'
+import type { ProfileFieldsDto } from '../../application/dtos/user.dto'
+
+const EXTRA_FIELDS: (keyof ProfileFieldsDto)[] = [
+  'phoneAlt', 'address', 'occupation', 'nationality', 'placeOfBirth',
+  'bloodType', 'gender', 'emergencyContactName', 'emergencyContactPhone',
+]
+
+/** Mapea (solo definidos) los campos extra del perfil para un create. */
+function extraCreate(dto: ProfileFieldsDto): Record<string, string | undefined> {
+  const out: Record<string, string | undefined> = {}
+  for (const f of EXTRA_FIELDS) if (dto[f] !== undefined) out[f] = dto[f]
+  return out
+}
+
+/** Mapea (solo definidos) los campos extra del perfil para un update. */
+function extraUpdate(dto: ProfileFieldsDto): Record<string, string | null> {
+  const out: Record<string, string | null> = {}
+  for (const f of EXTRA_FIELDS) if (dto[f] !== undefined) out[f] = dto[f] ?? null
+  return out
+}
+
+function mapProfile(p: {
+  firstName: string; lastName: string; dni: string | null; phone: string | null; birthDate: Date | null
+  phoneAlt: string | null; address: string | null; occupation: string | null; nationality: string | null
+  placeOfBirth: string | null; bloodType: string | null; gender: string | null
+  emergencyContactName: string | null; emergencyContactPhone: string | null
+}) {
+  return {
+    firstName: p.firstName, lastName: p.lastName, dni: p.dni, phone: p.phone, birthDate: p.birthDate,
+    phoneAlt: p.phoneAlt, address: p.address, occupation: p.occupation, nationality: p.nationality,
+    placeOfBirth: p.placeOfBirth, bloodType: p.bloodType, gender: p.gender,
+    emergencyContactName: p.emergencyContactName, emergencyContactPhone: p.emergencyContactPhone,
+  }
+}
 
 export class PrismaUserRepository {
   async list(
@@ -76,15 +110,7 @@ export class PrismaUserRepository {
       fullName: u.profile ? `${u.profile.firstName} ${u.profile.lastName}` : u.email,
       avatarUrl: u.profile?.avatarUrl ?? null,
       createdAt: u.createdAt,
-      profile: u.profile
-        ? {
-            firstName: u.profile.firstName,
-            lastName:  u.profile.lastName,
-            dni:       u.profile.dni,
-            phone:     u.profile.phone,
-            birthDate: u.profile.birthDate,
-          }
-        : null,
+      profile: u.profile ? mapProfile(u.profile) : null,
     }
   }
 
@@ -112,6 +138,7 @@ export class PrismaUserRepository {
             dni:       dto.dni,
             phone:     dto.phone,
             birthDate: dto.birthDate ? new Date(dto.birthDate) : null,
+            ...extraCreate(dto),
           },
         },
         userRoles: {
@@ -133,13 +160,7 @@ export class PrismaUserRepository {
       fullName: `${user.profile!.firstName} ${user.profile!.lastName}`,
       avatarUrl: null,
       createdAt: user.createdAt,
-      profile: {
-        firstName: user.profile!.firstName,
-        lastName:  user.profile!.lastName,
-        dni:       user.profile!.dni,
-        phone:     user.profile!.phone,
-        birthDate: user.profile!.birthDate,
-      },
+      profile: mapProfile(user.profile!),
     }
   }
 
@@ -158,6 +179,7 @@ export class PrismaUserRepository {
             ...(dto.dni        !== undefined && { dni:       dto.dni }),
             ...(dto.phone      !== undefined && { phone:     dto.phone }),
             ...(dto.birthDate  !== undefined && { birthDate: dto.birthDate ? new Date(dto.birthDate) : null }),
+            ...extraUpdate(dto),
           },
         },
       },

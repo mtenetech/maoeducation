@@ -7,6 +7,7 @@ import {
   DEFAULT_LEVELS,
   BASE_ACTIVITY_TYPES,
   DEFAULT_INCIDENT_TYPES,
+  DEFAULT_ANAMNESIS_SCHEMA,
 } from '../../src/modules/platform/application/services/institution-bootstrap'
 
 const prisma = new PrismaClient()
@@ -74,6 +75,22 @@ async function main() {
     })
   }
   console.log(`✓ Incident types: ${DEFAULT_INCIDENT_TYPES.length} tipos de falta creados`)
+
+  // 4c. Plantilla de anamnesis por defecto
+  const existingTemplate = await prisma.anamnesisTemplate.findFirst({
+    where: { institutionId: institution.id, isDefault: true },
+  })
+  if (!existingTemplate) {
+    await prisma.anamnesisTemplate.create({
+      data: {
+        institutionId: institution.id,
+        name: 'Ficha de anamnesis',
+        isDefault: true,
+        schema: DEFAULT_ANAMNESIS_SCHEMA as object,
+      },
+    })
+  }
+  console.log('✓ Anamnesis template: plantilla por defecto creada')
 
   // 5. Roles del sistema
   const roles = SYSTEM_ROLES

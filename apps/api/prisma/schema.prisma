@@ -38,6 +38,8 @@ model Institution {
   incidentEvents        IncidentEvent[]
   incidentCommitments   IncidentCommitment[]
   incidentAttachments   IncidentAttachment[]
+  anamnesisTemplates    AnamnesisTemplate[]
+  anamnesisRecords      AnamnesisRecord[]
   messageThreads        MessageThread[]
   scheduleEntries       ScheduleEntry[]
   reportTemplates       ReportTemplate[]
@@ -89,6 +91,10 @@ model User {
   incidentCommitments         IncidentCommitment[]   @relation("IncidentCommitmentCreator")
   incidentAttachmentsUploaded IncidentAttachment[]   @relation("IncidentAttachmentUploader")
 
+  // Anamnesis
+  studentAnamnesis  AnamnesisRecord[] @relation("StudentAnamnesis")
+  createdAnamnesis  AnamnesisRecord[] @relation("AnamnesisCreator")
+
   // Relaciones de tutor/padre
   guardianOf       GuardianStudent[] @relation("GuardianRelation")
   studentGuardians GuardianStudent[] @relation("StudentRelation")
@@ -109,6 +115,16 @@ model Profile {
   phone     String?  @db.VarChar(30)
   birthDate DateTime? @map("birth_date") @db.Date
   avatarUrl String?  @map("avatar_url") @db.VarChar(500)
+  // Datos ampliados (matrícula / representante)
+  phoneAlt              String?   @map("phone_alt") @db.VarChar(30)
+  address               String?   @db.VarChar(300)
+  occupation            String?   @db.VarChar(120)
+  nationality           String?   @db.VarChar(60)
+  placeOfBirth          String?   @map("place_of_birth") @db.VarChar(120)
+  bloodType             String?   @map("blood_type") @db.VarChar(10)
+  gender                String?   @db.VarChar(20)
+  emergencyContactName  String?   @map("emergency_contact_name") @db.VarChar(150)
+  emergencyContactPhone String?   @map("emergency_contact_phone") @db.VarChar(30)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -118,10 +134,13 @@ model Profile {
 }
 
 model GuardianStudent {
-  guardianId   String @map("guardian_id")
-  studentId    String @map("student_id")
-  relationship String @default("guardian") @db.VarChar(50)
-  isPrimary    Boolean @default(false) @map("is_primary")
+  guardianId        String  @map("guardian_id")
+  studentId         String  @map("student_id")
+  relationship      String  @default("guardian") @db.VarChar(50) // padre | madre | tutor_legal | otro
+  isPrimary         Boolean @default(false) @map("is_primary")
+  isLegalRep        Boolean @default(false) @map("is_legal_rep")
+  livesWithStudent  Boolean @default(false) @map("lives_with_student")
+  isEmergencyContact Boolean @default(false) @map("is_emergency_contact")
 
   guardian User @relation("GuardianRelation", fields: [guardianId], references: [id], onDelete: Cascade)
   student  User @relation("StudentRelation", fields: [studentId], references: [id], onDelete: Cascade)
@@ -344,6 +363,45 @@ model StudentEnrollment {
 
   @@unique([studentId, academicYearId])
   @@map("student_enrollments")
+}
+
+// ============================================================
+// FICHA DE ANAMNESIS (configurable por institución)
+// ============================================================
+
+model AnamnesisTemplate {
+  id            String   @id @default(uuid())
+  institutionId String   @map("institution_id")
+  name          String   @db.VarChar(150)
+  isDefault     Boolean  @default(false) @map("is_default")
+  isActive      Boolean  @default(true) @map("is_active")
+  schema        Json     @default("{}") // { sections: [{ title, fields: [{ key, label, type, required, options }] }] }
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  institution Institution        @relation(fields: [institutionId], references: [id])
+  records     AnamnesisRecord[]
+
+  @@map("anamnesis_templates")
+}
+
+model AnamnesisRecord {
+  id            String   @id @default(uuid())
+  institutionId String   @map("institution_id")
+  studentId     String   @map("student_id")
+  templateId    String   @map("template_id")
+  answers       Json     @default("{}")
+  createdBy     String   @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  institution Institution       @relation(fields: [institutionId], references: [id])
+  student     User              @relation("StudentAnamnesis", fields: [studentId], references: [id], onDelete: Cascade)
+  template    AnamnesisTemplate @relation(fields: [templateId], references: [id])
+  creator     User              @relation("AnamnesisCreator", fields: [createdBy], references: [id])
+
+  @@unique([studentId])
+  @@map("anamnesis_records")
 }
 
 // ============================================================
