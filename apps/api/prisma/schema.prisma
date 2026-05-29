@@ -684,3 +684,20 @@ model TaskAttachment {
 
   @@map("task_attachments")
 }
+
+// ============================================================
+// PLATAFORMA (SUPERADMIN GLOBAL — NO pertenece a ninguna institución)
+// ============================================================
+
+model PlatformAdmin {
+  id           String    @id @default(uuid())
+  email        String    @unique @db.VarChar(255)
+  passwordHash String    @map("password_hash") @db.VarChar(255)
+  name         String    @db.VarChar(150)
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@map("platform_admins")
+}

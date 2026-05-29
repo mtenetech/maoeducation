@@ -4,6 +4,9 @@ import { PrivateRoute } from './PrivateRoute'
 import { PermissionGuard } from './PermissionGuard'
 import { LoginPage } from '@/features/auth/pages/LoginPage'
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage'
+import { PlatformPrivateRoute } from './PlatformPrivateRoute'
+import { PlatformLayout } from '@/shared/components/layout/PlatformLayout'
+import { PlatformLoginPage } from '@/features/platform/pages/PlatformLoginPage'
 
 export const router = createBrowserRouter([
   {
@@ -254,6 +257,35 @@ export const router = createBrowserRouter([
               })),
           },
         ],
+      },
+    ],
+  },
+  // ---- Plataforma (superadmin global, fuera del tenant) ----
+  {
+    path: '/platform/login',
+    element: <PlatformLoginPage />,
+  },
+  {
+    path: '/platform',
+    element: (
+      <PlatformPrivateRoute>
+        <PlatformLayout />
+      </PlatformPrivateRoute>
+    ),
+    children: [
+      {
+        index: true,
+        lazy: () =>
+          import('@/features/platform/pages/InstitutionsPage').then((m) => ({
+            Component: m.InstitutionsPage,
+          })),
+      },
+      {
+        path: 'institutions/:id/admins',
+        lazy: () =>
+          import('@/features/platform/pages/InstitutionAdminsPage').then((m) => ({
+            Component: m.InstitutionAdminsPage,
+          })),
       },
     ],
   },

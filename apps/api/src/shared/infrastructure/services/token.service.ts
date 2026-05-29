@@ -17,6 +17,14 @@ export interface RefreshTokenPayload {
   exp?: number
 }
 
+// Token del superadmin de plataforma — NO atado a ninguna institución
+export interface PlatformTokenPayload {
+  sub: string
+  scope: 'platform'
+  iat?: number
+  exp?: number
+}
+
 export class TokenService {
   signAccess(payload: Omit<AccessTokenPayload, 'iat' | 'exp'>): string {
     return jwt.sign(payload, env.JWT_SECRET, {
@@ -43,6 +51,24 @@ export class TokenService {
       return jwt.verify(token, env.JWT_REFRESH_SECRET) as RefreshTokenPayload
     } catch {
       throw new UnauthorizedError('Refresh token inválido o expirado')
+    }
+  }
+
+  signPlatformAccess(payload: { sub: string }): string {
+    return jwt.sign({ ...payload, scope: 'platform' }, env.JWT_SECRET, {
+      expiresIn: env.JWT_ACCESS_EXPIRES as jwt.SignOptions['expiresIn'],
+    })
+  }
+
+  verifyPlatformAccess(token: string): PlatformTokenPayload {
+    try {
+      const payload = jwt.verify(token, env.JWT_SECRET) as PlatformTokenPayload
+      if (payload.scope !== 'platform') {
+        throw new UnauthorizedError('Token inválido o expirado')
+      }
+      return payload
+    } catch {
+      throw new UnauthorizedError('Token inválido o expirado')
     }
   }
 }
