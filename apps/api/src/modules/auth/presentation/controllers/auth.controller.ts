@@ -7,6 +7,7 @@ import { LoginBody } from '../validators/auth.schema'
 import { UnauthorizedError } from '../../../../shared/domain/errors/app.errors'
 import { prisma } from '../../../../shared/infrastructure/database/prisma'
 import { buildAuthInstitution } from '../../application/services/auth-institution.mapper'
+import { changePasswordUseCase } from '../../application/use-cases/change-password.use-case'
 
 const userRepo = new PrismaAuthUserRepository()
 const loginUseCase = new LoginUseCase(userRepo, tokenService)
@@ -44,6 +45,14 @@ export const authController = {
 
   async logout(_req: FastifyRequest, reply: FastifyReply) {
     reply.clearCookie(REFRESH_COOKIE, { path: '/api/v1/auth' })
+    return reply.status(204).send()
+  },
+
+  async changePassword(
+    req: FastifyRequest<{ Body: { currentPassword: string; newPassword: string } }>,
+    reply: FastifyReply,
+  ) {
+    await changePasswordUseCase.execute(req.user.sub, req.body.currentPassword, req.body.newPassword)
     return reply.status(204).send()
   },
 

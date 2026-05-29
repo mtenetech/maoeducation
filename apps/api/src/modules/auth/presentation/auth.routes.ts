@@ -30,4 +30,22 @@ export default async function authRoutes(app: FastifyInstance) {
     { preHandler: [authMiddleware] },
     authController.me,
   )
+
+  app.post<{ Body: { currentPassword: string; newPassword: string } }>(
+    '/auth/change-password',
+    {
+      preHandler: [authMiddleware],
+      schema: {
+        body: {
+          type: 'object',
+          required: ['currentPassword', 'newPassword'],
+          properties: {
+            currentPassword: { type: 'string', minLength: 1 },
+            newPassword: { type: 'string', minLength: 6 },
+          },
+        },
+      },
+    },
+    authController.changePassword,
+  )
 }
