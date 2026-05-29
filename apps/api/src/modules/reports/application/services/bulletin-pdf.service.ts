@@ -53,9 +53,19 @@ function cualitativa(v: number | null): string {
   return 'NA'
 }
 
-/** Resuelve la ruta en disco de un logo servido en /uploads/... */
-function logoDiskPath(logoUrl: string | null): string | null {
+/** Resuelve el logo a algo que pdfkit pueda embeber: Buffer (data URI) o ruta en disco. */
+function resolveLogo(logoUrl: string | null): Buffer | string | null {
   if (!logoUrl) return null
+  // data URI base64 (cómo se guardan ahora los logos, para persistir en hostings efímeros)
+  const dm = /^data:[^;]+;base64,(.+)$/.exec(logoUrl)
+  if (dm) {
+    try {
+      return Buffer.from(dm[1], 'base64')
+    } catch {
+      return null
+    }
+  }
+  // legacy: archivo en /uploads/...
   const m = /\/uploads\/(.+)$/.exec(logoUrl)
   if (!m) return null
   const p = path.join(process.cwd(), 'uploads', m[1])
@@ -75,17 +85,19 @@ export function buildBulletinPdf(data: BulletinPdfData): Promise<Buffer> {
     let y = doc.page.margins.top
 
     // ── Encabezado ──
-    const logoPath = logoDiskPath(data.logoUrl)
-    if (logoPath) {
+    const logo = resolveLogo(data.logoUrl)
+    let hasLogo = false
+    if (logo) {
       try {
-        doc.image(logoPath, left, y, { fit: [46, 46] })
+        doc.image(logo, left, y, { fit: [46, 46] })
+        hasLogo = true
       } catch {
-        /* logo inválido: se ignora */
+        /* logo inválido (p.ej. SVG, que pdfkit no soporta): se ignora */
       }
     }
-    const headX = left + (logoPath ? 56 : 0)
+    const headX = left + (hasLogo ? 56 : 0)
     doc.font('Helvetica-Bold').fontSize(13).text(data.institutionName.toUpperCase(), headX, y, {
-      width: pageW - (logoPath ? 56 : 0),
+      width: pageW - (hasLogo ? 56 : 0),
     })
     doc.font('Helvetica-Bold').fontSize(10).text(data.title || 'INFORME DE CALIFICACIONES', headX, doc.y + 1)
     y = Math.max(y + 50, doc.y + 6)

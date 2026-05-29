@@ -1,15 +1,11 @@
-import fs from 'fs'
-import path from 'path'
-import crypto from 'crypto'
-import { pipeline } from 'stream/promises'
 import { FastifyInstance } from 'fastify'
 import { authMiddleware } from '../../../shared/infrastructure/middleware/auth.middleware'
 import { requirePermission } from '../../../shared/infrastructure/middleware/rbac.middleware'
 import { PrismaInstitutionRepository } from '../infrastructure/repositories/prisma-institution.repository'
 import type { UpdateInstitutionSettingsDto } from '../application/dtos/institution.dto'
 
-const LOGO_UPLOAD_DIR = path.join(process.cwd(), 'uploads', 'branding')
 const ALLOWED_LOGO_MIME = ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp']
+const MAX_LOGO_BYTES = 500 * 1024 // 500 KB (se guarda en BD como data URI)
 
 export default async function institutionRoutes(app: FastifyInstance) {
   const repo = new PrismaInstitutionRepository()
@@ -59,13 +55,13 @@ export default async function institutionRoutes(app: FastifyInstance) {
         return reply.status(400).send({ message: 'Formato no permitido (usa PNG, JPG, SVG o WebP)' })
       }
 
-      const ext = path.extname(data.filename).toLowerCase() || '.png'
-      const storedName = `${req.user.institutionId}-${crypto.randomUUID()}${ext}`
-      const filePath = path.join(LOGO_UPLOAD_DIR, storedName)
-      fs.mkdirSync(LOGO_UPLOAD_DIR, { recursive: true })
-      await pipeline(data.file, fs.createWriteStream(filePath))
-
-      const logoUrl = `/uploads/branding/${storedName}`
+      // Guardamos el logo como data URI en la BD (no en disco): el disco de
+      // muchos hostings (Railway, Vercel...) es efímero y borra los archivos.
+      const buf = await data.toBuffer()
+      if (buf.length > MAX_LOGO_BYTES) {
+        return reply.status(400).send({ message: 'El logo no debe superar 500 KB' })
+      }
+      const logoUrl = `data:${data.mimetype};base64,${buf.toString('base64')}`
       await repo.setLogoUrl(req.user.institutionId, logoUrl)
       return reply.status(201).send({ logoUrl })
     },
