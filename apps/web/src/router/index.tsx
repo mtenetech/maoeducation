@@ -141,6 +141,34 @@ export const router = createBrowserRouter([
           },
         ],
       },
+      // ---- Behavior (comportamiento) ----
+      {
+        path: 'behavior',
+        element: <PermissionGuard permission="grades:write" />,
+        children: [
+          {
+            index: true,
+            lazy: () =>
+              import('@/features/behavior/pages/BehaviorEntryPage').then((m) => ({
+                Component: m.BehaviorEntryPage,
+              })),
+          },
+        ],
+      },
+      // ---- Promotion (promoción y recuperaciones) ----
+      {
+        path: 'promotion',
+        element: <PermissionGuard permission="grades:read" />,
+        children: [
+          {
+            index: true,
+            lazy: () =>
+              import('@/features/promotion/pages/PromotionPage').then((m) => ({
+                Component: m.PromotionPage,
+              })),
+          },
+        ],
+      },
       // ---- Enrollment ----
       {
         path: 'enrollment',
@@ -288,6 +316,20 @@ export const router = createBrowserRouter([
             lazy: () =>
               import('@/features/settings/pages/BrandingPage').then((m) => ({
                 Component: m.BrandingPage,
+              })),
+          },
+        ],
+      },
+      // ---- Settings / Grading config ----
+      {
+        path: 'settings/calificacion',
+        element: <PermissionGuard permission="academic_config:manage" />,
+        children: [
+          {
+            index: true,
+            lazy: () =>
+              import('@/features/settings/pages/GradingConfigPage').then((m) => ({
+                Component: m.GradingConfigPage,
               })),
           },
         ],

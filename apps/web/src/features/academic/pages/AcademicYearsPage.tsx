@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { type ColumnDef } from '@tanstack/react-table'
-import { Plus, Check, ChevronDown, ChevronRight, CalendarDays } from 'lucide-react'
+import { Plus, Check, ChevronDown, ChevronRight, CalendarDays, Lock, LockOpen } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
@@ -25,6 +25,7 @@ import {
   useActivateYear,
   usePeriods,
   useCreatePeriod,
+  useSetPeriodClosure,
 } from '../hooks/useAcademic'
 
 // ─── Period sub-panel ─────────────────────────────────────────────────────────
@@ -40,6 +41,7 @@ type PeriodForm = z.infer<typeof periodSchema>
 function PeriodsPanel({ yearId }: { yearId: string }) {
   const { data: periods = [], isLoading } = usePeriods(yearId)
   const createPeriod = useCreatePeriod(yearId)
+  const setClosure = useSetPeriodClosure(yearId)
   const [open, setOpen] = React.useState(false)
 
   const form = useForm<PeriodForm>({
@@ -91,6 +93,29 @@ function PeriodsPanel({ yearId }: { yearId: string }) {
           {row.original.isActive ? 'Activo' : 'Inactivo'}
         </Badge>
       ),
+    },
+    {
+      id: 'closure',
+      header: 'Cierre',
+      cell: ({ row }) => {
+        const closed = row.original.isClosed
+        return (
+          <div className="flex items-center gap-2">
+            {closed && <Badge variant="warning">Cerrado</Badge>}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2 text-xs"
+              disabled={setClosure.isPending}
+              onClick={() => setClosure.mutate({ periodId: row.original.id, isClosed: !closed })}
+              title={closed ? 'Reabrir período' : 'Cerrar período (bloquea notas y comportamiento)'}
+            >
+              {closed ? <LockOpen className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+              {closed ? 'Reabrir' : 'Cerrar'}
+            </Button>
+          </div>
+        )
+      },
     },
   ]
 

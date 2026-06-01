@@ -4,6 +4,7 @@ import path from 'node:path'
 import crypto from 'node:crypto'
 import { pipeline } from 'node:stream/promises'
 import { PrismaReportRepository } from '../infrastructure/prisma-report.repository'
+import { PrismaInstitutionRepository } from '../../institution/infrastructure/repositories/prisma-institution.repository'
 import { buildBulletinPdf } from '../application/services/bulletin-pdf.service'
 import { authMiddleware } from '../../../shared/infrastructure/middleware/auth.middleware'
 import { requirePermission } from '../../../shared/infrastructure/middleware/rbac.middleware'
@@ -17,6 +18,7 @@ import type {
 } from '../application/dtos/report.dto'
 
 const repo = new PrismaReportRepository()
+const institutionRepo = new PrismaInstitutionRepository()
 const REPORT_TYPE = 'grade_bulletin_branding'
 const REPORT_UPLOAD_DIR = path.join(process.cwd(), 'uploads', 'reports')
 
@@ -152,16 +154,18 @@ export default async function reportRoutes(app: FastifyInstance) {
   app.get<{ Querystring: BulletinReportQuery }>(
     '/reports/bulletin',
     async (req, reply) => {
-      const [branding, bulletin] = await Promise.all([
+      const [branding, bulletin, gradingConfig] = await Promise.all([
         getBranding(req.user.institutionId, req.user.sub),
         repo.getStudentBulletin(req.user.institutionId, req.query, {
           userId: req.user.sub,
           roles: req.user.roles,
         }),
+        institutionRepo.getGradingConfig(req.user.institutionId),
       ])
       return reply.send({
         ...bulletin,
         branding: branding.effective,
+        gradingConfig,
       })
     },
   )
@@ -169,12 +173,13 @@ export default async function reportRoutes(app: FastifyInstance) {
   app.get<{ Querystring: BulletinReportQuery }>(
     '/reports/bulletin/pdf',
     async (req, reply) => {
-      const [branding, bulletin] = await Promise.all([
+      const [branding, bulletin, gradingConfig] = await Promise.all([
         getBranding(req.user.institutionId, req.user.sub),
         repo.getStudentBulletin(req.user.institutionId, req.query, {
           userId: req.user.sub,
           roles: req.user.roles,
         }),
+        institutionRepo.getGradingConfig(req.user.institutionId),
       ])
       const b = branding.effective
       const tutor = bulletin.parallel?.tutor?.profile
@@ -202,6 +207,7 @@ export default async function reportRoutes(app: FastifyInstance) {
           finalAverage: s.finalAverage,
         })),
         overallAverage: bulletin.overallAverage ?? null,
+        qualitativeScale: gradingConfig.qualitativeScale,
         attendanceByPeriod: (bulletin.attendanceByPeriod ?? []).map((a: {
           periodName: string; justifiedAbsences: number; unjustifiedAbsences: number; lateCount: number
         }) => ({
@@ -209,6 +215,13 @@ export default async function reportRoutes(app: FastifyInstance) {
           justifiedAbsences: a.justifiedAbsences,
           unjustifiedAbsences: a.unjustifiedAbsences,
           lateCount: a.lateCount,
+        })),
+        behaviorByPeriod: (bulletin.behaviorByPeriod ?? []).map((b: {
+          periodName: string; code: string | null; notes: string | null
+        }) => ({
+          periodName: b.periodName,
+          code: b.code,
+          label: b.code ? gradingConfig.behaviorScale.find((s) => s.code === b.code)?.label ?? null : null,
         })),
       })
       const studentSlug = `${bulletin.student.profile?.lastName ?? 'boletin'}`.replace(/\s+/g, '_')

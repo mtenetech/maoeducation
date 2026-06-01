@@ -2,10 +2,13 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../../../../shared/infrastructure/database/prisma'
 import { NotFoundError } from '../../../../shared/domain/errors/app.errors'
 import {
+  GradingConfig,
   InstitutionBranding,
   InstitutionSettingsDto,
+  UpdateGradingConfigDto,
   UpdateInstitutionSettingsDto,
 } from '../../application/dtos/institution.dto'
+import { DEFAULT_GRADING_CONFIG } from '../../../platform/application/services/institution-bootstrap'
 
 function extractBranding(settings: unknown): InstitutionBranding {
   const s = (settings ?? {}) as Record<string, unknown>
@@ -14,6 +17,24 @@ function extractBranding(settings: unknown): InstitutionBranding {
     logoUrl: (branding.logoUrl as string | undefined) ?? null,
     primaryColor: (branding.primaryColor as string | undefined) ?? null,
     sidebarColor: (branding.sidebarColor as string | undefined) ?? null,
+  }
+}
+
+/** Devuelve la config de calificación con fallback a los defaults MINEDUC. */
+function extractGradingConfig(settings: unknown): GradingConfig {
+  const s = (settings ?? {}) as Record<string, unknown>
+  const gc = (s.gradingConfig ?? {}) as Partial<GradingConfig>
+  return {
+    qualitativeScale:
+      gc.qualitativeScale && gc.qualitativeScale.length > 0
+        ? gc.qualitativeScale
+        : (DEFAULT_GRADING_CONFIG.qualitativeScale as unknown as GradingConfig['qualitativeScale']),
+    behaviorScale:
+      gc.behaviorScale && gc.behaviorScale.length > 0
+        ? gc.behaviorScale
+        : (DEFAULT_GRADING_CONFIG.behaviorScale as unknown as GradingConfig['behaviorScale']),
+    promotion: { ...DEFAULT_GRADING_CONFIG.promotion, ...(gc.promotion ?? {}) },
+    defaultExamWeight: gc.defaultExamWeight ?? DEFAULT_GRADING_CONFIG.defaultExamWeight,
   }
 }
 
@@ -64,6 +85,44 @@ export class PrismaInstitutionRepository {
       code: updated.code,
       branding: extractBranding(updated.settings),
     }
+  }
+
+  async getGradingConfig(institutionId: string): Promise<GradingConfig> {
+    const inst = await prisma.institution.findUnique({
+      where: { id: institutionId },
+      select: { settings: true },
+    })
+    if (!inst) throw new NotFoundError('Institución no encontrada')
+    return extractGradingConfig(inst.settings)
+  }
+
+  async updateGradingConfig(
+    institutionId: string,
+    dto: UpdateGradingConfigDto,
+  ): Promise<GradingConfig> {
+    const inst = await prisma.institution.findUnique({
+      where: { id: institutionId },
+      select: { settings: true },
+    })
+    if (!inst) throw new NotFoundError('Institución no encontrada')
+
+    const currentSettings = (inst.settings ?? {}) as Record<string, unknown>
+    const current = extractGradingConfig(inst.settings)
+    const next: GradingConfig = {
+      qualitativeScale: dto.qualitativeScale ?? current.qualitativeScale,
+      behaviorScale: dto.behaviorScale ?? current.behaviorScale,
+      promotion: { ...current.promotion, ...(dto.promotion ?? {}) },
+      defaultExamWeight: dto.defaultExamWeight ?? current.defaultExamWeight,
+    }
+
+    const updated = await prisma.institution.update({
+      where: { id: institutionId },
+      data: {
+        settings: { ...currentSettings, gradingConfig: next } as unknown as Prisma.InputJsonValue,
+      },
+      select: { settings: true },
+    })
+    return extractGradingConfig(updated.settings)
   }
 
   /** Guarda solo el logoUrl dentro de branding (tras subir el archivo). */

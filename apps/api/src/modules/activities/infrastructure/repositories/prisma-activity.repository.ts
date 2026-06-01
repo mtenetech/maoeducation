@@ -330,6 +330,16 @@ export class PrismaActivityRepository {
     dto: BulkGradeDto,
     gradedById: string,
   ) {
+    // Bloquear la captura si la actividad pertenece a un periodo cerrado
+    const activityIds = [...new Set(dto.grades.map((g) => g.activityId))]
+    if (activityIds.length > 0) {
+      const closed = await prisma.activity.findFirst({
+        where: { id: { in: activityIds }, institutionId, academicPeriod: { isClosed: true } },
+        select: { id: true },
+      })
+      if (closed) throw new ConflictError('El período está cerrado: no se pueden modificar las notas')
+    }
+
     const results = await Promise.all(
       dto.grades.map((g) =>
         prisma.grade.upsert({

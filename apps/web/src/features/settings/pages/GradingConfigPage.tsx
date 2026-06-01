@@ -1,0 +1,121 @@
+import { useEffect, useState } from 'react'
+import { Plus, Trash2 } from 'lucide-react'
+import { Button } from '@/shared/components/ui/button'
+import { Input } from '@/shared/components/ui/input'
+import { Label } from '@/shared/components/ui/label'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/shared/components/ui/card'
+import { PageLoader } from '@/shared/components/feedback/loading-spinner'
+import { useGradingConfig, useUpdateGradingConfig } from '../hooks/useSettings'
+import type { BehaviorLevel, GradingConfig, QualitativeLevel } from '../api/settings.api'
+
+export function GradingConfigPage() {
+  const { data, isLoading } = useGradingConfig()
+  const update = useUpdateGradingConfig()
+  const [cfg, setCfg] = useState<GradingConfig | null>(null)
+
+  useEffect(() => {
+    if (data) setCfg(structuredClone(data))
+  }, [data])
+
+  if (isLoading || !cfg) return <PageLoader />
+
+  const setScale = (i: number, patch: Partial<QualitativeLevel>) =>
+    setCfg({ ...cfg, qualitativeScale: cfg.qualitativeScale.map((l, idx) => (idx === i ? { ...l, ...patch } : l)) })
+  const setBehavior = (i: number, patch: Partial<BehaviorLevel>) =>
+    setCfg({ ...cfg, behaviorScale: cfg.behaviorScale.map((l, idx) => (idx === i ? { ...l, ...patch } : l)) })
+
+  return (
+    <div className="space-y-6 p-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Configuración de calificación</h1>
+          <p className="text-sm text-muted-foreground">Escala cualitativa, comportamiento y reglas de promoción</p>
+        </div>
+        <Button onClick={() => update.mutate(cfg)} loading={update.isPending}>Guardar</Button>
+      </div>
+
+      {/* Escala cualitativa */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Escala cualitativa</CardTitle>
+          <CardDescription>Equivalencia que se muestra en el boletín según el promedio</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <div className="grid grid-cols-[70px_70px_90px_1fr_40px] gap-2 text-xs font-medium text-muted-foreground">
+            <span>Desde</span><span>Hasta</span><span>Código</span><span>Etiqueta</span><span />
+          </div>
+          {cfg.qualitativeScale.map((l, i) => (
+            <div key={i} className="grid grid-cols-[70px_70px_90px_1fr_40px] gap-2">
+              <Input type="number" step="0.01" value={l.min} onChange={(e) => setScale(i, { min: Number(e.target.value) })} />
+              <Input type="number" step="0.01" value={l.max} onChange={(e) => setScale(i, { max: Number(e.target.value) })} />
+              <Input value={l.code} onChange={(e) => setScale(i, { code: e.target.value })} />
+              <Input value={l.label} onChange={(e) => setScale(i, { label: e.target.value })} />
+              <Button variant="ghost" size="sm" onClick={() => setCfg({ ...cfg, qualitativeScale: cfg.qualitativeScale.filter((_, idx) => idx !== i) })}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+          <Button variant="outline" size="sm" onClick={() => setCfg({ ...cfg, qualitativeScale: [...cfg.qualitativeScale, { min: 0, max: 0, code: '', label: '' }] })}>
+            <Plus className="mr-1.5 h-4 w-4" /> Agregar nivel
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Comportamiento */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Escala de comportamiento</CardTitle>
+          <CardDescription>Códigos y etiquetas para la calificación cualitativa de conducta</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <div className="grid grid-cols-[90px_1fr_40px] gap-2 text-xs font-medium text-muted-foreground">
+            <span>Código</span><span>Etiqueta</span><span />
+          </div>
+          {cfg.behaviorScale.map((l, i) => (
+            <div key={i} className="grid grid-cols-[90px_1fr_40px] gap-2">
+              <Input value={l.code} onChange={(e) => setBehavior(i, { code: e.target.value })} />
+              <Input value={l.label} onChange={(e) => setBehavior(i, { label: e.target.value })} />
+              <Button variant="ghost" size="sm" onClick={() => setCfg({ ...cfg, behaviorScale: cfg.behaviorScale.filter((_, idx) => idx !== i) })}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+          <Button variant="outline" size="sm" onClick={() => setCfg({ ...cfg, behaviorScale: [...cfg.behaviorScale, { code: '', label: '' }] })}>
+            <Plus className="mr-1.5 h-4 w-4" /> Agregar
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Promoción */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Reglas de promoción</CardTitle>
+          <CardDescription>Umbrales para aprobar, supletorio y recuperación</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-2">
+          <Field label="Nota mínima para aprobar" value={cfg.promotion.minToPass}
+            onChange={(v) => setCfg({ ...cfg, promotion: { ...cfg.promotion, minToPass: v } })} />
+          <Field label="Examen por defecto (%)" value={cfg.defaultExamWeight}
+            onChange={(v) => setCfg({ ...cfg, defaultExamWeight: v })} />
+          <Field label="Supletorio: desde" value={cfg.promotion.supletorioMin}
+            onChange={(v) => setCfg({ ...cfg, promotion: { ...cfg.promotion, supletorioMin: v } })} />
+          <Field label="Supletorio: hasta" value={cfg.promotion.supletorioMax}
+            onChange={(v) => setCfg({ ...cfg, promotion: { ...cfg.promotion, supletorioMax: v } })} />
+          <Field label="Nota al aprobar supletorio" value={cfg.promotion.passWithExam}
+            onChange={(v) => setCfg({ ...cfg, promotion: { ...cfg.promotion, passWithExam: v } })} />
+          <Field label="Máx. materias reprobadas" value={cfg.promotion.maxFailedSubjects}
+            onChange={(v) => setCfg({ ...cfg, promotion: { ...cfg.promotion, maxFailedSubjects: v } })} />
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+function Field({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+  return (
+    <div className="space-y-1.5">
+      <Label>{label}</Label>
+      <Input type="number" step="0.01" value={value} onChange={(e) => onChange(Number(e.target.value))} />
+    </div>
+  )
+}

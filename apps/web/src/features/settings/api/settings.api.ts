@@ -9,6 +9,30 @@ export interface InstitutionSettings {
   branding: InstitutionBranding
 }
 
+export interface QualitativeLevel {
+  min: number
+  max: number
+  code: string
+  label: string
+}
+export interface BehaviorLevel {
+  code: string
+  label: string
+}
+export interface PromotionConfig {
+  minToPass: number
+  supletorioMin: number
+  supletorioMax: number
+  passWithExam: number
+  maxFailedSubjects: number
+}
+export interface GradingConfig {
+  qualitativeScale: QualitativeLevel[]
+  behaviorScale: BehaviorLevel[]
+  promotion: PromotionConfig
+  defaultExamWeight: number
+}
+
 export const settingsApi = {
   getSettings: () => apiGet<InstitutionSettings>('institution/settings'),
 
@@ -20,4 +44,8 @@ export const settingsApi = {
     form.append('file', file)
     return apiClient.post('institution/logo', { body: form }).json<{ logoUrl: string }>()
   },
+
+  getGradingConfig: () => apiGet<GradingConfig>('institution/grading-config'),
+  updateGradingConfig: (data: GradingConfig) =>
+    apiPut<GradingConfig>('institution/grading-config', data),
 }

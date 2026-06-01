@@ -204,6 +204,31 @@ export const DEFAULT_ANAMNESIS_SCHEMA = {
   ],
 } as const
 
+// Configuración de calificación por defecto (escala MINEDUC), editable por el admin
+export const DEFAULT_GRADING_CONFIG = {
+  qualitativeScale: [
+    { min: 9.0, max: 10.0, code: 'DAR', label: 'Domina los aprendizajes requeridos' },
+    { min: 7.0, max: 8.99, code: 'AAR', label: 'Alcanza los aprendizajes requeridos' },
+    { min: 4.01, max: 6.99, code: 'PAAR', label: 'Está próximo a alcanzar los aprendizajes requeridos' },
+    { min: 0, max: 4.0, code: 'NAAR', label: 'No alcanza los aprendizajes requeridos' },
+  ],
+  behaviorScale: [
+    { code: 'A', label: 'Muy satisfactorio' },
+    { code: 'B', label: 'Satisfactorio' },
+    { code: 'C', label: 'Poco satisfactorio' },
+    { code: 'D', label: 'Mejorable' },
+    { code: 'E', label: 'Insatisfactorio' },
+  ],
+  promotion: {
+    minToPass: 7.0,
+    supletorioMin: 5.0,
+    supletorioMax: 6.99,
+    passWithExam: 7.0,
+    maxFailedSubjects: 1,
+  },
+  defaultExamWeight: 30,
+} as const
+
 export interface BootstrapAdminInput {
   email: string
   firstName: string
@@ -229,9 +254,13 @@ export async function bootstrapInstitution(
   institution: { name: string; code: string },
   admin: BootstrapAdminInput,
 ): Promise<BootstrapInstitutionResult> {
-  // 1. Institución
+  // 1. Institución (con configuración de calificación por defecto)
   const inst = await tx.institution.create({
-    data: { name: institution.name, code: institution.code, settings: {} },
+    data: {
+      name: institution.name,
+      code: institution.code,
+      settings: { gradingConfig: DEFAULT_GRADING_CONFIG } as unknown as Prisma.InputJsonValue,
+    },
   })
 
   // 2. Roles del sistema

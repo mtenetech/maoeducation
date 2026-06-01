@@ -232,6 +232,35 @@ export class PrismaAcademicRepository {
     })
   }
 
+  /** Cierra o reabre un periodo. Al cerrar, bloquea la captura de notas/comportamiento. */
+  async setPeriodClosed(periodId: string, institutionId: string, isClosed: boolean, userId: string) {
+    const period = await prisma.academicPeriod.findFirst({
+      where: { id: periodId, academicYear: { institutionId } },
+      select: { id: true, isClosed: true },
+    })
+    if (!period) throw new NotFoundError('Período no encontrado')
+
+    const updated = await prisma.academicPeriod.update({
+      where: { id: periodId },
+      data: { isClosed },
+      include: { scheme: true },
+    })
+
+    await prisma.auditLog.create({
+      data: {
+        institutionId,
+        userId,
+        action: isClosed ? 'period.close' : 'period.reopen',
+        resourceType: 'academic_period',
+        resourceId: periodId,
+        oldValue: { isClosed: period.isClosed },
+        newValue: { isClosed },
+      },
+    })
+
+    return updated
+  }
+
   // ─── Parallels ─────────────────────────────────────────────────────────────
 
   private readonly parallelInclude = {

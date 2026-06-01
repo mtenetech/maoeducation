@@ -3,7 +3,7 @@ import {
   Home, Users, Settings, BookOpen, GraduationCap,
   ClipboardList, AlertTriangle, MessageSquare, Calendar,
   FileText, ChevronDown, BookMarked, X, UserPlus, ShieldCheck,
-  ClipboardCheck, CalendarDays, Palette,
+  ClipboardCheck, CalendarDays, Palette, Smile, Award,
 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { usePermissions } from '@/shared/hooks/usePermissions'
@@ -49,6 +49,7 @@ const NAV_ITEMS: NavItem[] = [
       { label: 'Paralelos',  path: '/academic/parallels' },
       { label: 'Asignaciones', path: '/academic/assignments' },
       { label: 'Insumos por paralelo', path: '/academic/insumo-setup' },
+      { label: 'Escala de calificación', path: '/settings/calificacion' },
     ],
   },
   {
@@ -73,6 +74,18 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Calificaciones',
     icon: GraduationCap,
     path: '/grades',
+    permission: 'grades:read',
+  },
+  {
+    label: 'Comportamiento',
+    icon: Smile,
+    path: '/behavior',
+    permission: 'grades:write',
+  },
+  {
+    label: 'Promoción',
+    icon: Award,
+    path: '/promotion',
     permission: 'grades:read',
   },
   {

@@ -513,19 +513,29 @@ function BulletinReportView({ data }: { data: StudentBulletinData }) {
     ? `${data.parallel.tutor.profile.firstName} ${data.parallel.tutor.profile.lastName}`
     : ''
   const printDate = new Date().toLocaleDateString('es-EC')
-  const periodAverages = data.periods.map((period) => ({
-    periodId: period.id,
-    avg: average(
-      data.subjects.map((subject) => subject.periodGrades.find((grade) => grade.periodId === period.id)?.total ?? null),
-    ),
+
+  // Escala cualitativa configurable por la institución (con fallback)
+  const qualScale = data.gradingConfig?.qualitativeScale ?? [
+    { min: 9, max: 10, code: 'DAR', label: 'Domina los aprendizajes' },
+    { min: 7, max: 8.99, code: 'AAR', label: 'Alcanza los aprendizajes' },
+    { min: 4.01, max: 6.99, code: 'PAAR', label: 'Está próximo a alcanzar' },
+    { min: 0, max: 4, code: 'NAAR', label: 'No alcanza los aprendizajes' },
+  ]
+  const qualValue = (v: number | null) => {
+    if (v == null) return '—'
+    return qualScale.find((s) => v >= s.min && v <= s.max)?.code ?? '—'
+  }
+  const scaleRows = qualScale.map((s) => ({
+    range: `${s.min.toFixed(2)} - ${s.max.toFixed(2)}`,
+    qualitative: s.label,
+    value: s.code,
   }))
 
-  const scaleRows = [
-    { range: '9.00 - 10.00', qualitative: 'Domina los aprendizajes', value: 'A+' },
-    { range: '7.00 - 8.99', qualitative: 'Alcanza los aprendizajes', value: 'B-' },
-    { range: '4.01 - 6.99', qualitative: 'Está próximo a alcanzar', value: 'C+' },
-    { range: 'Menos o igual a 4', qualitative: 'No alcanza los aprendizajes', value: 'E-' },
-  ]
+  // Comportamiento real capturado por periodo (con su escala A–E configurable)
+  const behaviorScale = data.gradingConfig?.behaviorScale ?? []
+  const behaviorByPeriodMap = new Map((data.behaviorByPeriod ?? []).map((b) => [b.periodId, b]))
+  const behaviorLabelFor = (code: string | null) =>
+    code ? behaviorScale.find((s) => s.code === code)?.label ?? code : '—'
 
   return (
     <div className="space-y-4">
@@ -615,7 +625,7 @@ function BulletinReportView({ data }: { data: StudentBulletinData }) {
                     )
                   })}
                   <td className="border px-2 py-1 text-center font-bold">{formatScore(subject.finalAverage)}</td>
-                  <td className="border px-2 py-1 text-center">{qualitativeValue(subject.finalAverage)}</td>
+                  <td className="border px-2 py-1 text-center">{qualValue(subject.finalAverage)}</td>
                 </tr>
               ))}
             </tbody>
@@ -626,35 +636,38 @@ function BulletinReportView({ data }: { data: StudentBulletinData }) {
               <table className="w-full border-collapse text-[11px]">
                 <thead>
                   <tr>
-                    <th className="border px-2 py-1.5" colSpan={data.periods.length * 2 + 1}>
+                    <th className="border px-2 py-1.5" colSpan={data.periods.length}>
                       {data.branding.behaviorLabel || 'COMPORTAMIENTO'}
                     </th>
                   </tr>
                   <tr>
                     {data.periods.map((period) => (
-                      <React.Fragment key={`behavior-${period.id}`}>
-                        <th className="border px-2 py-1.5">{period.name}</th>
-                        <th className="border px-2 py-1.5">Escala</th>
-                      </React.Fragment>
+                      <th key={`behavior-${period.id}`} className="border px-2 py-1.5">{period.name}</th>
                     ))}
-                    <th className="border px-2 py-1.5">Prom.</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
                     {data.periods.map((period) => {
-                      const periodAverage = periodAverages.find((avg) => avg.periodId === period.id)?.avg ?? null
+                      const code = behaviorByPeriodMap.get(period.id)?.code ?? null
                       return (
-                        <React.Fragment key={`behavior-body-${period.id}`}>
-                          <td className="border px-2 py-2 align-top">{data.branding.behaviorText || ' '}</td>
-                          <td className="border px-2 py-2 text-center align-top">{qualitativeValue(periodAverage)}</td>
-                        </React.Fragment>
+                        <td
+                          key={`behavior-body-${period.id}`}
+                          className="border px-2 py-2 text-center align-top font-semibold"
+                          title={behaviorLabelFor(code)}
+                        >
+                          {code ?? '—'}
+                        </td>
                       )
                     })}
-                    <td className="border px-2 py-2 text-center align-top">{qualitativeValue(data.overallAverage)}</td>
                   </tr>
                 </tbody>
               </table>
+              {behaviorScale.length > 0 && (
+                <p className="text-[10px] text-gray-600">
+                  {behaviorScale.map((s) => `${s.code} = ${s.label}`).join(' · ')}
+                </p>
+              )}
 
               <table className="w-full border-collapse text-[11px]">
                 <thead>
@@ -750,24 +763,8 @@ function AttendanceRow({ label, values }: { label: string; values: number[] }) {
   )
 }
 
-function average(values: Array<number | null>) {
-  const valid = values.filter((value): value is number => value != null)
-  if (valid.length === 0) return null
-  return valid.reduce((sum, value) => sum + value, 0) / valid.length
-}
-
 function formatScore(value: number | null) {
   return value != null ? value.toFixed(2) : '—'
-}
-
-function qualitativeValue(value: number | null) {
-  if (value == null) return '—'
-  if (value >= 9) return 'A+'
-  if (value >= 8) return 'A-'
-  if (value >= 7) return 'B-'
-  if (value >= 6) return 'C+'
-  if (value >= 5) return 'D+'
-  return 'E-'
 }
 
 function GradesReportTab() {
