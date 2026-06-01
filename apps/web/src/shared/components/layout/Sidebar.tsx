@@ -3,7 +3,7 @@ import {
   Home, Users, Settings, BookOpen, GraduationCap,
   ClipboardList, AlertTriangle, MessageSquare, Calendar,
   FileText, ChevronDown, BookMarked, X, UserPlus, ShieldCheck,
-  ClipboardCheck, CalendarDays, Palette,
+  ClipboardCheck, CalendarDays, Palette, Smile,
 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { usePermissions } from '@/shared/hooks/usePermissions'
@@ -75,6 +75,12 @@ const NAV_ITEMS: NavItem[] = [
     icon: GraduationCap,
     path: '/grades',
     permission: 'grades:read',
+  },
+  {
+    label: 'Comportamiento',
+    icon: Smile,
+    path: '/behavior',
+    permission: 'grades:write',
   },
   {
     label: 'Asistencia',

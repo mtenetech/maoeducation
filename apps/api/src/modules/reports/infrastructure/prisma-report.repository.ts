@@ -643,6 +643,21 @@ export class PrismaReportRepository {
       return summary
     })
 
+    const behaviorGrades = await prisma.behaviorGrade.findMany({
+      where: { institutionId, studentId: query.studentId, academicPeriodId: { in: periodIds } },
+      select: { academicPeriodId: true, code: true, notes: true },
+    })
+    const behaviorByPeriodMap = new Map(behaviorGrades.map((b) => [b.academicPeriodId, b]))
+    const behaviorByPeriod = periods.map((period) => {
+      const b = behaviorByPeriodMap.get(period.id)
+      return {
+        periodId: period.id,
+        periodName: period.name,
+        code: b?.code ?? null,
+        notes: b?.notes ?? null,
+      }
+    })
+
     return {
       institution: await prisma.institution.findUnique({
         where: { id: institutionId },
@@ -654,6 +669,7 @@ export class PrismaReportRepository {
       periods: periods.map((p) => ({ id: p.id, name: p.name, periodNumber: p.periodNumber })),
       subjects,
       attendanceByPeriod,
+      behaviorByPeriod,
       overallAverage: this.avg(subjects.map((s) => s.finalAverage)),
     }
   }

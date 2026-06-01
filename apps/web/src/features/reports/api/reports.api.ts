@@ -117,10 +117,17 @@ export interface StudentBulletinData {
     attendedDays: number
     lateCount: number
   }>
+  behaviorByPeriod: Array<{
+    periodId: string
+    periodName: string
+    code: string | null
+    notes: string | null
+  }>
   overallAverage: number | null
   branding: BulletinBranding
   gradingConfig?: {
     qualitativeScale: Array<{ min: number; max: number; code: string; label: string }>
+    behaviorScale?: Array<{ code: string; label: string }>
   }
 }
 

@@ -513,12 +513,6 @@ function BulletinReportView({ data }: { data: StudentBulletinData }) {
     ? `${data.parallel.tutor.profile.firstName} ${data.parallel.tutor.profile.lastName}`
     : ''
   const printDate = new Date().toLocaleDateString('es-EC')
-  const periodAverages = data.periods.map((period) => ({
-    periodId: period.id,
-    avg: average(
-      data.subjects.map((subject) => subject.periodGrades.find((grade) => grade.periodId === period.id)?.total ?? null),
-    ),
-  }))
 
   // Escala cualitativa configurable por la institución (con fallback)
   const qualScale = data.gradingConfig?.qualitativeScale ?? [
@@ -536,6 +530,12 @@ function BulletinReportView({ data }: { data: StudentBulletinData }) {
     qualitative: s.label,
     value: s.code,
   }))
+
+  // Comportamiento real capturado por periodo (con su escala A–E configurable)
+  const behaviorScale = data.gradingConfig?.behaviorScale ?? []
+  const behaviorByPeriodMap = new Map((data.behaviorByPeriod ?? []).map((b) => [b.periodId, b]))
+  const behaviorLabelFor = (code: string | null) =>
+    code ? behaviorScale.find((s) => s.code === code)?.label ?? code : '—'
 
   return (
     <div className="space-y-4">
@@ -636,35 +636,38 @@ function BulletinReportView({ data }: { data: StudentBulletinData }) {
               <table className="w-full border-collapse text-[11px]">
                 <thead>
                   <tr>
-                    <th className="border px-2 py-1.5" colSpan={data.periods.length * 2 + 1}>
+                    <th className="border px-2 py-1.5" colSpan={data.periods.length}>
                       {data.branding.behaviorLabel || 'COMPORTAMIENTO'}
                     </th>
                   </tr>
                   <tr>
                     {data.periods.map((period) => (
-                      <React.Fragment key={`behavior-${period.id}`}>
-                        <th className="border px-2 py-1.5">{period.name}</th>
-                        <th className="border px-2 py-1.5">Escala</th>
-                      </React.Fragment>
+                      <th key={`behavior-${period.id}`} className="border px-2 py-1.5">{period.name}</th>
                     ))}
-                    <th className="border px-2 py-1.5">Prom.</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
                     {data.periods.map((period) => {
-                      const periodAverage = periodAverages.find((avg) => avg.periodId === period.id)?.avg ?? null
+                      const code = behaviorByPeriodMap.get(period.id)?.code ?? null
                       return (
-                        <React.Fragment key={`behavior-body-${period.id}`}>
-                          <td className="border px-2 py-2 align-top">{data.branding.behaviorText || ' '}</td>
-                          <td className="border px-2 py-2 text-center align-top">{qualValue(periodAverage)}</td>
-                        </React.Fragment>
+                        <td
+                          key={`behavior-body-${period.id}`}
+                          className="border px-2 py-2 text-center align-top font-semibold"
+                          title={behaviorLabelFor(code)}
+                        >
+                          {code ?? '—'}
+                        </td>
                       )
                     })}
-                    <td className="border px-2 py-2 text-center align-top">{qualValue(data.overallAverage)}</td>
                   </tr>
                 </tbody>
               </table>
+              {behaviorScale.length > 0 && (
+                <p className="text-[10px] text-gray-600">
+                  {behaviorScale.map((s) => `${s.code} = ${s.label}`).join(' · ')}
+                </p>
+              )}
 
               <table className="w-full border-collapse text-[11px]">
                 <thead>
@@ -758,12 +761,6 @@ function AttendanceRow({ label, values }: { label: string; values: number[] }) {
       ))}
     </tr>
   )
-}
-
-function average(values: Array<number | null>) {
-  const valid = values.filter((value): value is number => value != null)
-  if (valid.length === 0) return null
-  return valid.reduce((sum, value) => sum + value, 0) / valid.length
 }
 
 function formatScore(value: number | null) {

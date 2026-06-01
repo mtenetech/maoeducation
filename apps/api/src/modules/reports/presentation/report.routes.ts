@@ -216,6 +216,13 @@ export default async function reportRoutes(app: FastifyInstance) {
           unjustifiedAbsences: a.unjustifiedAbsences,
           lateCount: a.lateCount,
         })),
+        behaviorByPeriod: (bulletin.behaviorByPeriod ?? []).map((b: {
+          periodName: string; code: string | null; notes: string | null
+        }) => ({
+          periodName: b.periodName,
+          code: b.code,
+          label: b.code ? gradingConfig.behaviorScale.find((s) => s.code === b.code)?.label ?? null : null,
+        })),
       })
       const studentSlug = `${bulletin.student.profile?.lastName ?? 'boletin'}`.replace(/\s+/g, '_')
       return reply

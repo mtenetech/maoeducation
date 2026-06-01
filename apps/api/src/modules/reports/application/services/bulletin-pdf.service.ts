@@ -22,6 +22,11 @@ interface AttendanceRow {
   unjustifiedAbsences: number
   lateCount: number
 }
+interface BehaviorRow {
+  periodName: string
+  code: string | null
+  label: string | null
+}
 
 export interface QualitativeLevel {
   min: number
@@ -47,6 +52,7 @@ export interface BulletinPdfData {
   subjects: SubjectRow[]
   overallAverage: number | null
   attendanceByPeriod: AttendanceRow[]
+  behaviorByPeriod: BehaviorRow[]
   qualitativeScale: QualitativeLevel[]
 }
 
@@ -174,6 +180,19 @@ export function buildBulletinPdf(data: BulletinPdfData): Promise<Buffer> {
     doc.text(NUM(data.overallAverage), xs.final, y + 5, { width: finalColW, align: 'center' })
     doc.text(cualitativa(data.overallAverage, data.qualitativeScale), xs.cual, y + 5, { width: cualColW, align: 'center' })
     y += rowH + 10
+
+    // ── Comportamiento ──
+    const behaviorWithGrade = data.behaviorByPeriod.filter((b) => b.code)
+    if (behaviorWithGrade.length > 0) {
+      doc.font('Helvetica-Bold').fontSize(8.5).text('Comportamiento', left, y)
+      y = doc.y + 2
+      doc.font('Helvetica').fontSize(8)
+      behaviorWithGrade.forEach((b) => {
+        const label = b.label ? ` (${b.label})` : ''
+        doc.text(`${b.periodName}:  ${b.code}${label}`, left, doc.y + 1)
+      })
+      y = doc.y + 14
+    }
 
     // ── Asistencia ──
     if (data.attendanceByPeriod.length > 0) {

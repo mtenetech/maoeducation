@@ -141,6 +141,20 @@ export const router = createBrowserRouter([
           },
         ],
       },
+      // ---- Behavior (comportamiento) ----
+      {
+        path: 'behavior',
+        element: <PermissionGuard permission="grades:write" />,
+        children: [
+          {
+            index: true,
+            lazy: () =>
+              import('@/features/behavior/pages/BehaviorEntryPage').then((m) => ({
+                Component: m.BehaviorEntryPage,
+              })),
+          },
+        ],
+      },
       // ---- Enrollment ----
       {
         path: 'enrollment',
