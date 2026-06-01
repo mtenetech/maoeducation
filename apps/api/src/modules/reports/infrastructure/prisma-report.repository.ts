@@ -1,5 +1,6 @@
 import { prisma } from '../../../shared/infrastructure/database/prisma'
 import { NotFoundError } from '../../../shared/domain/errors/app.errors'
+import { average, periodTotal } from '../../../shared/domain/grade-math'
 import type {
   GradesReportQuery,
   AttendanceReportQuery,
@@ -10,8 +11,7 @@ import type {
 
 export class PrismaReportRepository {
   private avg(scores: (number | null)[]) {
-    const valid = scores.filter((s): s is number => s !== null)
-    return valid.length > 0 ? valid.reduce((a, b) => a + b, 0) / valid.length : null
+    return average(scores)
   }
 
   async getGradesReport(
@@ -555,16 +555,7 @@ export class PrismaReportRepository {
         const examScores = items.filter((i) => i.code === 'exam').map((i) => i.score)
         const regularAvg = this.avg(regularScores)
         const examAvg = this.avg(examScores)
-        const regularWeight = 100 - assignment.examWeight
-
-        let total: number | null = null
-        if (examScores.length > 0) {
-          if (regularAvg != null && examAvg != null) total = regularAvg * (regularWeight / 100) + examAvg * (assignment.examWeight / 100)
-          else if (regularAvg != null) total = regularAvg
-          else if (examAvg != null) total = examAvg
-        } else {
-          total = regularAvg
-        }
+        const total = periodTotal(regularAvg, examAvg, assignment.examWeight, examScores.length > 0)
 
         return {
           periodId: period.id,

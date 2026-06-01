@@ -155,6 +155,20 @@ export const router = createBrowserRouter([
           },
         ],
       },
+      // ---- Promotion (promoción y recuperaciones) ----
+      {
+        path: 'promotion',
+        element: <PermissionGuard permission="grades:read" />,
+        children: [
+          {
+            index: true,
+            lazy: () =>
+              import('@/features/promotion/pages/PromotionPage').then((m) => ({
+                Component: m.PromotionPage,
+              })),
+          },
+        ],
+      },
       // ---- Enrollment ----
       {
         path: 'enrollment',

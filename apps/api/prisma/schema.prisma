@@ -41,6 +41,8 @@ model Institution {
   anamnesisTemplates    AnamnesisTemplate[]
   anamnesisRecords      AnamnesisRecord[]
   behaviorGrades        BehaviorGrade[]
+  subjectRecoveries     SubjectRecovery[]
+  promotionDecisions    PromotionDecision[]
   messageThreads        MessageThread[]
   scheduleEntries       ScheduleEntry[]
   reportTemplates       ReportTemplate[]
@@ -99,6 +101,12 @@ model User {
   // Comportamiento
   studentBehavior   BehaviorGrade[]   @relation("StudentBehavior")
   recordedBehavior  BehaviorGrade[]   @relation("BehaviorRecorder")
+
+  // Promoción y recuperaciones
+  studentRecoveries   SubjectRecovery[]   @relation("StudentRecovery")
+  recordedRecoveries  SubjectRecovery[]   @relation("RecoveryRecorder")
+  studentPromotions   PromotionDecision[] @relation("StudentPromotion")
+  decidedPromotions   PromotionDecision[] @relation("PromotionDecider")
 
   // Relaciones de tutor/padre
   guardianOf       GuardianStudent[] @relation("GuardianRelation")
@@ -230,6 +238,8 @@ model AcademicYear {
   parallels       Parallel[]
   enrollments     StudentEnrollment[]
   courseAssignments CourseAssignment[]
+  subjectRecoveries  SubjectRecovery[]
+  promotionDecisions PromotionDecision[]
 
   @@unique([institutionId, name])
   @@map("academic_years")
@@ -259,6 +269,7 @@ model AcademicPeriod {
   startDate      DateTime @map("start_date") @db.Date
   endDate        DateTime @map("end_date") @db.Date
   isActive       Boolean  @default(false) @map("is_active")
+  isClosed       Boolean  @default(false) @map("is_closed")
 
   academicYear   AcademicYear         @relation(fields: [academicYearId], references: [id])
   scheme         AcademicPeriodScheme @relation(fields: [schemeId], references: [id])
@@ -344,6 +355,7 @@ model CourseAssignment {
   attendance   AttendanceRecord[]
   schedule     ScheduleEntry[]
   tasks        Task[]
+  recoveries   SubjectRecovery[]
 
   @@unique([subjectId, parallelId, academicYearId])
   @@map("course_assignments")
@@ -393,6 +405,50 @@ model BehaviorGrade {
 
   @@unique([studentId, academicPeriodId])
   @@map("behavior_grades")
+}
+
+// Recuperación de una materia (supletorio / remedial / gracia) en el año lectivo
+model SubjectRecovery {
+  id                 String   @id @default(uuid())
+  institutionId      String   @map("institution_id")
+  studentId          String   @map("student_id")
+  courseAssignmentId String   @map("course_assignment_id")
+  academicYearId     String   @map("academic_year_id")
+  type               String   @db.VarChar(20) // supletorio | remedial | gracia
+  score              Decimal  @db.Decimal(5, 2)
+  recordedBy         String   @map("recorded_by")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  institution      Institution      @relation(fields: [institutionId], references: [id])
+  student          User             @relation("StudentRecovery", fields: [studentId], references: [id])
+  courseAssignment CourseAssignment @relation(fields: [courseAssignmentId], references: [id])
+  academicYear     AcademicYear     @relation(fields: [academicYearId], references: [id])
+  recorder         User             @relation("RecoveryRecorder", fields: [recordedBy], references: [id])
+
+  @@unique([studentId, courseAssignmentId, academicYearId])
+  @@map("subject_recoveries")
+}
+
+// Decisión de promoción del estudiante en el año lectivo
+model PromotionDecision {
+  id             String   @id @default(uuid())
+  institutionId  String   @map("institution_id")
+  studentId      String   @map("student_id")
+  academicYearId String   @map("academic_year_id")
+  status         String   @db.VarChar(20) // promoted | not_promoted | pending
+  notes          String?
+  decidedBy      String   @map("decided_by")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  institution  Institution  @relation(fields: [institutionId], references: [id])
+  student      User         @relation("StudentPromotion", fields: [studentId], references: [id])
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id])
+  decider      User         @relation("PromotionDecider", fields: [decidedBy], references: [id])
+
+  @@unique([studentId, academicYearId])
+  @@map("promotion_decisions")
 }
 
 // ============================================================
