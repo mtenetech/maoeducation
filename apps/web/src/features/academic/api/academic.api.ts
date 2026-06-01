@@ -32,6 +32,7 @@ export interface AcademicPeriod {
   startDate: string
   endDate: string
   isActive: boolean
+  isClosed: boolean
   schemeId: string
 }
 
@@ -100,6 +101,8 @@ export const academicApi = {
     apiGet<AcademicPeriod[]>(`academic/years/${yearId}/periods`),
   createPeriod: (yearId: string, data: { name: string; order: number; startDate: string; endDate: string; schemeId?: string }) =>
     apiPost<AcademicPeriod>(`academic/years/${yearId}/periods`, data),
+  setPeriodClosure: (periodId: string, isClosed: boolean) =>
+    apiPatch<AcademicPeriod>(`academic/periods/${periodId}/closure`, { isClosed }),
 
   // Parallels
   getParallels: (yearId?: string) =>

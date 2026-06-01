@@ -149,6 +149,19 @@ export function useCreatePeriod(yearId: string) {
   })
 }
 
+export function useSetPeriodClosure(yearId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ periodId, isClosed }: { periodId: string; isClosed: boolean }) =>
+      academicApi.setPeriodClosure(periodId, isClosed),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: academicKeys.periods(yearId) })
+      toast.success(vars.isClosed ? 'Período cerrado' : 'Período reabierto')
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  })
+}
+
 // ---- Parallels ----
 
 export function useParallels(yearId?: string) {

@@ -1,5 +1,5 @@
 import { prisma } from '../../../../shared/infrastructure/database/prisma'
-import { BadRequestError, NotFoundError } from '../../../../shared/domain/errors/app.errors'
+import { BadRequestError, ConflictError, NotFoundError } from '../../../../shared/domain/errors/app.errors'
 import { PrismaInstitutionRepository } from '../../../institution/infrastructure/repositories/prisma-institution.repository'
 import { BehaviorItemDto, SaveBehaviorDto } from '../../application/dtos/behavior.dto'
 
@@ -45,9 +45,10 @@ export class PrismaBehaviorRepository {
   async bulkSave(institutionId: string, dto: SaveBehaviorDto, recordedBy: string) {
     const period = await prisma.academicPeriod.findFirst({
       where: { id: dto.periodId, academicYear: { institutionId } },
-      select: { id: true },
+      select: { id: true, isClosed: true },
     })
     if (!period) throw new NotFoundError('Periodo no encontrado')
+    if (period.isClosed) throw new ConflictError('El período está cerrado: no se puede modificar el comportamiento')
 
     const config = await institutionRepo.getGradingConfig(institutionId)
     const validCodes = new Set(config.behaviorScale.map((b) => b.code))
