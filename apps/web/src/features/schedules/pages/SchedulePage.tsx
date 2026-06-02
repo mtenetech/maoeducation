@@ -162,7 +162,7 @@ export function SchedulePage() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <Calendar className="h-5 w-5 text-primary" />
           <h1 className="text-xl font-semibold">Horario</h1>
@@ -174,9 +174,9 @@ export function SchedulePage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
         <Select value={filterYearId} onValueChange={(v) => { setFilterYearId(v === '__all__' ? '' : v); setFilterParallelId('') }}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-full sm:w-48">
             <SelectValue placeholder="Año lectivo" />
           </SelectTrigger>
           <SelectContent>
@@ -188,7 +188,7 @@ export function SchedulePage() {
         </Select>
 
         <Select value={filterParallelId} onValueChange={(v) => setFilterParallelId(v === '__all__' ? '' : v)}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-full sm:w-48">
             <SelectValue placeholder="Paralelo" />
           </SelectTrigger>
           <SelectContent>
@@ -204,7 +204,7 @@ export function SchedulePage() {
       {isLoading ? (
         <div className="text-center py-10 text-muted-foreground">Cargando horario...</div>
       ) : (
-        <div className="overflow-auto rounded-lg border">
+        <div className="overflow-x-auto rounded-lg border">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-muted/50">

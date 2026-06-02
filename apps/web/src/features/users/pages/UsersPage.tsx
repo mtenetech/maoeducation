@@ -276,7 +276,7 @@ export function UsersPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Usuarios</h1>
           <p className="text-muted-foreground text-sm mt-1">Gestiona los usuarios del sistema</p>
@@ -292,14 +292,14 @@ export function UsersPage() {
         </Button>
       </div>
 
-      <div className="flex items-center gap-4 flex-wrap">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
         <Input
           placeholder="Buscar por nombre o email..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
+          className="w-full sm:max-w-sm"
         />
-        <div className="w-52">
+        <div className="w-full sm:w-52">
           <Select value={roleFilter} onValueChange={setRoleFilter}>
             <SelectTrigger>
               <SelectValue />
@@ -331,7 +331,7 @@ export function UsersPage() {
             <DialogTitle>Nuevo Usuario</DialogTitle>
           </DialogHeader>
           <form onSubmit={createForm.handleSubmit(onCreateSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Nombre</Label>
                 <Input {...createForm.register('firstName')} placeholder="Juan" />
@@ -401,7 +401,7 @@ export function UsersPage() {
                 </p>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Cédula / DNI</Label>
                 <Input {...createForm.register('dni')} placeholder="Opcional" />
@@ -430,7 +430,7 @@ export function UsersPage() {
             <DialogTitle>Editar Usuario</DialogTitle>
           </DialogHeader>
           <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Nombre</Label>
                 <Input {...editForm.register('firstName')} />
@@ -450,7 +450,7 @@ export function UsersPage() {
                 )}
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Cédula / DNI</Label>
                 <Input {...editForm.register('dni')} />

@@ -306,7 +306,7 @@ function InsumoManager({ insumos, courseAssignmentId, periodId, canWrite }: Insu
                 <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Peso % (opcional)</Label>
                 <Input type="number" min={0} max={100} {...form.register('weight')} placeholder="Ej: 40" />
@@ -536,7 +536,7 @@ export function ActivitiesPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Actividades</h1>
           <p className="text-muted-foreground text-sm mt-1">Gestiona las actividades académicas</p>
@@ -548,8 +548,8 @@ export function ActivitiesPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-4 flex-wrap">
-        <div className="w-64">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+        <div className="w-full sm:w-64">
           <Select value={selectedAssignmentId} onValueChange={(v) => { setSelectedAssignmentId(v); setSelectedPeriodId('') }}>
             <SelectTrigger>
               <SelectValue placeholder="Seleccionar asignación" />
@@ -563,7 +563,7 @@ export function ActivitiesPage() {
             </SelectContent>
           </Select>
         </div>
-        <div className="w-48">
+        <div className="w-full sm:w-48">
           <Select
             value={selectedPeriodId}
             onValueChange={setSelectedPeriodId}
@@ -691,7 +691,7 @@ export function ActivitiesPage() {
                 <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Tipo de actividad</Label>
                 <Select
@@ -725,7 +725,7 @@ export function ActivitiesPage() {
                 )}
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Fecha</Label>
                 <Input type="date" {...form.register('activityDate')} />

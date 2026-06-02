@@ -297,7 +297,7 @@ export function AcademicYearsPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Años Académicos</h1>
           <p className="text-muted-foreground text-sm mt-1">
@@ -381,7 +381,7 @@ export function AcademicYearsPage() {
                 <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Fecha de inicio</Label>
                 <Input type="date" {...form.register('startDate')} />

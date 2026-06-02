@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Send, Plus, MessageSquare, Paperclip, X, FileText, Download } from 'lucide-react'
+import { Send, Plus, MessageSquare, Paperclip, X, FileText, Download, ArrowLeft } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { cn } from '@/shared/lib/utils'
@@ -220,7 +220,12 @@ export function MessagingPage() {
   return (
     <div className="flex h-[calc(100vh-3.5rem)] overflow-hidden">
       {/* Left panel - thread list */}
-      <div className="w-1/3 border-r flex flex-col bg-background">
+      <div
+        className={cn(
+          'w-full flex-col border-r bg-background md:w-1/3',
+          selectedThreadId || composeOpen ? 'hidden md:flex' : 'flex',
+        )}
+      >
         <div className="p-3 border-b flex items-center justify-between shrink-0">
           <h2 className="font-semibold text-sm">Mensajes</h2>
           {canCompose && (
@@ -277,11 +282,27 @@ export function MessagingPage() {
       </div>
 
       {/* Right panel */}
-      <div className="flex-1 flex flex-col bg-muted/20">
+      <div
+        className={cn(
+          'flex-1 flex-col bg-muted/20',
+          selectedThreadId || composeOpen ? 'flex' : 'hidden md:flex',
+        )}
+      >
         {composeOpen ? (
           /* Compose new thread */
           <div className="flex-1 flex flex-col p-6 gap-4 overflow-y-auto">
-            <h3 className="font-semibold text-base">Nuevo Mensaje</h3>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="md:hidden -ml-2 gap-1.5 px-2"
+                onClick={() => setComposeOpen(false)}
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Volver
+              </Button>
+              <h3 className="font-semibold text-base">Nuevo Mensaje</h3>
+            </div>
 
             <div className="space-y-1">
               <label className="text-sm font-medium">Asunto</label>
@@ -388,6 +409,15 @@ export function MessagingPage() {
               <>
                 {/* Header */}
                 <div className="px-6 py-4 border-b bg-background shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="md:hidden -ml-2 mb-1 gap-1.5 px-2"
+                    onClick={() => setSelectedThreadId(null)}
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Volver
+                  </Button>
                   <h3 className="font-semibold text-base">{selectedThread.subject}</h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     Creado por{' '}

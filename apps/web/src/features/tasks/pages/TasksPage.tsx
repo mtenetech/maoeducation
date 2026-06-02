@@ -337,7 +337,7 @@ function TaskFormDialog({ open, onClose, onSave, isPending, assignments, default
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="text-sm font-medium">Fecha de envío</label>
               <Input type="date" value={publishAt} onChange={(e) => setPublishAt(e.target.value)} />

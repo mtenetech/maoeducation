@@ -166,7 +166,7 @@ export function IncidentDetailPage() {
                     <Button size="sm" variant="outline" disabled={!note || mNote.isPending} onClick={() => mNote.mutate()}>
                       Agregar nota
                     </Button>
-                    <div className="w-48">
+                    <div className="w-full sm:w-48">
                       <Select value={newState} onValueChange={setNewState}>
                         <SelectTrigger><SelectValue placeholder="Cambiar estado a..." /></SelectTrigger>
                         <SelectContent>
@@ -217,10 +217,10 @@ export function IncidentDetailPage() {
                     placeholder="Términos y compromisos acordados..."
                     className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
                   />
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                     <input
                       type="date" value={followUpDate} onChange={(e) => setFollowUpDate(e.target.value)}
-                      className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+                      className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm sm:w-auto"
                     />
                     <Button size="sm" disabled={!terms || mCommit.isPending} onClick={() => mCommit.mutate()}>
                       Crear acta

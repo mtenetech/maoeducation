@@ -187,8 +187,8 @@ export function JustificationsPage() {
       </div>
 
       {/* Filter bar */}
-      <div className="flex items-center gap-4 flex-wrap">
-        <div className="w-72">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+        <div className="w-full sm:w-72">
           <Select value={selectedAssignment} onValueChange={handleAssignmentChange}>
             <SelectTrigger>
               <SelectValue placeholder="Seleccionar asignación" />
@@ -203,19 +203,19 @@ export function JustificationsPage() {
           </Select>
         </div>
 
-        <div>
+        <div className="w-full sm:w-44">
           <input
             type="date"
             value={selectedDate}
             onChange={handleDateChange}
-            className="flex h-9 w-44 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
         </div>
 
         {selectedStudentIds.size > 0 && (
           <Button
             onClick={() => setDialogOpen(true)}
-            className="ml-auto"
+            className="w-full sm:ml-auto sm:w-auto"
           >
             <ShieldCheck className="h-4 w-4 mr-1" />
             Crear Justificación ({selectedStudentIds.size})
@@ -239,7 +239,7 @@ export function JustificationsPage() {
           description="No hay estudiantes ausentes o tardíos para esta asignación en esta fecha"
         />
       ) : (
-        <Card>
+        <Card className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
