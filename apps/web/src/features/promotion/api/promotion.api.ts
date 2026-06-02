@@ -35,6 +35,9 @@ export interface ParallelPromotion {
   }
   subjects: Array<{ assignmentId: string; subjectName: string }>
   students: PromotionStudent[]
+  periodsTotal: number
+  periodsClosed: number
+  recoveryEnabled: boolean
 }
 
 export interface SaveRecoveryInput {
