@@ -428,12 +428,12 @@ export function EnrollmentPage() {
             Gestiona la matriculación de estudiantes en paralelos
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={openBulkDialog}>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Button variant="outline" onClick={openBulkDialog} className="w-full sm:w-auto">
             <Users className="h-4 w-4" />
             Matrícula Masiva
           </Button>
-          <Button onClick={openSingleDialog}>
+          <Button onClick={openSingleDialog} className="w-full sm:w-auto">
             <UserPlus className="h-4 w-4" />
             Nueva Matrícula
           </Button>
@@ -441,8 +441,8 @@ export function EnrollmentPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-4 flex-wrap">
-        <div className="w-52">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+        <div className="w-full sm:w-52">
           <Select value={yearId} onValueChange={setYearId}>
             <SelectTrigger>
               <SelectValue placeholder="Seleccionar año..." />
@@ -457,7 +457,7 @@ export function EnrollmentPage() {
             </SelectContent>
           </Select>
         </div>
-        <div className="w-52">
+        <div className="w-full sm:w-52">
           <Select value={parallelId} onValueChange={setParallelId} disabled={!yearId}>
             <SelectTrigger>
               <SelectValue placeholder="Seleccionar paralelo..." />

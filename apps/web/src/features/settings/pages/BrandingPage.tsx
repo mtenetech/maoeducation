@@ -71,7 +71,7 @@ export function BrandingPage() {
 
             <div className="space-y-2">
               <Label>Logotipo</Label>
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
                 <div className="flex h-16 w-32 items-center justify-center overflow-hidden rounded-lg border bg-white p-1">
                   {settings.branding.logoUrl ? (
                     <img

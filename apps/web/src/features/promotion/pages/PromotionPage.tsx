@@ -195,7 +195,7 @@ export function PromotionPage() {
               : data.students
             return (
               <>
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <Button
                     type="button"
                     variant={onlyRecovery ? 'default' : 'outline'}

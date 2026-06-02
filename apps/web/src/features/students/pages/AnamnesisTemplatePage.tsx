@@ -63,7 +63,7 @@ export function AnamnesisTemplatePage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Plantilla de anamnesis</h1>
           <p className="text-sm text-muted-foreground">Configura las secciones y campos de la ficha</p>
@@ -94,13 +94,13 @@ export function AnamnesisTemplatePage() {
                     <Input
                       value={f.label}
                       onChange={(e) => updateField(si, fi, { label: e.target.value, key: f.key || slug(e.target.value) })}
-                      className="w-48"
+                      className="w-full sm:w-48"
                     />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Tipo</Label>
                     <Select value={f.type} onValueChange={(v) => updateField(si, fi, { type: v as DynamicField['type'] })}>
-                      <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {FIELD_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                       </SelectContent>

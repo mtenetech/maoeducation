@@ -26,7 +26,7 @@ export function GradingConfigPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Configuración de calificación</h1>
           <p className="text-sm text-muted-foreground">Escala cualitativa, comportamiento y reglas de promoción</p>
@@ -40,12 +40,12 @@ export function GradingConfigPage() {
           <CardTitle>Escala cualitativa</CardTitle>
           <CardDescription>Equivalencia que se muestra en el boletín según el promedio</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-2">
-          <div className="grid grid-cols-[70px_70px_90px_1fr_40px] gap-2 text-xs font-medium text-muted-foreground">
+        <CardContent className="space-y-2 overflow-x-auto">
+          <div className="grid grid-cols-[70px_70px_90px_1fr_40px] gap-2 text-xs font-medium text-muted-foreground min-w-[440px]">
             <span>Desde</span><span>Hasta</span><span>Código</span><span>Etiqueta</span><span />
           </div>
           {cfg.qualitativeScale.map((l, i) => (
-            <div key={i} className="grid grid-cols-[70px_70px_90px_1fr_40px] gap-2">
+            <div key={i} className="grid grid-cols-[70px_70px_90px_1fr_40px] gap-2 min-w-[440px]">
               <Input type="number" step="0.01" value={l.min} onChange={(e) => setScale(i, { min: Number(e.target.value) })} />
               <Input type="number" step="0.01" value={l.max} onChange={(e) => setScale(i, { max: Number(e.target.value) })} />
               <Input value={l.code} onChange={(e) => setScale(i, { code: e.target.value })} />
@@ -67,12 +67,12 @@ export function GradingConfigPage() {
           <CardTitle>Escala de comportamiento</CardTitle>
           <CardDescription>Códigos y etiquetas para la calificación cualitativa de conducta</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-2">
-          <div className="grid grid-cols-[90px_1fr_40px] gap-2 text-xs font-medium text-muted-foreground">
+        <CardContent className="space-y-2 overflow-x-auto">
+          <div className="grid grid-cols-[90px_1fr_40px] gap-2 text-xs font-medium text-muted-foreground min-w-[300px]">
             <span>Código</span><span>Etiqueta</span><span />
           </div>
           {cfg.behaviorScale.map((l, i) => (
-            <div key={i} className="grid grid-cols-[90px_1fr_40px] gap-2">
+            <div key={i} className="grid grid-cols-[90px_1fr_40px] gap-2 min-w-[300px]">
               <Input value={l.code} onChange={(e) => setBehavior(i, { code: e.target.value })} />
               <Input value={l.label} onChange={(e) => setBehavior(i, { label: e.target.value })} />
               <Button variant="ghost" size="sm" onClick={() => setCfg({ ...cfg, behaviorScale: cfg.behaviorScale.filter((_, idx) => idx !== i) })}>

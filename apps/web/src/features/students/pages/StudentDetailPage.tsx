@@ -217,13 +217,13 @@ function RepresentantesTab({ id }: { id: string }) {
             <DialogDescription>Se crea una cuenta con rol de representante (puede iniciar sesión).</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5"><Label>Nombres</Label><Input value={form.firstName ?? ''} onChange={(e) => set('firstName', e.target.value)} /></div>
               <div className="space-y-1.5"><Label>Apellidos</Label><Input value={form.lastName ?? ''} onChange={(e) => set('lastName', e.target.value)} /></div>
             </div>
             <div className="space-y-1.5"><Label>Email</Label><Input type="email" value={form.email ?? ''} onChange={(e) => set('email', e.target.value)} /></div>
             <div className="space-y-1.5"><Label>Contraseña</Label><Input type="password" value={form.password ?? ''} onChange={(e) => set('password', e.target.value)} /></div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5"><Label>Cédula</Label><Input value={form.dni ?? ''} onChange={(e) => set('dni', e.target.value)} /></div>
               <div className="space-y-1.5"><Label>Teléfono</Label><Input value={form.phone ?? ''} onChange={(e) => set('phone', e.target.value)} /></div>
             </div>

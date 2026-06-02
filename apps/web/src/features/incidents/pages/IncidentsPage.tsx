@@ -281,7 +281,7 @@ export function IncidentsPage() {
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
             <AlertTriangle className="h-6 w-6" />
@@ -300,8 +300,8 @@ export function IncidentsPage() {
       </div>
 
       {/* Filter bar */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="w-48">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        <div className="w-full sm:w-48">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger>
               <SelectValue placeholder="Estado" />
@@ -315,7 +315,7 @@ export function IncidentsPage() {
             </SelectContent>
           </Select>
         </div>
-        <div className="w-48">
+        <div className="w-full sm:w-48">
           <Select value={severityFilter} onValueChange={setSeverityFilter}>
             <SelectTrigger>
               <SelectValue placeholder="Severidad" />

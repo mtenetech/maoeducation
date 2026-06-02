@@ -136,7 +136,7 @@ function RoleCard({ role, allPermissions }: RoleCardProps) {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
             <ShieldCheck className="h-4 w-4 text-muted-foreground" />
             <CardTitle className="text-base">{role.label}</CardTitle>

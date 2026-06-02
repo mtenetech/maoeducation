@@ -125,8 +125,8 @@ export function ParallelInsumoSetupPage() {
       </div>
 
       {/* Selectors */}
-      <div className="flex gap-4 flex-wrap">
-        <div className="w-56">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
+        <div className="w-full sm:w-56">
           <label className="text-sm font-medium mb-1 block">Paralelo</label>
           <Select value={selectedParallelId} onValueChange={setSelectedParallelId}>
             <SelectTrigger>
@@ -142,7 +142,7 @@ export function ParallelInsumoSetupPage() {
           </Select>
         </div>
 
-        <div className="w-44">
+        <div className="w-full sm:w-44">
           <label className="text-sm font-medium mb-1 block">Período</label>
           <Select value={selectedPeriodId} onValueChange={setSelectedPeriodId} disabled={!selectedParallelId}>
             <SelectTrigger>
