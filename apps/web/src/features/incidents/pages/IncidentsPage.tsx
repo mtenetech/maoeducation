@@ -29,6 +29,7 @@ import {
 } from '@/shared/components/ui/dialog'
 import { PageLoader } from '@/shared/components/feedback/loading-spinner'
 import { getErrorMessage } from '@/shared/lib/utils'
+import { usePermissions } from '@/shared/hooks/usePermissions'
 import {
   listIncidents,
   createIncident,
@@ -113,6 +114,8 @@ type UpdateFormValues = z.infer<typeof updateSchema>
 export function IncidentsPage() {
   const qc = useQueryClient()
   const navigate = useNavigate()
+  const { hasPermission } = usePermissions()
+  const canWrite = hasPermission('incidents:write')
 
   const [statusFilter, setStatusFilter] = useState('all')
   const [severityFilter, setSeverityFilter] = useState('all')
@@ -261,9 +264,11 @@ export function IncidentsPage() {
           <Button variant="ghost" size="sm" onClick={() => navigate(`/incidents/${row.original.id}`)}>
             <Eye className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => handleEditOpen(row.original)}>
-            <Edit2 className="h-4 w-4" />
-          </Button>
+          {canWrite && (
+            <Button variant="ghost" size="sm" onClick={() => handleEditOpen(row.original)}>
+              <Edit2 className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       ),
     },
@@ -286,10 +291,12 @@ export function IncidentsPage() {
             Registra y gestiona los incidentes disciplinarios de los estudiantes
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="h-4 w-4 mr-1" />
-          Nuevo Incidente
-        </Button>
+        {canWrite && (
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4 mr-1" />
+            Nuevo Incidente
+          </Button>
+        )}
       </div>
 
       {/* Filter bar */}

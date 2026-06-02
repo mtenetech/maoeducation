@@ -75,7 +75,14 @@ export default async function incidentRoutes(app: FastifyInstance) {
   app.get<{ Querystring: ListIncidentsQuery }>(
     '/incidents',
     { preHandler: [requirePermission('incidents', 'read')] },
-    async (req, reply) => reply.send(await repo.list(req.user.institutionId, req.query)),
+    async (req, reply) =>
+      reply.send(
+        await repo.list(req.user.institutionId, req.query, {
+          userId: req.user.sub,
+          roles: req.user.roles,
+          permissions: req.user.permissions,
+        }),
+      ),
   )
 
   app.post<{ Body: CreateIncidentDto }>(
@@ -88,7 +95,14 @@ export default async function incidentRoutes(app: FastifyInstance) {
   app.get<{ Params: { id: string } }>(
     '/incidents/:id',
     { preHandler: [requirePermission('incidents', 'read')] },
-    async (req, reply) => reply.send(await repo.getById(req.params.id, req.user.institutionId)),
+    async (req, reply) =>
+      reply.send(
+        await repo.getById(req.params.id, req.user.institutionId, {
+          userId: req.user.sub,
+          roles: req.user.roles,
+          permissions: req.user.permissions,
+        }),
+      ),
   )
 
   app.patch<{ Params: { id: string }; Body: UpdateIncidentDto }>(
