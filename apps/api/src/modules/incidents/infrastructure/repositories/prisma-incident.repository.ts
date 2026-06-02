@@ -46,7 +46,80 @@ function fullName(p: { profile: { firstName: string; lastName: string } | null }
   return `${p.profile.firstName} ${p.profile.lastName}`.trim()
 }
 
+/** Actor autenticado, derivado del JWT (req.user). */
+export interface IncidentActor {
+  userId: string
+  roles: string[]
+  permissions: string[]
+}
+
 export class PrismaIncidentRepository {
+  // ─── Scope (visibilidad) ─────────────────────────────────────────────────
+  /**
+   * ¿El actor puede ver TODOS los incidentes de la institución?
+   * admin, o cualquier permiso de incidents con scope `all`
+   * (incidents:read:all / write:all / manage:all).
+   */
+  private hasAllScope(actor: IncidentActor): boolean {
+    if (actor.roles.includes('admin')) return true
+    return actor.permissions.some((p) => {
+      const [resource, action, scope] = p.split(':')
+      const resourceMatch = resource === 'incidents' || resource === '*'
+      const actionMatch = action === 'read' || action === 'write' || action === 'manage'
+      return resourceMatch && actionMatch && scope === 'all'
+    })
+  }
+
+  /**
+   * Ids de los estudiantes "propios" del actor para scope `own`:
+   * - student   → él mismo.
+   * - guardian  → sus representados (guardian_students).
+   * - teacher   → estudiantes matriculados en los paralelos de sus asignaciones.
+   */
+  private async ownedStudentIds(institutionId: string, actor: IncidentActor): Promise<string[]> {
+    const ids = new Set<string>()
+
+    if (actor.roles.includes('student')) ids.add(actor.userId)
+
+    if (actor.roles.includes('guardian')) {
+      const links = await prisma.guardianStudent.findMany({
+        where: { guardianId: actor.userId },
+        select: { studentId: true },
+      })
+      links.forEach((l) => ids.add(l.studentId))
+    }
+
+    if (actor.roles.includes('teacher')) {
+      const assignments = await prisma.courseAssignment.findMany({
+        where: { institutionId, teacherId: actor.userId },
+        select: { parallelId: true, academicYearId: true },
+      })
+      if (assignments.length > 0) {
+        const enrollments = await prisma.studentEnrollment.findMany({
+          where: {
+            institutionId,
+            OR: assignments.map((a) => ({ parallelId: a.parallelId, academicYearId: a.academicYearId })),
+          },
+          select: { studentId: true },
+        })
+        enrollments.forEach((e) => ids.add(e.studentId))
+      }
+    }
+
+    return [...ids]
+  }
+
+  /** Condición Prisma que limita los incidentes visibles bajo scope `own`. */
+  private async ownScopeWhere(
+    institutionId: string,
+    actor: IncidentActor,
+  ): Promise<Prisma.DisciplinaryIncidentWhereInput> {
+    const studentIds = await this.ownedStudentIds(institutionId, actor)
+    const or: Prisma.DisciplinaryIncidentWhereInput[] = [{ reportedBy: actor.userId }]
+    if (studentIds.length > 0) or.push({ studentId: { in: studentIds } })
+    return { OR: or }
+  }
+
   // ─── Estudiantes reportables ──────────────────────────────────────────────
   /**
    * Estudiantes sobre los que el actor puede registrar un incidente:
@@ -94,7 +167,11 @@ export class PrismaIncidentRepository {
 
   // ─── Incidentes (caso) ──────────────────────────────────────────────────
 
-  async list(institutionId: string, query: ListIncidentsQuery) {
+  async list(institutionId: string, query: ListIncidentsQuery, actor: IncidentActor) {
+    const scopeWhere = this.hasAllScope(actor)
+      ? {}
+      : await this.ownScopeWhere(institutionId, actor)
+
     return prisma.disciplinaryIncident.findMany({
       where: {
         institutionId,
@@ -102,6 +179,7 @@ export class PrismaIncidentRepository {
         ...(query.status && { status: query.status }),
         ...(query.severity && { severity: query.severity }),
         ...(query.workflowState && { workflowState: query.workflowState }),
+        ...scopeWhere,
       },
       include: listRelations,
       orderBy: { createdAt: 'desc' },
@@ -156,12 +234,19 @@ export class PrismaIncidentRepository {
     })
   }
 
-  async getById(id: string, institutionId: string) {
+  async getById(id: string, institutionId: string, actor?: IncidentActor) {
     const incident = await prisma.disciplinaryIncident.findFirst({
       where: { id, institutionId },
       include: detailRelations,
     })
     if (!incident) throw new NotFoundError('Incidente no encontrado')
+
+    // Scope `own`: solo se puede ver el detalle de un incidente propio.
+    if (actor && !this.hasAllScope(actor)) {
+      const studentIds = await this.ownedStudentIds(institutionId, actor)
+      const canView = incident.reportedBy === actor.userId || studentIds.includes(incident.studentId)
+      if (!canView) throw new NotFoundError('Incidente no encontrado')
+    }
     return incident
   }
 

@@ -47,6 +47,7 @@ export function IncidentDetailPage() {
   const qc = useQueryClient()
   const { hasPermission } = usePermissions()
   const canManage = hasPermission('incidents:manage')
+  const canWrite = hasPermission('incidents:write')
   const fileInput = useRef<HTMLInputElement>(null)
 
   const [newState, setNewState] = useState('')
@@ -153,32 +154,34 @@ export function IncidentDetailPage() {
                 )}
               </ol>
 
-              <div className="mt-4 space-y-2">
-                <Label htmlFor="note">Agregar nota / cambiar estado</Label>
-                <textarea
-                  id="note" rows={2} value={note} onChange={(e) => setNote(e.target.value)}
-                  placeholder="Escribe una nota..."
-                  className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
-                />
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button size="sm" variant="outline" disabled={!note || mNote.isPending} onClick={() => mNote.mutate()}>
-                    Agregar nota
-                  </Button>
-                  <div className="w-48">
-                    <Select value={newState} onValueChange={setNewState}>
-                      <SelectTrigger><SelectValue placeholder="Cambiar estado a..." /></SelectTrigger>
-                      <SelectContent>
-                        {WORKFLOW_STATES.map((s) => (
-                          <SelectItem key={s} value={s}>{WORKFLOW_LABELS[s]}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+              {canWrite && (
+                <div className="mt-4 space-y-2">
+                  <Label htmlFor="note">Agregar nota / cambiar estado</Label>
+                  <textarea
+                    id="note" rows={2} value={note} onChange={(e) => setNote(e.target.value)}
+                    placeholder="Escribe una nota..."
+                    className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+                  />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button size="sm" variant="outline" disabled={!note || mNote.isPending} onClick={() => mNote.mutate()}>
+                      Agregar nota
+                    </Button>
+                    <div className="w-48">
+                      <Select value={newState} onValueChange={setNewState}>
+                        <SelectTrigger><SelectValue placeholder="Cambiar estado a..." /></SelectTrigger>
+                        <SelectContent>
+                          {WORKFLOW_STATES.map((s) => (
+                            <SelectItem key={s} value={s}>{WORKFLOW_LABELS[s]}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button size="sm" disabled={!newState || mState.isPending} onClick={() => mState.mutate()}>
+                      Cambiar estado
+                    </Button>
                   </div>
-                  <Button size="sm" disabled={!newState || mState.isPending} onClick={() => mState.mutate()}>
-                    Cambiar estado
-                  </Button>
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
 
@@ -206,29 +209,32 @@ export function IncidentDetailPage() {
                 <p className="text-sm text-muted-foreground">Sin actas.</p>
               )}
 
-              <div className="space-y-2 border-t pt-3">
-                <Label htmlFor="terms">Nueva acta de compromiso</Label>
-                <textarea
-                  id="terms" rows={3} value={terms} onChange={(e) => setTerms(e.target.value)}
-                  placeholder="Términos y compromisos acordados..."
-                  className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
-                />
-                <div className="flex items-center gap-2">
-                  <input
-                    type="date" value={followUpDate} onChange={(e) => setFollowUpDate(e.target.value)}
-                    className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+              {canWrite && (
+                <div className="space-y-2 border-t pt-3">
+                  <Label htmlFor="terms">Nueva acta de compromiso</Label>
+                  <textarea
+                    id="terms" rows={3} value={terms} onChange={(e) => setTerms(e.target.value)}
+                    placeholder="Términos y compromisos acordados..."
+                    className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
                   />
-                  <Button size="sm" disabled={!terms || mCommit.isPending} onClick={() => mCommit.mutate()}>
-                    Crear acta
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="date" value={followUpDate} onChange={(e) => setFollowUpDate(e.target.value)}
+                      className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+                    />
+                    <Button size="sm" disabled={!terms || mCommit.isPending} onClick={() => mCommit.mutate()}>
+                      Crear acta
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </div>
 
         {/* Columna lateral */}
         <div className="space-y-6">
+          {canWrite && (
           <Card>
             <CardHeader><CardTitle>Acciones</CardTitle></CardHeader>
             <CardContent className="space-y-3">
@@ -262,6 +268,7 @@ export function IncidentDetailPage() {
               )}
             </CardContent>
           </Card>
+          )}
 
           {/* Evidencias */}
           <Card>
@@ -275,24 +282,30 @@ export function IncidentDetailPage() {
                   >
                     {a.fileName}
                   </a>
-                  <Button size="sm" variant="ghost" onClick={() => mDeleteAtt.mutate(a.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {canWrite && (
+                    <Button size="sm" variant="ghost" onClick={() => mDeleteAtt.mutate(a.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               ))}
               {(inc.attachments ?? []).length === 0 && (
                 <p className="text-sm text-muted-foreground">Sin evidencias.</p>
               )}
-              <input
-                ref={fileInput} type="file" className="hidden"
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) mUpload.mutate(f); e.target.value = '' }}
-              />
-              <Button
-                variant="outline" size="sm" className="w-full"
-                loading={mUpload.isPending} onClick={() => fileInput.current?.click()}
-              >
-                <Upload className="mr-2 h-4 w-4" /> Subir evidencia
-              </Button>
+              {canWrite && (
+                <>
+                  <input
+                    ref={fileInput} type="file" className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) mUpload.mutate(f); e.target.value = '' }}
+                  />
+                  <Button
+                    variant="outline" size="sm" className="w-full"
+                    loading={mUpload.isPending} onClick={() => fileInput.current?.click()}
+                  >
+                    <Upload className="mr-2 h-4 w-4" /> Subir evidencia
+                  </Button>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
