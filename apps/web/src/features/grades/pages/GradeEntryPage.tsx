@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Save, GraduationCap, BarChart3, Settings2 } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
@@ -27,7 +27,7 @@ import { getErrorMessage, cn } from '@/shared/lib/utils'
 import { activitiesApi, type StudentGrade, type GradeInput } from '@/features/activities/api/activities.api'
 import { useTeacherDefaults } from '@/features/academic/hooks/useTeacherDefaults'
 import { getGradesReport, getMyGrades, type GradesReportData } from '@/features/reports/api/reports.api'
-import { academicApi } from '@/features/academic/api/academic.api'
+import { academicApi, type AcademicPeriod } from '@/features/academic/api/academic.api'
 import { usePermissions } from '@/shared/hooks/usePermissions'
 
 // ---- Query keys ----
@@ -542,6 +542,193 @@ function SummaryTab({ courseAssignmentId, periodId }: SummaryTabProps) {
   )
 }
 
+// ---- Annual (all-trimesters) Summary ----
+const ALL_PERIODS = '__all__'
+type AnnualView = 'byPeriod' | 'detail'
+
+/** Total ponderado por estudiante para un período, con la misma fórmula que CompactGrid. */
+function periodTotalsByStudent(data: GradesReportData, examWeight: number): Map<string, number | null> {
+  const examIds = new Set<string>()
+  for (const ins of data.insumos) {
+    for (const a of ins.activities) {
+      if (a.activityType.code === 'exam') examIds.add(a.id)
+    }
+  }
+  const regularActs = data.insumos
+    .filter((i) => i.id !== 'no-insumo')
+    .flatMap((i) => i.activities.filter((a) => !examIds.has(a.id)))
+  const examActs = data.insumos.flatMap((i) => i.activities).filter((a) => examIds.has(a.id))
+
+  const totals = new Map<string, number | null>()
+  for (const row of data.students) {
+    const regularAvg = calcActivitiesAvg(regularActs, row.grades)
+    const examAvg = calcActivitiesAvg(examActs, row.grades)
+    totals.set(row.student.id, calcCompactTotal([regularAvg], examAvg, examWeight))
+  }
+  return totals
+}
+
+function mean(values: Array<number | null>): number | null {
+  const valid = values.filter((v): v is number => v != null)
+  return valid.length > 0 ? valid.reduce((s, v) => s + v, 0) / valid.length : null
+}
+
+function AnnualSummaryTab({
+  courseAssignmentId,
+  periods,
+}: {
+  courseAssignmentId: string
+  periods: AcademicPeriod[]
+}) {
+  const [view, setView] = React.useState<AnnualView>('byPeriod')
+  const sortedPeriods = React.useMemo(
+    () => [...periods].sort((a, b) => a.periodNumber - b.periodNumber),
+    [periods],
+  )
+
+  const results = useQueries({
+    queries: sortedPeriods.map((p) => ({
+      queryKey: ['grades-grid', courseAssignmentId, p.id],
+      queryFn: () => getGradesReport({ courseAssignmentId, periodId: p.id }),
+      enabled: !!courseAssignmentId,
+    })),
+  })
+
+  if (results.some((r) => r.isLoading)) return <PageLoader />
+
+  const periodData = sortedPeriods.map((p, i) => ({ period: p, data: results[i].data }))
+  const loaded = periodData.filter((pd): pd is { period: AcademicPeriod; data: GradesReportData } => !!pd.data)
+
+  if (loaded.length === 0) {
+    return (
+      <EmptyState
+        icon={BarChart3}
+        title="Sin datos de notas"
+        description="No hay actividades o notas registradas en este año lectivo"
+      />
+    )
+  }
+
+  const examWeight = loaded[0].data.assignment.examWeight ?? 30
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <span className="text-sm text-muted-foreground">
+          Vista anual · {loaded.length} de {sortedPeriods.length} período(s) con datos
+        </span>
+        <div className="flex self-start overflow-hidden rounded-md border text-xs">
+          <button
+            type="button"
+            onClick={() => setView('byPeriod')}
+            className={cn(
+              'px-3 py-1.5 font-medium transition-colors',
+              view === 'byPeriod' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted',
+            )}
+          >
+            Promedio por trimestre
+          </button>
+          <button
+            type="button"
+            onClick={() => setView('detail')}
+            className={cn(
+              'border-l px-3 py-1.5 font-medium transition-colors',
+              view === 'detail' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted',
+            )}
+          >
+            Detalle por trimestre
+          </button>
+        </div>
+      </div>
+
+      {view === 'byPeriod' ? (
+        <AnnualByPeriodGrid periodData={loaded} examWeight={examWeight} />
+      ) : (
+        <div className="space-y-6">
+          {periodData.map(({ period, data }) => (
+            <div key={period.id} className="space-y-2">
+              <h3 className="text-sm font-semibold">{period.name}</h3>
+              {data ? (
+                <CompactGrid data={data} examWeight={data.assignment.examWeight ?? 30} canEditWeight={false} onEditWeight={() => {}} />
+              ) : (
+                <p className="text-xs text-muted-foreground">Sin actividades publicadas en este período.</p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function AnnualByPeriodGrid({
+  periodData,
+  examWeight,
+}: {
+  periodData: Array<{ period: AcademicPeriod; data: GradesReportData }>
+  examWeight: number
+}) {
+  // Totales por período y unión de estudiantes
+  const totalsByPeriod = periodData.map((pd) => periodTotalsByStudent(pd.data, examWeight))
+  const studentMap = new Map<string, { lastName: string; firstName: string }>()
+  for (const pd of periodData) {
+    for (const row of pd.data.students) {
+      if (!studentMap.has(row.student.id)) {
+        studentMap.set(row.student.id, {
+          lastName: row.student.profile.lastName,
+          firstName: row.student.profile.firstName,
+        })
+      }
+    }
+  }
+  const students = [...studentMap.entries()]
+    .map(([id, p]) => ({ id, ...p }))
+    .sort((a, b) => `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`))
+
+  return (
+    <div className="overflow-x-auto rounded-lg border">
+      <table className="w-full border-collapse text-sm">
+        <thead>
+          <tr className="bg-muted/60">
+            <th className="sticky left-0 z-20 min-w-[180px] border border-border bg-muted/60 px-3 py-2 text-left font-semibold">
+              Estudiante
+            </th>
+            {periodData.map(({ period }) => (
+              <th key={period.id} className="whitespace-nowrap border border-border px-3 py-2 text-center font-semibold text-primary">
+                {period.name}
+              </th>
+            ))}
+            <th className="whitespace-nowrap border border-border bg-muted px-3 py-2 text-center font-semibold">
+              Anual
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {students.map((s, i) => {
+            const perPeriod = totalsByPeriod.map((m) => m.get(s.id) ?? null)
+            const annual = mean(perPeriod)
+            return (
+              <tr key={s.id} className={cn('hover:bg-muted/20', i % 2 === 0 ? 'bg-white' : 'bg-muted/10')}>
+                <td className="sticky left-0 z-10 whitespace-nowrap border border-border bg-inherit px-3 py-2 font-medium">
+                  {s.lastName}, {s.firstName}
+                </td>
+                {perPeriod.map((v, idx) => (
+                  <td key={periodData[idx].period.id} className="border border-border px-3 py-2 text-center tabular-nums">
+                    <span className={scoreColor(v, 10)}>{v != null ? v.toFixed(2) : '—'}</span>
+                  </td>
+                ))}
+                <td className="border border-border bg-muted/20 px-3 py-2 text-center font-bold tabular-nums">
+                  <span className={scoreColor(annual, 10)}>{annual != null ? annual.toFixed(2) : '—'}</span>
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 // ---- Main Page ----
 
 // ---- Student Grades View ----
@@ -680,7 +867,7 @@ export function GradeEntryPage() {
         courseAssignmentId: selectedAssignmentId,
         periodId: selectedPeriodId,
       }),
-    enabled: !!selectedAssignmentId && !!selectedPeriodId,
+    enabled: !!selectedAssignmentId && !!selectedPeriodId && selectedPeriodId !== ALL_PERIODS,
   })
 
   const selectedActivity = activitiesList.find((a) => a.id === selectedActivityId)
@@ -801,6 +988,9 @@ export function GradeEntryPage() {
               <SelectValue placeholder="Período" />
             </SelectTrigger>
             <SelectContent>
+              {!isStudentOrGuardian && activeTab === 'summary' && (
+                <SelectItem value={ALL_PERIODS}>Todos los trimestres</SelectItem>
+              )}
               {periods.map((p) => (
                 <SelectItem key={p.id} value={p.id}>
                   {p.name}
@@ -840,6 +1030,8 @@ export function GradeEntryPage() {
           ) : (
             <EmptyState icon={BarChart3} title="Selecciona un período" description="Elige el período académico para ver tus notas" />
           )
+        ) : selectedAssignmentId && selectedPeriodId === ALL_PERIODS ? (
+          <AnnualSummaryTab courseAssignmentId={selectedAssignmentId} periods={periods} />
         ) : selectedAssignmentId && selectedPeriodId ? (
           <SummaryTab courseAssignmentId={selectedAssignmentId} periodId={selectedPeriodId} />
         ) : (
