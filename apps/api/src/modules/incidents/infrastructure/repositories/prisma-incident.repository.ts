@@ -41,7 +41,57 @@ const detailRelations = {
   },
 }
 
+function fullName(p: { profile: { firstName: string; lastName: string } | null } | null, fallback = ''): string {
+  if (!p?.profile) return fallback
+  return `${p.profile.firstName} ${p.profile.lastName}`.trim()
+}
+
 export class PrismaIncidentRepository {
+  // ─── Estudiantes reportables ──────────────────────────────────────────────
+  /**
+   * Estudiantes sobre los que el actor puede registrar un incidente:
+   * - admin/inspector/dece/rector → todos los estudiantes de la institución.
+   * - teacher → solo los matriculados en los paralelos de sus asignaciones.
+   */
+  async listReportableStudents(
+    institutionId: string,
+    actor: { userId: string; roles: string[] },
+  ): Promise<Array<{ id: string; fullName: string; dni: string | null }>> {
+    const isAdminLike = actor.roles.some((r) =>
+      ['admin', 'inspector', 'dece', 'rector', 'autoridad'].includes(r),
+    )
+
+    let students: Array<{ id: string; profile: { firstName: string; lastName: string; dni: string | null } | null }>
+
+    if (isAdminLike) {
+      students = await prisma.user.findMany({
+        where: { institutionId, userRoles: { some: { role: { name: 'student' } } } },
+        select: personSelect,
+      })
+    } else {
+      // Docente: estudiantes matriculados en los paralelos de sus asignaciones
+      const assignments = await prisma.courseAssignment.findMany({
+        where: { institutionId, teacherId: actor.userId },
+        select: { parallelId: true, academicYearId: true },
+      })
+      if (assignments.length === 0) return []
+
+      const enrollments = await prisma.studentEnrollment.findMany({
+        where: {
+          institutionId,
+          OR: assignments.map((a) => ({ parallelId: a.parallelId, academicYearId: a.academicYearId })),
+        },
+        select: { student: { select: personSelect } },
+      })
+      const byId = new Map(enrollments.map((e) => [e.student.id, e.student]))
+      students = [...byId.values()]
+    }
+
+    return students
+      .map((s) => ({ id: s.id, fullName: fullName(s), dni: s.profile?.dni ?? null }))
+      .sort((a, b) => a.fullName.localeCompare(b.fullName))
+  }
+
   // ─── Incidentes (caso) ──────────────────────────────────────────────────
 
   async list(institutionId: string, query: ListIncidentsQuery) {

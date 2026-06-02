@@ -159,3 +159,7 @@ export const getUsers = (params?: Record<string, string>) =>
     data: Array<{ id: string; fullName: string; email: string; roles: string[] }>
     total: number
   }>('users', params)
+
+/** Estudiantes que el actor puede reportar (docente → sus paralelos; admin/DECE → todos). */
+export const getReportableStudents = () =>
+  apiGet<Array<{ id: string; fullName: string; dni: string | null }>>('incidents/students')

@@ -33,7 +33,7 @@ import {
   listIncidents,
   createIncident,
   updateIncident,
-  getUsers,
+  getReportableStudents,
   type Incident,
 } from '@/features/incidents/api/incidents.api'
 
@@ -134,8 +134,8 @@ export function IncidentsPage() {
   })
 
   const { data: students = [] } = useQuery({
-    queryKey: ['users', 'student'],
-    queryFn: () => getUsers({ role: 'student' }).then((r) => r.data),
+    queryKey: ['incidents', 'reportable-students'],
+    queryFn: () => getReportableStudents(),
   })
 
   // ---- Create mutation ----

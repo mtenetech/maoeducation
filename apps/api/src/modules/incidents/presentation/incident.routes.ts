@@ -58,6 +58,19 @@ export default async function incidentRoutes(app: FastifyInstance) {
     async (req, reply) => reply.send(await repo.toggleType(req.params.id, req.user.institutionId)),
   )
 
+  // Estudiantes que el actor puede reportar (para el selector del formulario)
+  app.get(
+    '/incidents/students',
+    { preHandler: [requirePermission('incidents', 'read')] },
+    async (req, reply) =>
+      reply.send(
+        await repo.listReportableStudents(req.user.institutionId, {
+          userId: req.user.sub,
+          roles: req.user.roles,
+        }),
+      ),
+  )
+
   // ─── Incidentes (caso) ──────────────────────────────────────────────────
   app.get<{ Querystring: ListIncidentsQuery }>(
     '/incidents',
