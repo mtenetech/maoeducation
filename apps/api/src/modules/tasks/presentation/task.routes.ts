@@ -32,8 +32,16 @@ export default async function taskRoutes(app: FastifyInstance) {
       } else if (isTeacher) {
         tasks = await repo.listForTeacher(institutionId, userId, req.query)
       } else {
-        // student / guardian
-        tasks = await repo.listForStudent(institutionId, userId, req.query)
+        // student / guardian → el representante ve las tareas de su estudiante vinculado
+        let studentId = userId
+        if (roles.includes('guardian')) {
+          const link = await prisma.guardianStudent.findFirst({
+            where: { guardianId: userId },
+            select: { studentId: true },
+          })
+          if (link) studentId = link.studentId
+        }
+        tasks = await repo.listForStudent(institutionId, studentId, req.query)
       }
       return reply.send(tasks)
     },
