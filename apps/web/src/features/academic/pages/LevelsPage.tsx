@@ -16,6 +16,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/shared/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/components/ui/select'
 import { PageLoader } from '@/shared/components/feedback/loading-spinner'
 import { type Level } from '../api/academic.api'
 import { useLevels, useCreateLevel, useUpdateLevel, useToggleLevel } from '../hooks/useAcademic'
@@ -82,6 +89,26 @@ export function LevelsPage() {
       accessorKey: 'sortOrder',
       header: 'Orden',
       cell: ({ row }) => <span className="text-muted-foreground">{row.original.sortOrder}</span>,
+    },
+    {
+      id: 'attendanceMode',
+      header: 'Asistencia',
+      cell: ({ row }) => (
+        <Select
+          value={row.original.attendanceMode ?? 'per_subject'}
+          onValueChange={(value) =>
+            updateLevel.mutate({ id: row.original.id, data: { attendanceMode: value as Level['attendanceMode'] } })
+          }
+        >
+          <SelectTrigger className="h-8 w-36 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="per_subject" className="text-xs">Por materia</SelectItem>
+            <SelectItem value="daily" className="text-xs">Diaria</SelectItem>
+          </SelectContent>
+        </Select>
+      ),
     },
     {
       accessorKey: 'isActive',

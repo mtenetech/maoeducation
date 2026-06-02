@@ -19,7 +19,11 @@ export interface AttendanceEntry {
 export interface CourseAssignment {
   id: string
   subject: { id: string; name: string }
-  parallel: { id: string; name: string; level: { name: string } }
+  parallel: {
+    id: string
+    name: string
+    level: { id?: string; name: string; attendanceMode?: 'per_subject' | 'daily' }
+  }
   academicYear: { id: string; name: string; isActive: boolean }
   teacher: { id: string; profile: { firstName: string; lastName: string } }
 }
@@ -30,6 +34,19 @@ export function getAttendance(courseAssignmentId: string, date: string) {
 
 export function bulkSaveAttendance(payload: {
   courseAssignmentId: string
+  date: string
+  records: Array<{ studentId: string; status: string; notes?: string }>
+}) {
+  return apiPost('attendance/bulk', payload)
+}
+
+/** Asistencia diaria por paralelo (niveles con attendanceMode = "daily"). */
+export function getDailyAttendance(parallelId: string, date: string) {
+  return apiGet<AttendanceEntry[]>('attendance', { parallelId, date })
+}
+
+export function bulkSaveDailyAttendance(payload: {
+  parallelId: string
   date: string
   records: Array<{ studentId: string; status: string; notes?: string }>
 }) {

@@ -8,6 +8,7 @@ export interface UpdateLevelDto {
   name?: string
   order?: number
   description?: string
+  attendanceMode?: 'per_subject' | 'daily'
 }
 
 export interface CreateSubjectDto {

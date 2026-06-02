@@ -21,17 +21,25 @@ export const SYSTEM_ROLES = [
 export const BASE_PERMISSIONS = [
   // users
   { resource: 'users', action: 'read', scope: 'all' },
+  { resource: 'users', action: 'read', scope: 'own' },
   { resource: 'users', action: 'write', scope: 'all' },
+  { resource: 'users', action: 'write', scope: 'own' },
   { resource: 'users', action: 'manage', scope: 'all' },
+  { resource: 'users', action: 'manage', scope: 'own' },
   // academic_config
   { resource: 'academic_config', action: 'read', scope: 'all' },
   { resource: 'academic_config', action: 'manage', scope: 'all' },
+  // enrollment (matrículas)
+  { resource: 'enrollment', action: 'read', scope: 'all' },
+  { resource: 'enrollment', action: 'read', scope: 'own' },
   // institution_config (branding, ajustes de la institución)
   { resource: 'institution_config', action: 'read', scope: 'own' },
   { resource: 'institution_config', action: 'manage', scope: 'all' },
   // anamnesis (ficha + plantillas)
   { resource: 'anamnesis', action: 'read', scope: 'all' },
+  { resource: 'anamnesis', action: 'read', scope: 'own' },
   { resource: 'anamnesis', action: 'manage', scope: 'all' },
+  { resource: 'anamnesis', action: 'manage', scope: 'own' },
   // activities
   { resource: 'activities', action: 'read', scope: 'all' },
   { resource: 'activities', action: 'read', scope: 'own' },
@@ -105,6 +113,12 @@ export const ROLE_PERMISSIONS: Array<{ roleName: string; permKey: string }> = [
   { roleName: 'inspector', permKey: 'reports:read:all' },
   // Profesor
   { roleName: 'teacher', permKey: 'academic_config:read:all' },
+  { roleName: 'teacher', permKey: 'enrollment:read:own' },
+  { roleName: 'teacher', permKey: 'users:read:own' },
+  { roleName: 'teacher', permKey: 'users:write:own' },
+  { roleName: 'teacher', permKey: 'users:manage:own' },
+  { roleName: 'teacher', permKey: 'anamnesis:read:own' },
+  { roleName: 'teacher', permKey: 'anamnesis:manage:own' },
   { roleName: 'teacher', permKey: 'activities:read:own' },
   { roleName: 'teacher', permKey: 'activities:write:own' },
   { roleName: 'teacher', permKey: 'grades:read:own' },

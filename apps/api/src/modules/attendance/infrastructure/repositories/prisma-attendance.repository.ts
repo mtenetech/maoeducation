@@ -45,10 +45,12 @@ export class PrismaAttendanceRepository {
   }
 
   async bulkUpsert(institutionId: string, dto: BulkAttendanceDto, recordedById: string) {
+    if (!dto.courseAssignmentId) throw new BadRequestError('courseAssignmentId requerido')
     const parsedDate = new Date(dto.date)
+    const courseAssignmentId = dto.courseAssignmentId
 
     const courseAssignment = await prisma.courseAssignment.findFirst({
-      where: { id: dto.courseAssignmentId, institutionId },
+      where: { id: courseAssignmentId, institutionId },
     })
     if (!courseAssignment) throw new NotFoundError('Asignación de curso no encontrada')
 
@@ -57,14 +59,14 @@ export class PrismaAttendanceRepository {
         prisma.attendanceRecord.upsert({
           where: {
             courseAssignmentId_studentId_date: {
-              courseAssignmentId: dto.courseAssignmentId,
+              courseAssignmentId,
               studentId: r.studentId,
               date: parsedDate,
             },
           },
           create: {
             institutionId,
-            courseAssignmentId: dto.courseAssignmentId,
+            courseAssignmentId,
             studentId: r.studentId,
             date: parsedDate,
             status: r.status,
@@ -81,6 +83,66 @@ export class PrismaAttendanceRepository {
     )
 
     return results
+  }
+
+  /** Asistencia diaria por paralelo (un registro por estudiante/día). */
+  async getByParallelDate(institutionId: string, parallelId: string, date: string) {
+    const parallel = await prisma.parallel.findFirst({
+      where: { id: parallelId, institutionId },
+      select: { id: true, academicYearId: true, tutorId: true },
+    })
+    if (!parallel) throw new NotFoundError('Paralelo no encontrado')
+
+    const enrollments = await prisma.studentEnrollment.findMany({
+      where: { institutionId, parallelId, academicYearId: parallel.academicYearId },
+      include: {
+        student: {
+          select: {
+            id: true,
+            profile: { select: { firstName: true, lastName: true, dni: true } },
+          },
+        },
+      },
+    })
+
+    const records = await prisma.attendanceRecord.findMany({
+      where: { parallelId, date: new Date(date), institutionId },
+    })
+    const recordMap = new Map(records.map((r) => [r.studentId, r]))
+
+    return enrollments.map((e) => ({
+      student: e.student,
+      record: recordMap.get(e.studentId) ?? null,
+    }))
+  }
+
+  async bulkUpsertDaily(institutionId: string, dto: BulkAttendanceDto, recordedById: string) {
+    if (!dto.parallelId) throw new BadRequestError('parallelId requerido')
+    const parsedDate = new Date(dto.date)
+    const parallelId = dto.parallelId
+
+    const parallel = await prisma.parallel.findFirst({ where: { id: parallelId, institutionId } })
+    if (!parallel) throw new NotFoundError('Paralelo no encontrado')
+
+    return Promise.all(
+      dto.records.map((r) =>
+        prisma.attendanceRecord.upsert({
+          where: {
+            parallelId_studentId_date: { parallelId, studentId: r.studentId, date: parsedDate },
+          },
+          create: {
+            institutionId,
+            parallelId,
+            studentId: r.studentId,
+            date: parsedDate,
+            status: r.status,
+            notes: r.notes,
+            recordedBy: recordedById,
+          },
+          update: { status: r.status, notes: r.notes, recordedBy: recordedById },
+        }),
+      ),
+    )
   }
 
   async getStudentSummary(institutionId: string, studentId: string, courseAssignmentId?: string) {
@@ -113,6 +175,8 @@ export class PrismaAttendanceRepository {
     >()
 
     for (const record of records) {
+      // El resumen por materia ignora la asistencia diaria (sin courseAssignment).
+      if (!record.courseAssignmentId || !record.courseAssignment) continue
       const key = record.courseAssignmentId
       if (!grouped.has(key)) {
         grouped.set(key, {

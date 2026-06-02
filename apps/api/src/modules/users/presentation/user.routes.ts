@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify'
 import { PrismaUserRepository } from '../infrastructure/repositories/prisma-user.repository'
 import { authMiddleware } from '../../../shared/infrastructure/middleware/auth.middleware'
 import { requirePermission } from '../../../shared/infrastructure/middleware/rbac.middleware'
+import { assertStudentFichaAccess } from '../../../shared/infrastructure/services/teacher-scope.service'
 import { prisma } from '../../../shared/infrastructure/database/prisma'
 import type { CreateUserDto, ListUsersQueryDto, UpdateUserDto } from '../application/dtos/user.dto'
 
@@ -13,7 +14,7 @@ export default async function userRoutes(app: FastifyInstance) {
   app.get<{ Querystring: ListUsersQueryDto }>(
     '/users',
     {
-      preHandler: [requirePermission('users', 'read')],
+      preHandler: [requirePermission('users', 'read', 'all')],
       schema: {
         querystring: {
           type: 'object',
@@ -36,6 +37,7 @@ export default async function userRoutes(app: FastifyInstance) {
     '/users/:id',
     { preHandler: [requirePermission('users', 'read')] },
     async (req, reply) => {
+      await assertStudentFichaAccess(req, req.params.id)
       const user = await repo.findById(req.params.id, req.user.institutionId)
       return reply.send(user)
     },
@@ -44,7 +46,7 @@ export default async function userRoutes(app: FastifyInstance) {
   app.post<{ Body: CreateUserDto }>(
     '/users',
     {
-      preHandler: [requirePermission('users', 'manage')],
+      preHandler: [requirePermission('users', 'manage', 'all')],
       schema: {
         body: {
           type: 'object',
@@ -72,6 +74,7 @@ export default async function userRoutes(app: FastifyInstance) {
     '/users/:id',
     { preHandler: [requirePermission('users', 'write')] },
     async (req, reply) => {
+      await assertStudentFichaAccess(req, req.params.id)
       const user = await repo.update(req.params.id, req.user.institutionId, req.body)
       return reply.send(user)
     },
@@ -79,7 +82,7 @@ export default async function userRoutes(app: FastifyInstance) {
 
   app.patch<{ Params: { id: string } }>(
     '/users/:id/deactivate',
-    { preHandler: [requirePermission('users', 'manage')] },
+    { preHandler: [requirePermission('users', 'manage', 'all')] },
     async (req, reply) => {
       await repo.deactivate(req.params.id, req.user.institutionId)
       return reply.status(204).send()
@@ -90,7 +93,7 @@ export default async function userRoutes(app: FastifyInstance) {
 
   app.get(
     '/roles',
-    { preHandler: [requirePermission('users', 'manage')] },
+    { preHandler: [requirePermission('users', 'manage', 'all')] },
     async (req, reply) => {
       const roles = await prisma.role.findMany({
         where: { institutionId: req.user.institutionId },
@@ -118,7 +121,7 @@ export default async function userRoutes(app: FastifyInstance) {
 
   app.get(
     '/permissions',
-    { preHandler: [requirePermission('users', 'manage')] },
+    { preHandler: [requirePermission('users', 'manage', 'all')] },
     async (_req, reply) => {
       const perms = await prisma.permission.findMany({ orderBy: [{ resource: 'asc' }, { action: 'asc' }] })
       return reply.send(perms.map((p) => ({
@@ -134,7 +137,7 @@ export default async function userRoutes(app: FastifyInstance) {
 
   app.put<{ Params: { id: string }; Body: { permissionIds: string[] } }>(
     '/roles/:id/permissions',
-    { preHandler: [requirePermission('users', 'manage')] },
+    { preHandler: [requirePermission('users', 'manage', 'all')] },
     async (req, reply) => {
       const role = await prisma.role.findFirst({
         where: { id: req.params.id, institutionId: req.user.institutionId },

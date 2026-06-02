@@ -56,7 +56,7 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Matrículas',
     icon: UserPlus,
     path: '/enrollment',
-    permission: 'academic_config:manage',
+    permission: 'enrollment:read',
   },
   {
     label: 'Ficha de anamnesis',
