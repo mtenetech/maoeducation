@@ -26,7 +26,7 @@ import { EmptyState } from '@/shared/components/feedback/empty-state'
 import { getErrorMessage, cn } from '@/shared/lib/utils'
 import { activitiesApi, type StudentGrade, type GradeInput } from '@/features/activities/api/activities.api'
 import { useTeacherDefaults } from '@/features/academic/hooks/useTeacherDefaults'
-import { getGradesReport, getMyGrades, type GradesReportData } from '@/features/reports/api/reports.api'
+import { getGradesReport, getMyGrades, type GradesReportData, type MyGradesSubject } from '@/features/reports/api/reports.api'
 import { academicApi, type AcademicPeriod } from '@/features/academic/api/academic.api'
 import { usePermissions } from '@/shared/hooks/usePermissions'
 
@@ -910,6 +910,11 @@ function StudentGradesView({ periodId }: { periodId: string }) {
   if (!subjects || subjects.length === 0)
     return <EmptyState icon={BarChart3} title="Sin datos" description="No hay notas registradas para este período" />
 
+  return <StudentGradesTable subjects={subjects} />
+}
+
+/** Tabla presentacional Materia × insumos para un período (sin query). */
+function StudentGradesTable({ subjects }: { subjects: MyGradesSubject[] }) {
   // Collect all unique insumo column names (preserve order from first subject)
   const allInsumoNames = subjects[0]?.insumoColumns.map((c) => c.name) ?? []
 
@@ -982,6 +987,147 @@ function StudentGradesView({ periodId }: { periodId: string }) {
               </td>
             </tr>
           ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+/** Vista anual del alumno/representante: consolida sus materias en todos los trimestres. */
+function StudentAnnualView({ periods }: { periods: AcademicPeriod[] }) {
+  const [view, setView] = React.useState<AnnualView>('byPeriod')
+  const sortedPeriods = React.useMemo(
+    () => [...periods].sort((a, b) => a.periodNumber - b.periodNumber),
+    [periods],
+  )
+
+  const results = useQueries({
+    queries: sortedPeriods.map((p) => ({
+      queryKey: ['my-grades', p.id],
+      queryFn: () => getMyGrades({ periodId: p.id }),
+    })),
+  })
+
+  if (results.some((r) => r.isLoading)) return <PageLoader />
+
+  const periodData = sortedPeriods.map((p, i) => ({ period: p, subjects: results[i].data ?? [] }))
+  const loaded = periodData.filter((pd) => pd.subjects.length > 0)
+
+  if (loaded.length === 0) {
+    return <EmptyState icon={BarChart3} title="Sin datos" description="No hay notas registradas en este año lectivo" />
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <span className="text-sm text-muted-foreground">
+          Vista anual · {loaded.length} de {sortedPeriods.length} período(s) con datos
+        </span>
+        <div className="flex self-start overflow-hidden rounded-md border text-xs">
+          <button
+            type="button"
+            onClick={() => setView('byPeriod')}
+            className={cn(
+              'px-3 py-1.5 font-medium transition-colors',
+              view === 'byPeriod' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted',
+            )}
+          >
+            Promedio por trimestre
+          </button>
+          <button
+            type="button"
+            onClick={() => setView('detail')}
+            className={cn(
+              'border-l px-3 py-1.5 font-medium transition-colors',
+              view === 'detail' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted',
+            )}
+          >
+            Detalle por trimestre
+          </button>
+        </div>
+      </div>
+
+      {view === 'byPeriod' ? (
+        <StudentAnnualByPeriodGrid periodData={periodData} />
+      ) : (
+        <div className="space-y-6">
+          {periodData.map(({ period, subjects }) => (
+            <div key={period.id} className="space-y-2">
+              <h3 className="text-sm font-semibold">{period.name}</h3>
+              {subjects.length > 0 ? (
+                <StudentGradesTable subjects={subjects} />
+              ) : (
+                <p className="text-xs text-muted-foreground">Sin notas registradas en este período.</p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function StudentAnnualByPeriodGrid({
+  periodData,
+}: {
+  periodData: Array<{ period: AcademicPeriod; subjects: MyGradesSubject[] }>
+}) {
+  // Unión de materias por assignmentId (preserva nombre y docente)
+  const subjectMap = new Map<string, { subjectName: string; teacherName: string }>()
+  for (const pd of periodData) {
+    for (const s of pd.subjects) {
+      if (!subjectMap.has(s.assignmentId)) {
+        subjectMap.set(s.assignmentId, { subjectName: s.subjectName, teacherName: s.teacherName })
+      }
+    }
+  }
+  const subjects = [...subjectMap.entries()]
+    .map(([assignmentId, v]) => ({ assignmentId, ...v }))
+    .sort((a, b) => a.subjectName.localeCompare(b.subjectName))
+
+  // total por (assignmentId, período)
+  const totalByKey = new Map<string, number | null>()
+  for (const pd of periodData) {
+    for (const s of pd.subjects) totalByKey.set(`${s.assignmentId}:${pd.period.id}`, s.total)
+  }
+
+  return (
+    <div className="overflow-x-auto rounded-lg border">
+      <table className="w-full border-collapse text-sm">
+        <thead>
+          <tr className="bg-muted/60">
+            <th className="sticky left-0 z-20 min-w-[180px] border border-border bg-muted/60 px-3 py-2 text-left font-semibold">
+              Materia
+            </th>
+            {periodData.map(({ period }) => (
+              <th key={period.id} className="whitespace-nowrap border border-border px-3 py-2 text-center font-semibold text-primary">
+                {period.name}
+              </th>
+            ))}
+            <th className="whitespace-nowrap border border-border bg-muted px-3 py-2 text-center font-semibold">Anual</th>
+          </tr>
+        </thead>
+        <tbody>
+          {subjects.map((s, i) => {
+            const perPeriod = periodData.map((pd) => totalByKey.get(`${s.assignmentId}:${pd.period.id}`) ?? null)
+            const annual = mean(perPeriod)
+            return (
+              <tr key={s.assignmentId} className={cn('hover:bg-muted/20', i % 2 === 0 ? 'bg-white' : 'bg-muted/10')}>
+                <td className="sticky left-0 z-10 whitespace-nowrap border border-border bg-inherit px-3 py-2 font-medium">
+                  <div>{s.subjectName}</div>
+                  <div className="text-xs text-muted-foreground">{s.teacherName}</div>
+                </td>
+                {perPeriod.map((v, idx) => (
+                  <td key={periodData[idx].period.id} className="border border-border px-3 py-2 text-center tabular-nums">
+                    <span className={scoreColor(v, 10)}>{v != null ? v.toFixed(2) : '—'}</span>
+                  </td>
+                ))}
+                <td className="border border-border bg-muted/20 px-3 py-2 text-center font-bold tabular-nums">
+                  <span className={scoreColor(annual, 10)}>{annual != null ? annual.toFixed(2) : '—'}</span>
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>
@@ -1155,7 +1301,7 @@ export function GradeEntryPage() {
               <SelectValue placeholder="Período" />
             </SelectTrigger>
             <SelectContent>
-              {!isStudentOrGuardian && activeTab === 'summary' && (
+              {activeTab === 'summary' && (
                 <SelectItem value={ALL_PERIODS}>Todos los trimestres</SelectItem>
               )}
               {periods.map((p) => (
@@ -1192,7 +1338,9 @@ export function GradeEntryPage() {
       {/* Tab content */}
       {activeTab === 'summary' ? (
         isStudentOrGuardian ? (
-          selectedPeriodId ? (
+          selectedPeriodId === ALL_PERIODS ? (
+            <StudentAnnualView periods={periods} />
+          ) : selectedPeriodId ? (
             <StudentGradesView periodId={selectedPeriodId} />
           ) : (
             <EmptyState icon={BarChart3} title="Selecciona un período" description="Elige el período académico para ver tus notas" />
