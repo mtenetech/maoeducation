@@ -644,18 +644,7 @@ function AnnualSummaryTab({
       {view === 'byPeriod' ? (
         <AnnualByPeriodGrid periodData={loaded} examWeight={examWeight} />
       ) : (
-        <div className="space-y-6">
-          {periodData.map(({ period, data }) => (
-            <div key={period.id} className="space-y-2">
-              <h3 className="text-sm font-semibold">{period.name}</h3>
-              {data ? (
-                <CompactGrid data={data} examWeight={data.assignment.examWeight ?? 30} canEditWeight={false} onEditWeight={() => {}} />
-              ) : (
-                <p className="text-xs text-muted-foreground">Sin actividades publicadas en este período.</p>
-              )}
-            </div>
-          ))}
-        </div>
+        <AnnualDetailGrid periodData={loaded} examWeight={examWeight} />
       )}
     </div>
   )
@@ -723,6 +712,184 @@ function AnnualByPeriodGrid({
               </tr>
             )
           })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+/** Estructura de columnas de un período (mismos criterios que CompactGrid). */
+function buildPeriodColumns(data: GradesReportData) {
+  const examIds = new Set<string>()
+  for (const ins of data.insumos) {
+    for (const a of ins.activities) {
+      if (a.activityType.code === 'exam') examIds.add(a.id)
+    }
+  }
+  const regularInsumos = data.insumos
+    .filter((i) => i.id !== 'no-insumo')
+    .map((i) => ({ ...i, activities: i.activities.filter((a) => !examIds.has(a.id)) }))
+    .filter((i) => i.activities.length > 0)
+  const regularActivities = data.insumos
+    .filter((i) => i.id !== 'no-insumo')
+    .flatMap((i) => i.activities.filter((a) => !examIds.has(a.id)))
+  const examActivities = data.insumos.flatMap((i) => i.activities).filter((a) => examIds.has(a.id))
+  const gradesByStudent = new Map(data.students.map((s) => [s.student.id, s.grades]))
+  const hasRegular = regularActivities.length > 0
+  const hasExam = examActivities.length > 0
+  const colCount = regularInsumos.length + (hasRegular ? 1 : 0) + (hasExam ? 1 : 0) + 1
+  return { regularInsumos, regularActivities, examActivities, gradesByStudent, hasRegular, hasExam, colCount }
+}
+
+/** Detalle anual horizontal: una tabla, los trimestres como grupos de columnas. */
+function AnnualDetailGrid({
+  periodData,
+  examWeight,
+}: {
+  periodData: Array<{ period: AcademicPeriod; data: GradesReportData }>
+  examWeight: number
+}) {
+  const regularWeight = 100 - examWeight
+  const cols = periodData.map((pd) => ({ period: pd.period, ...buildPeriodColumns(pd.data) }))
+
+  const studentMap = new Map<string, { lastName: string; firstName: string }>()
+  for (const pd of periodData) {
+    for (const row of pd.data.students) {
+      if (!studentMap.has(row.student.id)) {
+        studentMap.set(row.student.id, {
+          lastName: row.student.profile.lastName,
+          firstName: row.student.profile.firstName,
+        })
+      }
+    }
+  }
+  const students = [...studentMap.entries()]
+    .map(([id, p]) => ({ id, ...p }))
+    .sort((a, b) => `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`))
+
+  return (
+    <div className="overflow-x-auto rounded-lg border">
+      <table className="w-full border-collapse text-sm">
+        <thead>
+          {/* Fila 1: grupos por trimestre */}
+          <tr className="bg-muted/60">
+            <th
+              rowSpan={2}
+              className="sticky left-0 z-20 min-w-[180px] border border-border bg-muted/60 px-3 py-2 text-left align-bottom font-semibold"
+            >
+              Estudiante
+            </th>
+            {cols.map((c) => (
+              <th
+                key={c.period.id}
+                colSpan={c.colCount}
+                className="border border-l-2 border-l-border/80 border-border px-3 py-2 text-center font-semibold"
+              >
+                {c.period.name}
+              </th>
+            ))}
+          </tr>
+          {/* Fila 2: subcolumnas */}
+          <tr className="bg-muted/40">
+            {cols.map((c) => (
+              <React.Fragment key={c.period.id}>
+                {c.regularInsumos.map((ins, idx) => (
+                  <th
+                    key={ins.id}
+                    className={cn(
+                      'whitespace-nowrap border border-border px-3 py-1.5 text-center font-semibold text-primary',
+                      idx === 0 && 'border-l-2 border-l-border/80',
+                    )}
+                  >
+                    {ins.name}
+                    <div className="text-[10px] font-normal text-muted-foreground">promedio</div>
+                  </th>
+                ))}
+                {c.hasRegular && (
+                  <th
+                    className={cn(
+                      'whitespace-nowrap border border-border bg-blue-50/50 px-3 py-1.5 text-center font-semibold text-primary',
+                      c.regularInsumos.length === 0 && 'border-l-2 border-l-border/80',
+                    )}
+                  >
+                    Insumos
+                    <div className="text-[10px] font-normal text-muted-foreground">
+                      {c.hasExam ? `${regularWeight}%` : 'promedio'}
+                    </div>
+                  </th>
+                )}
+                {c.hasExam && (
+                  <th className="whitespace-nowrap border border-border px-3 py-1.5 text-center font-semibold text-primary">
+                    Examen
+                    <div className="text-[10px] font-normal text-muted-foreground">{examWeight}%</div>
+                  </th>
+                )}
+                <th
+                  className={cn(
+                    'whitespace-nowrap border border-border bg-muted px-3 py-1.5 text-center font-semibold',
+                    c.colCount === 1 && 'border-l-2 border-l-border/80',
+                  )}
+                >
+                  Total
+                  {c.hasExam && <div className="text-[10px] font-normal text-muted-foreground">ponderado</div>}
+                </th>
+              </React.Fragment>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {students.map((s, i) => (
+            <tr key={s.id} className={cn('hover:bg-muted/20', i % 2 === 0 ? 'bg-white' : 'bg-muted/10')}>
+              <td className="sticky left-0 z-10 whitespace-nowrap border border-border bg-inherit px-3 py-2 font-medium">
+                {s.lastName}, {s.firstName}
+              </td>
+              {cols.map((c) => {
+                const grades = c.gradesByStudent.get(s.id) ?? {}
+                const insumoAvgs = c.regularInsumos.map((ins) => calcInsumoAvg(ins, grades))
+                const regularAvg = calcActivitiesAvg(c.regularActivities, grades)
+                const examAvg = calcActivitiesAvg(c.examActivities, grades)
+                const total = calcCompactTotal([regularAvg], examAvg, examWeight)
+                return (
+                  <React.Fragment key={c.period.id}>
+                    {insumoAvgs.map((avg, idx) => (
+                      <td
+                        key={c.regularInsumos[idx].id}
+                        className={cn(
+                          'border border-border px-3 py-2 text-center tabular-nums',
+                          idx === 0 && 'border-l-2 border-l-border/80',
+                        )}
+                      >
+                        <span className={scoreColor(avg, 10)}>{avg != null ? avg.toFixed(2) : '—'}</span>
+                      </td>
+                    ))}
+                    {c.hasRegular && (
+                      <td
+                        className={cn(
+                          'border border-border bg-blue-50/50 px-3 py-2 text-center font-semibold tabular-nums',
+                          c.regularInsumos.length === 0 && 'border-l-2 border-l-border/80',
+                        )}
+                      >
+                        <span className={scoreColor(regularAvg, 10)}>{regularAvg != null ? regularAvg.toFixed(2) : '—'}</span>
+                      </td>
+                    )}
+                    {c.hasExam && (
+                      <td className="border border-border px-3 py-2 text-center tabular-nums">
+                        <span className={scoreColor(examAvg, 10)}>{examAvg != null ? examAvg.toFixed(2) : '—'}</span>
+                      </td>
+                    )}
+                    <td
+                      className={cn(
+                        'border border-border bg-muted/20 px-3 py-2 text-center font-bold tabular-nums',
+                        c.colCount === 1 && 'border-l-2 border-l-border/80',
+                      )}
+                    >
+                      <span className={scoreColor(total, 10)}>{total != null ? total.toFixed(2) : '—'}</span>
+                    </td>
+                  </React.Fragment>
+                )
+              })}
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>
