@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { GraduationCap, ChevronDown, ChevronRight, Save } from 'lucide-react'
+import { GraduationCap, ChevronDown, ChevronRight, Save, Lock, ListFilter } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { Badge } from '@/shared/components/ui/badge'
@@ -88,6 +88,8 @@ export function PromotionPage() {
     enabled: canLoad,
   })
 
+  const [onlyRecovery, setOnlyRecovery] = React.useState(false)
+
   const [expanded, setExpanded] = React.useState<Set<string>>(new Set())
   const toggle = (id: string) =>
     setExpanded((prev) => {
@@ -171,20 +173,72 @@ export function PromotionPage() {
             aprueba el supletorio con ≥ {data.config.passWithExam} · máx. {data.config.maxFailedSubjects} materia(s) reprobada(s)
           </p>
 
-          {data.students.map((student) => (
-            <StudentCard
-              key={student.studentId}
-              student={student}
-              yearId={yearId}
-              expanded={expanded.has(student.studentId)}
-              onToggle={() => toggle(student.studentId)}
-              passWithExam={data.config.passWithExam}
-              onSaveRecovery={(input) => saveRecovery.mutate(input)}
-              onSaveDecision={(input) => saveDecision.mutate(input)}
-              savingRecovery={saveRecovery.isPending}
-              savingDecision={saveDecision.isPending}
-            />
-          ))}
+          {!data.recoveryEnabled && (
+            <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              <Lock className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>
+                Las recuperaciones se habilitan al cerrar todos los periodos del año (
+                {data.periodsClosed}/{data.periodsTotal} cerrados). Por ahora puedes consultar el
+                estado anual, pero no registrar supletorios/remediales.
+              </span>
+            </div>
+          )}
+
+          {(() => {
+            const recoveryCount = data.students.filter((s) =>
+              s.subjects.some((subj) => subj.status === 'supletorio' || subj.status === 'remedial'),
+            ).length
+            const visible = onlyRecovery
+              ? data.students.filter((s) =>
+                  s.subjects.some((subj) => subj.status === 'supletorio' || subj.status === 'remedial'),
+                )
+              : data.students
+            return (
+              <>
+                <div className="flex items-center justify-between gap-2">
+                  <Button
+                    type="button"
+                    variant={onlyRecovery ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setOnlyRecovery((v) => !v)}
+                  >
+                    <ListFilter className="h-4 w-4" />
+                    Solo con supletorio/remedial
+                    <Badge variant="secondary" className="ml-1">
+                      {recoveryCount}
+                    </Badge>
+                  </Button>
+                  <span className="text-xs text-muted-foreground">
+                    {visible.length} de {data.students.length} estudiante(s)
+                  </span>
+                </div>
+
+                {visible.length === 0 ? (
+                  <EmptyState
+                    icon={GraduationCap}
+                    title="Sin estudiantes en recuperación"
+                    description="Ningún estudiante de este paralelo quedó en supletorio o remedial."
+                  />
+                ) : (
+                  visible.map((student) => (
+                    <StudentCard
+                      key={student.studentId}
+                      student={student}
+                      yearId={yearId}
+                      expanded={expanded.has(student.studentId)}
+                      onToggle={() => toggle(student.studentId)}
+                      passWithExam={data.config.passWithExam}
+                      recoveryEnabled={data.recoveryEnabled}
+                      onSaveRecovery={(input) => saveRecovery.mutate(input)}
+                      onSaveDecision={(input) => saveDecision.mutate(input)}
+                      savingRecovery={saveRecovery.isPending}
+                      savingDecision={saveDecision.isPending}
+                    />
+                  ))
+                )}
+              </>
+            )
+          })()}
         </div>
       )}
     </div>
@@ -197,6 +251,7 @@ interface StudentCardProps {
   expanded: boolean
   onToggle: () => void
   passWithExam: number
+  recoveryEnabled: boolean
   onSaveRecovery: (input: { studentId: string; courseAssignmentId: string; academicYearId: string; type: RecoveryType; score: number | null }) => void
   onSaveDecision: (input: { studentId: string; academicYearId: string; status: PromotionStatus; notes?: string | null }) => void
   savingRecovery: boolean
@@ -208,6 +263,7 @@ function StudentCard({
   yearId,
   expanded,
   onToggle,
+  recoveryEnabled,
   onSaveRecovery,
   onSaveDecision,
   savingRecovery,
@@ -260,6 +316,7 @@ function StudentCard({
                   <SubjectRow
                     key={subj.assignmentId}
                     subject={subj}
+                    recoveryEnabled={recoveryEnabled}
                     onSave={(type, score) =>
                       onSaveRecovery({
                         studentId: student.studentId,
@@ -321,10 +378,12 @@ function StudentCard({
 
 function SubjectRow({
   subject,
+  recoveryEnabled,
   onSave,
   saving,
 }: {
   subject: PromotionSubject
+  recoveryEnabled: boolean
   onSave: (type: RecoveryType, score: number | null) => void
   saving: boolean
 }) {
@@ -342,7 +401,7 @@ function SubjectRow({
       <td className="border px-2 py-1.5">
         {needsRecovery ? (
           <div className="flex items-center gap-1">
-            <Select value={type} onValueChange={(v) => setType(v as RecoveryType)}>
+            <Select value={type} onValueChange={(v) => setType(v as RecoveryType)} disabled={!recoveryEnabled}>
               <SelectTrigger className="h-8 w-[7.5rem] text-xs">
                 <SelectValue />
               </SelectTrigger>
@@ -364,16 +423,17 @@ function SubjectRow({
               onChange={(e) => setScore(e.target.value)}
               className="h-8 w-16 px-1 text-center text-sm"
               placeholder="—"
+              disabled={!recoveryEnabled}
             />
             <Button
               size="sm"
               variant="ghost"
               className="h-8 px-2"
-              disabled={saving}
+              disabled={saving || !recoveryEnabled}
               onClick={() => onSave(type, score === '' ? null : parseFloat(score))}
-              title="Guardar recuperación"
+              title={recoveryEnabled ? 'Guardar recuperación' : 'Disponible al cerrar el año'}
             >
-              <Save className="h-3.5 w-3.5" />
+              {recoveryEnabled ? <Save className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
             </Button>
           </div>
         ) : (

@@ -1,5 +1,5 @@
 import { prisma } from '../../../../shared/infrastructure/database/prisma'
-import { BadRequestError, NotFoundError } from '../../../../shared/domain/errors/app.errors'
+import { BadRequestError, ConflictError, NotFoundError } from '../../../../shared/domain/errors/app.errors'
 import { average, periodTotal } from '../../../../shared/domain/grade-math'
 import { PrismaInstitutionRepository } from '../../../institution/infrastructure/repositories/prisma-institution.repository'
 import type {
@@ -60,10 +60,12 @@ export class PrismaPromotionRepository {
 
     const periods = await prisma.academicPeriod.findMany({
       where: { academicYearId: yearId },
-      select: { id: true },
+      select: { id: true, isClosed: true },
       orderBy: [{ periodNumber: 'asc' }, { startDate: 'asc' }],
     })
     const periodIds = periods.map((p) => p.id)
+    const periodsClosed = periods.filter((p) => p.isClosed).length
+    const recoveryEnabled = periods.length > 0 && periodsClosed === periods.length
 
     const enrollments = await prisma.studentEnrollment.findMany({
       where: { institutionId, parallelId, academicYearId: yearId, status: 'active' },
@@ -217,11 +219,23 @@ export class PrismaPromotionRepository {
       config,
       subjects: assignments.map((a) => ({ assignmentId: a.id, subjectName: a.subject.name })),
       students,
+      periodsTotal: periods.length,
+      periodsClosed,
+      recoveryEnabled,
     }
   }
 
   async saveRecovery(institutionId: string, dto: SaveRecoveryDto, recordedBy: string) {
     if (!RECOVERY_TYPES.includes(dto.type)) throw new BadRequestError('Tipo de recuperación inválido')
+
+    // La recuperación es un proceso de fin de año: solo se habilita con todos los periodos cerrados.
+    const periods = await prisma.academicPeriod.findMany({
+      where: { academicYearId: dto.academicYearId, academicYear: { institutionId } },
+      select: { isClosed: true },
+    })
+    if (periods.length === 0 || periods.some((p) => !p.isClosed)) {
+      throw new ConflictError('Las recuperaciones se habilitan al cerrar todos los periodos del año')
+    }
 
     const assignment = await prisma.courseAssignment.findFirst({
       where: { id: dto.courseAssignmentId, institutionId, academicYearId: dto.academicYearId },

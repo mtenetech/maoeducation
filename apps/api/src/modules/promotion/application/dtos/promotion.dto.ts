@@ -33,6 +33,10 @@ export interface ParallelPromotionDto {
   }
   subjects: Array<{ assignmentId: string; subjectName: string }>
   students: PromotionStudentDto[]
+  periodsTotal: number
+  periodsClosed: number
+  /** true ⇔ todos los periodos del año están cerrados; habilita la captura de recuperaciones. */
+  recoveryEnabled: boolean
 }
 
 export interface SaveRecoveryDto {
