@@ -1,16 +1,13 @@
-import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
-import { pipeline } from 'stream/promises'
 import { FastifyInstance } from 'fastify'
 import { PrismaTaskRepository } from '../infrastructure/repositories/prisma-task.repository'
 import { authMiddleware } from '../../../shared/infrastructure/middleware/auth.middleware'
 import { requirePermission } from '../../../shared/infrastructure/middleware/rbac.middleware'
 import { prisma } from '../../../shared/infrastructure/database/prisma'
+import { storage } from '../../../shared/infrastructure/services/storage.service'
 import { NotFoundError } from '../../../shared/domain/errors/app.errors'
 import type { CreateTaskDto, UpdateTaskDto, ListTasksQueryDto } from '../application/dtos/task.dto'
-
-const UPLOAD_DIR = path.join(process.cwd(), 'uploads', 'tasks')
 
 export default async function taskRoutes(app: FastifyInstance) {
   const repo = new PrismaTaskRepository()
@@ -112,14 +109,12 @@ export default async function taskRoutes(app: FastifyInstance) {
       const data = await req.file()
       if (!data) return reply.status(400).send({ message: 'No se recibió ningún archivo' })
 
-      // Sanitize & store
+      // Sanitize & store (disco en dev, R2/S3 en prod — ver storage.service)
       const ext = path.extname(data.filename).toLowerCase()
       const storedName = `${crypto.randomUUID()}${ext}`
-      const filePath = path.join(UPLOAD_DIR, storedName)
-      fs.mkdirSync(UPLOAD_DIR, { recursive: true })
-      await pipeline(data.file, fs.createWriteStream(filePath))
+      const buf = await data.toBuffer()
+      await storage.save(`tasks/${storedName}`, buf, data.mimetype)
 
-      const stat = fs.statSync(filePath)
       const attachment = await prisma.taskAttachment.create({
         data: {
           taskId: task.id,
@@ -127,7 +122,7 @@ export default async function taskRoutes(app: FastifyInstance) {
           fileName: data.filename,
           storedName,
           mimeType: data.mimetype,
-          fileSize: stat.size,
+          fileSize: buf.length,
           uploadedBy: req.user.sub,
         },
         include: { uploader: { select: { id: true, profile: { select: { firstName: true, lastName: true } } } } },
@@ -146,10 +141,7 @@ export default async function taskRoutes(app: FastifyInstance) {
       })
       if (!attachment) throw new NotFoundError('Adjunto no encontrado')
 
-      // Delete file from disk
-      const filePath = path.join(UPLOAD_DIR, attachment.storedName)
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
-
+      await storage.remove(`tasks/${attachment.storedName}`)
       await prisma.taskAttachment.delete({ where: { id: attachment.id } })
       return reply.status(204).send()
     },

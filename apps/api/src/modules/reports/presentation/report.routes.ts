@@ -1,8 +1,4 @@
 import { FastifyInstance } from 'fastify'
-import fs from 'node:fs'
-import path from 'node:path'
-import crypto from 'node:crypto'
-import { pipeline } from 'node:stream/promises'
 import { PrismaReportRepository } from '../infrastructure/prisma-report.repository'
 import { PrismaInstitutionRepository } from '../../institution/infrastructure/repositories/prisma-institution.repository'
 import { buildBulletinPdf } from '../application/services/bulletin-pdf.service'
@@ -20,7 +16,8 @@ import type {
 const repo = new PrismaReportRepository()
 const institutionRepo = new PrismaInstitutionRepository()
 const REPORT_TYPE = 'grade_bulletin_branding'
-const REPORT_UPLOAD_DIR = path.join(process.cwd(), 'uploads', 'reports')
+const ALLOWED_LOGO_MIME = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml', 'image/webp']
+const MAX_LOGO_BYTES = 500 * 1024
 
 type BulletinBranding = {
   enabled?: boolean
@@ -301,14 +298,18 @@ export default async function reportRoutes(app: FastifyInstance) {
 
       const data = await req.file()
       if (!data) return reply.status(400).send({ message: 'No se recibió ningún archivo' })
+      if (!ALLOWED_LOGO_MIME.includes(data.mimetype)) {
+        return reply.status(400).send({ message: 'Formato no permitido (usa PNG, JPG, SVG o WebP)' })
+      }
 
-      const ext = path.extname(data.filename).toLowerCase()
-      const storedName = `${crypto.randomUUID()}${ext}`
-      fs.mkdirSync(REPORT_UPLOAD_DIR, { recursive: true })
-      await pipeline(data.file, fs.createWriteStream(path.join(REPORT_UPLOAD_DIR, storedName)))
-
+      // Guardamos el logo como data URI (persistente y embebible en el PDF del
+      // boletín), igual que el logo de la institución. Evita el disco efímero.
+      const buf = await data.toBuffer()
+      if (buf.length > MAX_LOGO_BYTES) {
+        return reply.status(400).send({ message: 'El logo no debe superar 500 KB' })
+      }
       return reply.status(201).send({
-        url: `/uploads/reports/${storedName}`,
+        url: `data:${data.mimetype};base64,${buf.toString('base64')}`,
       })
     },
   )

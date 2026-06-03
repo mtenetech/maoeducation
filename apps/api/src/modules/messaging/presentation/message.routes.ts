@@ -4,9 +4,8 @@ import { authMiddleware } from '../../../shared/infrastructure/middleware/auth.m
 import { prisma } from '../../../shared/infrastructure/database/prisma'
 import type { CreateThreadDto, ReplyDto } from '../application/dtos/message.dto'
 import { randomUUID } from 'crypto'
-import { createWriteStream, mkdirSync, statSync } from 'fs'
 import path from 'path'
-import { pipeline } from 'stream/promises'
+import { storage } from '../../../shared/infrastructure/services/storage.service'
 
 const repo = new PrismaMessageRepository()
 
@@ -175,11 +174,8 @@ export default async function messageRoutes(app: FastifyInstance) {
 
     const ext = path.extname(data.filename)
     const storedName = `${randomUUID()}${ext}`
-    const uploadDir = path.join(process.cwd(), 'uploads', 'messages')
-    mkdirSync(uploadDir, { recursive: true })
-    const filePath = path.join(uploadDir, storedName)
-    await pipeline(data.file, createWriteStream(filePath))
-    const { size: fileSize } = statSync(filePath)
+    const buf = await data.toBuffer()
+    await storage.save(`messages/${storedName}`, buf, data.mimetype)
 
     const attachment = await prisma.messageAttachment.create({
       data: {
@@ -187,7 +183,7 @@ export default async function messageRoutes(app: FastifyInstance) {
         fileName: data.filename,
         storedName,
         mimeType: data.mimetype,
-        fileSize,
+        fileSize: buf.length,
       },
     })
 
