@@ -172,7 +172,7 @@ export const router = createBrowserRouter([
       // ---- Enrollment ----
       {
         path: 'enrollment',
-        element: <PermissionGuard permission="academic_config:manage" />,
+        element: <PermissionGuard permission="enrollment:read" />,
         children: [
           {
             index: true,

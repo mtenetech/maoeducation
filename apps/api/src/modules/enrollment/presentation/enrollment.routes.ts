@@ -5,6 +5,7 @@ import { requirePermission } from '../../../shared/infrastructure/middleware/rba
 import {
   getTeacherParallelIds,
   isPrivilegedStaff,
+  assertParallelInScope,
 } from '../../../shared/infrastructure/services/teacher-scope.service'
 import type {
   CreateEnrollmentDto,
@@ -49,8 +50,9 @@ export default async function enrollmentRoutes(app: FastifyInstance) {
 
   app.post<{ Body: CreateEnrollmentDto }>(
     '/enrollments',
-    { preHandler: [requirePermission('academic_config', 'manage')] },
+    { preHandler: [requirePermission('enrollment', 'manage', 'own')] },
     async (req, reply) => {
+      await assertParallelInScope(req, req.body.parallelId)
       const enrollment = await repo.create(req.user.institutionId, req.body)
       return reply.status(201).send(enrollment)
     },
@@ -58,8 +60,9 @@ export default async function enrollmentRoutes(app: FastifyInstance) {
 
   app.post<{ Body: BulkEnrollmentDto }>(
     '/enrollments/bulk',
-    { preHandler: [requirePermission('academic_config', 'manage')] },
+    { preHandler: [requirePermission('enrollment', 'manage', 'own')] },
     async (req, reply) => {
+      await assertParallelInScope(req, req.body.parallelId)
       const result = await repo.bulkCreate(req.user.institutionId, req.body)
       return reply.status(201).send(result)
     },
@@ -67,8 +70,10 @@ export default async function enrollmentRoutes(app: FastifyInstance) {
 
   app.patch<{ Params: { id: string }; Body: UpdateEnrollmentStatusDto }>(
     '/enrollments/:id/status',
-    { preHandler: [requirePermission('academic_config', 'manage')] },
+    { preHandler: [requirePermission('enrollment', 'manage', 'own')] },
     async (req, reply) => {
+      const current = await repo.findById(req.params.id, req.user.institutionId)
+      await assertParallelInScope(req, current.parallelId)
       const enrollment = await repo.updateStatus(req.params.id, req.user.institutionId, req.body)
       return reply.send(enrollment)
     },

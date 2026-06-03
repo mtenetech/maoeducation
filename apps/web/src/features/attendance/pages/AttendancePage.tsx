@@ -74,7 +74,7 @@ const ALL_STATUSES: AttendanceStatus[] = ['present', 'absent', 'late', 'excused'
 export function AttendancePage() {
   const qc = useQueryClient()
 
-  const [selectedAssignment, setSelectedAssignment] = useState('')
+  const [selectedValue, setSelectedValue] = useState('')
   const [selectedDate, setSelectedDate] = useState(
     () => new Date().toISOString().split('T')[0],
   )
@@ -90,21 +90,57 @@ export function AttendancePage() {
     queryFn: () => getAssignments(),
   })
 
-  // Modo de asistencia del paralelo seleccionado (configurable por nivel).
-  const selectedObj = assignments.find((a) => a.id === selectedAssignment)
-  const isDaily = selectedObj?.parallel.level.attendanceMode === 'daily'
-  const parallelId = selectedObj?.parallel.id ?? ''
+  // Opciones del selector: en niveles "diaria" se muestra el PARALELO (sin
+  // materia, deduplicado); en "por materia", cada asignación subject×paralelo.
+  const options = React.useMemo(() => {
+    const daily = new Map<
+      string,
+      { value: string; label: string; isDaily: true; parallelId: string }
+    >()
+    const perSubject: Array<{
+      value: string
+      label: string
+      isDaily: false
+      courseAssignmentId: string
+    }> = []
+    for (const a of assignments) {
+      const base = `${a.parallel.level.name} - ${a.parallel.name}`
+      if (a.parallel.level.attendanceMode === 'daily') {
+        if (!daily.has(a.parallel.id)) {
+          daily.set(a.parallel.id, {
+            value: `parallel:${a.parallel.id}`,
+            label: `${base} (diaria)`,
+            isDaily: true,
+            parallelId: a.parallel.id,
+          })
+        }
+      } else {
+        perSubject.push({
+          value: a.id,
+          label: `${base} / ${a.subject.name}`,
+          isDaily: false,
+          courseAssignmentId: a.id,
+        })
+      }
+    }
+    return [...daily.values(), ...perSubject]
+  }, [assignments])
+
+  const selected = options.find((o) => o.value === selectedValue)
+  const isDaily = selected?.isDaily ?? false
+  const parallelId = selected && selected.isDaily ? selected.parallelId : ''
+  const courseAssignmentId = selected && !selected.isDaily ? selected.courseAssignmentId : ''
 
   const {
     data: attendanceData = [],
     isLoading: attendanceLoading,
   } = useQuery({
-    queryKey: ['attendance', selectedAssignment, selectedDate, isDaily ? parallelId : 'subject'],
+    queryKey: ['attendance', selectedValue, selectedDate],
     queryFn: () =>
       isDaily
         ? getDailyAttendance(parallelId, selectedDate)
-        : getAttendance(selectedAssignment, selectedDate),
-    enabled: !!selectedAssignment && !!selectedDate,
+        : getAttendance(courseAssignmentId, selectedDate),
+    enabled: !!selectedValue && !!selectedDate,
   })
 
   // ---- Initialize local records when attendance data loads ----
@@ -136,14 +172,14 @@ export function AttendancePage() {
       return isDaily
         ? bulkSaveDailyAttendance({ parallelId, date: selectedDate, records })
         : bulkSaveAttendance({
-            courseAssignmentId: selectedAssignment,
+            courseAssignmentId,
             date: selectedDate,
             records,
           })
     },
     onSuccess: () => {
       qc.invalidateQueries({
-        queryKey: ['attendance', selectedAssignment, selectedDate],
+        queryKey: ['attendance', selectedValue, selectedDate],
       })
       toast.success('Asistencia guardada correctamente')
       setIsDirty(false)
@@ -176,7 +212,7 @@ export function AttendancePage() {
   }
 
   function handleAssignmentChange(value: string) {
-    setSelectedAssignment(value)
+    setSelectedValue(value)
     setLocalRecords(new Map())
     setIsDirty(false)
   }
@@ -197,12 +233,6 @@ export function AttendancePage() {
     return result
   }, [localRecords])
 
-  // ---- Assignment label helper ----
-
-  function assignmentLabel(a: (typeof assignments)[number]) {
-    return `${a.parallel.level.name} - ${a.parallel.name} / ${a.subject.name}`
-  }
-
   // ---- Render ----
 
   return (
@@ -218,14 +248,14 @@ export function AttendancePage() {
       {/* Filter bar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
         <div className="w-full sm:w-72">
-          <Select value={selectedAssignment} onValueChange={handleAssignmentChange}>
+          <Select value={selectedValue} onValueChange={handleAssignmentChange}>
             <SelectTrigger>
-              <SelectValue placeholder="Seleccionar asignación" />
+              <SelectValue placeholder="Seleccionar grado / materia" />
             </SelectTrigger>
             <SelectContent>
-              {assignments.map((a) => (
-                <SelectItem key={a.id} value={a.id}>
-                  {assignmentLabel(a)}
+              {options.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -243,7 +273,7 @@ export function AttendancePage() {
       </div>
 
       {/* Daily mode banner */}
-      {selectedAssignment && isDaily && (
+      {selectedValue && isDaily && (
         <div className="rounded-md border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-800">
           Asistencia <strong>diaria</strong>: se registra una sola vez al día para todo el paralelo
           (la toma el tutor), independientemente de la materia.
@@ -251,11 +281,11 @@ export function AttendancePage() {
       )}
 
       {/* Content area */}
-      {!selectedAssignment ? (
+      {!selectedValue ? (
         <EmptyState
           icon={Users}
-          title="Selecciona una asignación y fecha"
-          description="Elige la asignación y la fecha para ver y registrar la asistencia"
+          title="Selecciona un grado y fecha"
+          description="Elige el grado/materia y la fecha para ver y registrar la asistencia"
         />
       ) : attendanceLoading ? (
         <PageLoader />

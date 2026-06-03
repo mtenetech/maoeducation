@@ -49,6 +49,24 @@ export async function studentInTeacherScope(
 }
 
 /**
+ * Garantiza que el actor puede gestionar matrículas en el paralelo:
+ * - staff privilegiado: siempre.
+ * - docente: solo en sus paralelos (dicta o es tutor).
+ */
+export async function assertParallelInScope(
+  req: FastifyRequest,
+  parallelId: string,
+): Promise<void> {
+  const { sub, institutionId, roles } = req.user
+  if (isPrivilegedStaff(roles)) return
+  if (roles.includes('teacher')) {
+    const ids = await getTeacherParallelIds(institutionId, sub)
+    if (ids.includes(parallelId)) return
+  }
+  throw new ForbiddenError()
+}
+
+/**
  * Garantiza que el actor puede ver/editar la ficha del estudiante:
  * - staff privilegiado (admin/rector/dece/inspector): siempre.
  * - docente: solo estudiantes de sus paralelos (dicta o es tutor).

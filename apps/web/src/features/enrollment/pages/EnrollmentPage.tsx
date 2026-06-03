@@ -274,24 +274,29 @@ export function EnrollmentPage() {
   // El docente ve únicamente sus paralelos (donde dicta o es tutor).
   const { hasPermission } = usePermissions()
   const tutorParallelIds = useAuthStore((s) => s.user?.tutorParallelIds ?? [])
-  const canManageEnrollment = hasPermission('academic_config:manage')
+  // "Ve todos los paralelos" (admin). El docente solo ve/gestiona los suyos.
+  const seesAllParallels = hasPermission('academic_config:manage')
+  // Puede crear/editar matrículas (admin o profesor con enrollment:manage).
+  const canCreateEnrollment = hasPermission('enrollment:manage')
   const { data: myAssign } = useQuery({
     queryKey: ['my-course-assignments'],
     queryFn: () => academicApi.getMyAssignments(),
-    enabled: !canManageEnrollment,
+    enabled: !seesAllParallels,
   })
   const allowedParallelIds = React.useMemo(() => {
-    if (canManageEnrollment) return null
+    if (seesAllParallels) return null
     const set = new Set<string>(tutorParallelIds)
     for (const a of myAssign?.assignments ?? []) {
       const pid = a.parallel?.id ?? a.parallelId
       if (pid) set.add(pid)
     }
     return set
-  }, [canManageEnrollment, myAssign, tutorParallelIds])
-  const visibleParallels = allowedParallelIds
-    ? parallels.filter((p) => allowedParallelIds.has(p.id))
-    : parallels
+  }, [seesAllParallels, myAssign, tutorParallelIds])
+  const filterParallels = (list: Parallel[]) =>
+    allowedParallelIds ? list.filter((p) => allowedParallelIds.has(p.id)) : list
+  const visibleParallels = filterParallels(parallels)
+  const visibleSingleParallels = filterParallels(singleParallels)
+  const visibleBulkParallels = filterParallels(bulkParallels)
 
   // Mutations
   const createMutation = useCreateEnrollment(yearId, parallelId)
@@ -454,7 +459,7 @@ export function EnrollmentPage() {
             Gestiona la matriculación de estudiantes en paralelos
           </p>
         </div>
-        {canManageEnrollment && (
+        {canCreateEnrollment && (
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <Button variant="outline" onClick={openBulkDialog} className="w-full sm:w-auto">
               <Users className="h-4 w-4" />
@@ -553,7 +558,7 @@ export function EnrollmentPage() {
                   <SelectValue placeholder="Seleccionar paralelo..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {singleParallels.map((p: Parallel) => (
+                  {visibleSingleParallels.map((p: Parallel) => (
                     <SelectItem key={p.id} value={p.id}>
                       {p.level.name} - {p.name}
                     </SelectItem>
@@ -624,7 +629,7 @@ export function EnrollmentPage() {
                   <SelectValue placeholder="Seleccionar paralelo..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {bulkParallels.map((p: Parallel) => (
+                  {visibleBulkParallels.map((p: Parallel) => (
                     <SelectItem key={p.id} value={p.id}>
                       {p.level.name} - {p.name}
                     </SelectItem>

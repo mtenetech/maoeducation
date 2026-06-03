@@ -32,6 +32,8 @@ export const BASE_PERMISSIONS = [
   // enrollment (matrículas)
   { resource: 'enrollment', action: 'read', scope: 'all' },
   { resource: 'enrollment', action: 'read', scope: 'own' },
+  { resource: 'enrollment', action: 'manage', scope: 'all' },
+  { resource: 'enrollment', action: 'manage', scope: 'own' },
   // institution_config (branding, ajustes de la institución)
   { resource: 'institution_config', action: 'read', scope: 'own' },
   { resource: 'institution_config', action: 'manage', scope: 'all' },
@@ -114,6 +116,7 @@ export const ROLE_PERMISSIONS: Array<{ roleName: string; permKey: string }> = [
   // Profesor
   { roleName: 'teacher', permKey: 'academic_config:read:all' },
   { roleName: 'teacher', permKey: 'enrollment:read:own' },
+  { roleName: 'teacher', permKey: 'enrollment:manage:own' },
   { roleName: 'teacher', permKey: 'users:read:own' },
   { roleName: 'teacher', permKey: 'users:write:own' },
   { roleName: 'teacher', permKey: 'users:manage:own' },
