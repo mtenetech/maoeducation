@@ -1,5 +1,7 @@
 export interface BulkAttendanceDto {
-  courseAssignmentId: string
+  // Modo por materia → courseAssignmentId; modo diario → parallelId. Exactamente uno.
+  courseAssignmentId?: string
+  parallelId?: string
   date: string // ISO date string "YYYY-MM-DD"
   records: Array<{
     studentId: string
@@ -9,7 +11,8 @@ export interface BulkAttendanceDto {
 }
 
 export interface GetAttendanceQuery {
-  courseAssignmentId: string
+  courseAssignmentId?: string
+  parallelId?: string
   date: string
 }
 

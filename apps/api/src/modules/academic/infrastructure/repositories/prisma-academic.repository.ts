@@ -56,6 +56,7 @@ export class PrismaAcademicRepository {
       data: {
         ...(dto.name !== undefined && { name: dto.name }),
         ...(dto.order !== undefined && { sortOrder: dto.order }),
+        ...(dto.attendanceMode !== undefined && { attendanceMode: dto.attendanceMode }),
       },
     })
   }

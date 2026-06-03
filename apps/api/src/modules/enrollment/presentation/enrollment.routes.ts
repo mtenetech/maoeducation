@@ -2,6 +2,10 @@ import { FastifyInstance } from 'fastify'
 import { PrismaEnrollmentRepository } from '../infrastructure/repositories/prisma-enrollment.repository'
 import { authMiddleware } from '../../../shared/infrastructure/middleware/auth.middleware'
 import { requirePermission } from '../../../shared/infrastructure/middleware/rbac.middleware'
+import {
+  getTeacherParallelIds,
+  isPrivilegedStaff,
+} from '../../../shared/infrastructure/services/teacher-scope.service'
 import type {
   CreateEnrollmentDto,
   BulkEnrollmentDto,
@@ -15,11 +19,28 @@ export default async function enrollmentRoutes(app: FastifyInstance) {
 
   app.get<{ Querystring: { parallelId?: string; yearId?: string } }>(
     '/enrollments',
-    { preHandler: [requirePermission('academic_config', 'read')] },
+    { preHandler: [requirePermission('enrollment', 'read', 'own')] },
     async (req, reply) => {
-      const enrollments = await repo.list(
-        req.user.institutionId,
-        req.query.parallelId,
+      const { institutionId, sub, roles } = req.user
+
+      // Staff privilegiado (admin/rector/dece/inspector) ve toda la institución.
+      if (isPrivilegedStaff(roles)) {
+        const enrollments = await repo.list(institutionId, req.query.parallelId, req.query.yearId)
+        return reply.send(enrollments)
+      }
+
+      // Docente: solo matrículas de sus paralelos (donde dicta o es tutor).
+      const allowed = await getTeacherParallelIds(institutionId, sub)
+      if (allowed.length === 0) return reply.send([])
+
+      // Si pide un paralelo concreto, debe estar dentro de su alcance.
+      if (req.query.parallelId && !allowed.includes(req.query.parallelId)) {
+        return reply.send([])
+      }
+
+      const enrollments = await repo.listForTeacher(
+        institutionId,
+        req.query.parallelId ? [req.query.parallelId] : allowed,
         req.query.yearId,
       )
       return reply.send(enrollments)

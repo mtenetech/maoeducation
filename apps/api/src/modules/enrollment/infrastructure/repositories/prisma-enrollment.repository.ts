@@ -6,6 +6,30 @@ import type {
   UpdateEnrollmentStatusDto,
 } from '../../application/dtos/enrollment.dto'
 
+const LIST_INCLUDE = {
+  student: {
+    select: {
+      id: true,
+      profile: {
+        select: {
+          firstName: true,
+          lastName: true,
+          dni: true,
+          birthDate: true,
+          phone: true,
+        },
+      },
+    },
+  },
+  parallel: { include: { level: true } },
+  academicYear: { select: { id: true, name: true, isActive: true } },
+} as const
+
+const LIST_ORDER = [
+  { student: { profile: { lastName: 'asc' } } },
+  { student: { profile: { firstName: 'asc' } } },
+] as const
+
 export class PrismaEnrollmentRepository {
   async list(institutionId: string, parallelId?: string, yearId?: string) {
     return prisma.studentEnrollment.findMany({
@@ -14,28 +38,21 @@ export class PrismaEnrollmentRepository {
         ...(parallelId && { parallelId }),
         ...(yearId && { academicYearId: yearId }),
       },
-      include: {
-        student: {
-          select: {
-            id: true,
-            profile: {
-              select: {
-                firstName: true,
-                lastName: true,
-                dni: true,
-                birthDate: true,
-                phone: true,
-              },
-            },
-          },
-        },
-        parallel: { include: { level: true } },
-        academicYear: { select: { id: true, name: true, isActive: true } },
+      include: LIST_INCLUDE,
+      orderBy: LIST_ORDER as any,
+    })
+  }
+
+  /** Matrículas restringidas a un conjunto de paralelos (alcance del docente). */
+  async listForTeacher(institutionId: string, parallelIds: string[], yearId?: string) {
+    return prisma.studentEnrollment.findMany({
+      where: {
+        institutionId,
+        parallelId: { in: parallelIds },
+        ...(yearId && { academicYearId: yearId }),
       },
-      orderBy: [
-        { student: { profile: { lastName: 'asc' } } },
-        { student: { profile: { firstName: 'asc' } } },
-      ],
+      include: LIST_INCLUDE,
+      orderBy: LIST_ORDER as any,
     })
   }
 

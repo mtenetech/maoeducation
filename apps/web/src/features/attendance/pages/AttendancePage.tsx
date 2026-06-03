@@ -28,6 +28,8 @@ import { cn } from '@/shared/lib/utils'
 import {
   getAttendance,
   bulkSaveAttendance,
+  getDailyAttendance,
+  bulkSaveDailyAttendance,
   getAssignments,
   type AttendanceEntry,
 } from '@/features/attendance/api/attendance.api'
@@ -88,12 +90,20 @@ export function AttendancePage() {
     queryFn: () => getAssignments(),
   })
 
+  // Modo de asistencia del paralelo seleccionado (configurable por nivel).
+  const selectedObj = assignments.find((a) => a.id === selectedAssignment)
+  const isDaily = selectedObj?.parallel.level.attendanceMode === 'daily'
+  const parallelId = selectedObj?.parallel.id ?? ''
+
   const {
     data: attendanceData = [],
     isLoading: attendanceLoading,
   } = useQuery({
-    queryKey: ['attendance', selectedAssignment, selectedDate],
-    queryFn: () => getAttendance(selectedAssignment, selectedDate),
+    queryKey: ['attendance', selectedAssignment, selectedDate, isDaily ? parallelId : 'subject'],
+    queryFn: () =>
+      isDaily
+        ? getDailyAttendance(parallelId, selectedDate)
+        : getAttendance(selectedAssignment, selectedDate),
     enabled: !!selectedAssignment && !!selectedDate,
   })
 
@@ -123,11 +133,13 @@ export function AttendancePage() {
           notes: rec.notes || undefined,
         }),
       )
-      return bulkSaveAttendance({
-        courseAssignmentId: selectedAssignment,
-        date: selectedDate,
-        records,
-      })
+      return isDaily
+        ? bulkSaveDailyAttendance({ parallelId, date: selectedDate, records })
+        : bulkSaveAttendance({
+            courseAssignmentId: selectedAssignment,
+            date: selectedDate,
+            records,
+          })
     },
     onSuccess: () => {
       qc.invalidateQueries({
@@ -229,6 +241,14 @@ export function AttendancePage() {
           />
         </div>
       </div>
+
+      {/* Daily mode banner */}
+      {selectedAssignment && isDaily && (
+        <div className="rounded-md border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-800">
+          Asistencia <strong>diaria</strong>: se registra una sola vez al día para todo el paralelo
+          (la toma el tutor), independientemente de la materia.
+        </div>
+      )}
 
       {/* Content area */}
       {!selectedAssignment ? (

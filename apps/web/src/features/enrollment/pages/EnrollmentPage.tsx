@@ -26,6 +26,9 @@ import {
 import { getErrorMessage } from '@/shared/lib/utils'
 import { formatDate } from '@/shared/lib/utils'
 import { PageLoader } from '@/shared/components/feedback/loading-spinner'
+import { usePermissions } from '@/shared/hooks/usePermissions'
+import { useAuthStore } from '@/store/auth.store'
+import { academicApi } from '@/features/academic/api/academic.api'
 import {
   listEnrollments,
   createEnrollment,
@@ -267,6 +270,29 @@ export function EnrollmentPage() {
   const { data: enrollments = [], isLoading: enrollmentsLoading } = useEnrollments(yearId, parallelId)
   const { data: students = [] } = useStudents('')
 
+  // Alcance del docente: solo gestiona quien tiene academic_config:manage (admin).
+  // El docente ve únicamente sus paralelos (donde dicta o es tutor).
+  const { hasPermission } = usePermissions()
+  const tutorParallelIds = useAuthStore((s) => s.user?.tutorParallelIds ?? [])
+  const canManageEnrollment = hasPermission('academic_config:manage')
+  const { data: myAssign } = useQuery({
+    queryKey: ['my-course-assignments'],
+    queryFn: () => academicApi.getMyAssignments(),
+    enabled: !canManageEnrollment,
+  })
+  const allowedParallelIds = React.useMemo(() => {
+    if (canManageEnrollment) return null
+    const set = new Set<string>(tutorParallelIds)
+    for (const a of myAssign?.assignments ?? []) {
+      const pid = a.parallel?.id ?? a.parallelId
+      if (pid) set.add(pid)
+    }
+    return set
+  }, [canManageEnrollment, myAssign, tutorParallelIds])
+  const visibleParallels = allowedParallelIds
+    ? parallels.filter((p) => allowedParallelIds.has(p.id))
+    : parallels
+
   // Mutations
   const createMutation = useCreateEnrollment(yearId, parallelId)
   const bulkMutation = useBulkEnroll(yearId, parallelId)
@@ -428,16 +454,18 @@ export function EnrollmentPage() {
             Gestiona la matriculación de estudiantes en paralelos
           </p>
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <Button variant="outline" onClick={openBulkDialog} className="w-full sm:w-auto">
-            <Users className="h-4 w-4" />
-            Matrícula Masiva
-          </Button>
-          <Button onClick={openSingleDialog} className="w-full sm:w-auto">
-            <UserPlus className="h-4 w-4" />
-            Nueva Matrícula
-          </Button>
-        </div>
+        {canManageEnrollment && (
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Button variant="outline" onClick={openBulkDialog} className="w-full sm:w-auto">
+              <Users className="h-4 w-4" />
+              Matrícula Masiva
+            </Button>
+            <Button onClick={openSingleDialog} className="w-full sm:w-auto">
+              <UserPlus className="h-4 w-4" />
+              Nueva Matrícula
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Filters */}
@@ -463,7 +491,7 @@ export function EnrollmentPage() {
               <SelectValue placeholder="Seleccionar paralelo..." />
             </SelectTrigger>
             <SelectContent>
-              {parallels.map((p: Parallel) => (
+              {visibleParallels.map((p: Parallel) => (
                 <SelectItem key={p.id} value={p.id}>
                   {p.level.name} - {p.name}
                 </SelectItem>

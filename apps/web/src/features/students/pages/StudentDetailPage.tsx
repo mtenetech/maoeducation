@@ -40,9 +40,27 @@ export function StudentDetailPage() {
   const qc = useQueryClient()
   const [tab, setTab] = useState<Tab>('datos')
 
-  const studentQ = useQuery({ queryKey: ['student', id], queryFn: () => getStudent(id) })
+  const studentQ = useQuery({ queryKey: ['student', id], queryFn: () => getStudent(id), retry: false })
 
-  if (studentQ.isLoading || !studentQ.data) return <PageLoader />
+  if (studentQ.isLoading) return <PageLoader />
+
+  if (studentQ.isError || !studentQ.data) {
+    return (
+      <div className="space-y-4 p-6">
+        <Button variant="ghost" size="sm" className="-ml-2" onClick={() => navigate(-1)}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> Volver
+        </Button>
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-6 text-center">
+          <p className="text-sm font-medium text-destructive">No se pudo cargar la ficha del estudiante</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {studentQ.isError
+              ? getErrorMessage(studentQ.error)
+              : 'No tienes acceso a este estudiante o no existe.'}
+          </p>
+        </div>
+      </div>
+    )
+  }
   const student = studentQ.data
 
   return (
@@ -292,7 +310,17 @@ function AnamnesisTab({ id }: { id: string }) {
     onError: (e) => toast.error(getErrorMessage(e)),
   })
 
-  if (anamnesisQ.isLoading || !anamnesisQ.data) return <PageLoader />
+  if (anamnesisQ.isLoading) return <PageLoader />
+  if (anamnesisQ.isError || !anamnesisQ.data) {
+    return (
+      <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-6 text-center">
+        <p className="text-sm font-medium text-destructive">No se pudo cargar la anamnesis</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {anamnesisQ.isError ? getErrorMessage(anamnesisQ.error) : 'No hay una plantilla de anamnesis configurada.'}
+        </p>
+      </div>
+    )
+  }
   const { template } = anamnesisQ.data
 
   return (

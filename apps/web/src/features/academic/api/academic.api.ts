@@ -8,6 +8,8 @@ export interface Level {
   code: string
   sortOrder: number
   isActive: boolean
+  /** "per_subject" (asistencia por materia) | "daily" (asistencia diaria por paralelo) */
+  attendanceMode?: 'per_subject' | 'daily'
 }
 
 export interface Subject {
