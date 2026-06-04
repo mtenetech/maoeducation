@@ -11,6 +11,14 @@ export class PrismaAuthUserRepository implements IAuthUserRepository {
     return user
   }
 
+  /** Búsqueda por cédula (para usuarios que inician sesión con su cédula). */
+  async findByDni(dni: string, institutionId: string): Promise<UserEntity | null> {
+    return prisma.user.findFirst({
+      where: { institutionId, profile: { dni } },
+      include: { profile: true },
+    })
+  }
+
   async findById(id: string): Promise<UserEntity | null> {
     return prisma.user.findUnique({
       where: { id },

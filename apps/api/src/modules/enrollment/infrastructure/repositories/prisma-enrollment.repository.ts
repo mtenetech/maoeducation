@@ -111,8 +111,9 @@ export class PrismaEnrollmentRepository {
     })
     if (!studentRole) throw new NotFoundError('Rol de estudiante no configurado')
 
-    // Email/clave autogenerados: el alumno no necesita iniciar sesión al matricularse.
-    const email = `${dto.dni}@estudiante.local`
+    // El alumno se identifica por su cédula (sin correo). La cédula se guarda
+    // como identificador de inicio de sesión y como contraseña por defecto.
+    const email = dto.dni
     const emailTaken = await prisma.user.findUnique({
       where: { institutionId_email: { institutionId, email } },
       select: { id: true },
