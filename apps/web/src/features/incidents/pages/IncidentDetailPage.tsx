@@ -18,7 +18,7 @@ import { usePermissions } from '@/shared/hooks/usePermissions'
 import {
   getIncident, changeIncidentState, assignDece, addIncidentEvent, notifyGuardian,
   listCommitments, createCommitment, downloadCommitmentPdf, uploadEvidence, deleteEvidence,
-  getUsers, type Incident,
+  getUsers, getIncidentAttachmentUrl, type Incident,
 } from '../api/incidents.api'
 
 const WORKFLOW_STATES = [
@@ -277,7 +277,7 @@ export function IncidentDetailPage() {
               {(inc.attachments ?? []).map((a) => (
                 <div key={a.id} className="flex items-center justify-between gap-2 rounded-md border p-2 text-sm">
                   <a
-                    href={`/uploads/incidents/${a.storedName}`} target="_blank" rel="noreferrer"
+                    href={getIncidentAttachmentUrl(a.storedName)} target="_blank" rel="noreferrer"
                     className="truncate text-primary hover:underline"
                   >
                     {a.fileName}

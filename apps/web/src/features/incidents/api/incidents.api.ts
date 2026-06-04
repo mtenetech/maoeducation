@@ -163,3 +163,10 @@ export const getUsers = (params?: Record<string, string>) =>
 /** Estudiantes que el actor puede reportar (docente → sus paralelos; admin/DECE → todos). */
 export const getReportableStudents = () =>
   apiGet<Array<{ id: string; fullName: string; dni: string | null }>>('incidents/students')
+
+const API_BASE = import.meta.env.VITE_API_URL ?? ''
+
+/** URL de descarga de una evidencia (sirve desde la API: disco o R2). */
+export function getIncidentAttachmentUrl(storedName: string) {
+  return `${API_BASE}/uploads/incidents/${storedName}`
+}
