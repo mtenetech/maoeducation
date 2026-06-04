@@ -12,7 +12,8 @@ export default async function authRoutes(app: FastifyInstance) {
           type: 'object',
           required: ['email', 'password', 'institutionCode'],
           properties: {
-            email:           { type: 'string', format: 'email' },
+            // "email" admite correo o cédula como identificador.
+            email:           { type: 'string', minLength: 1 },
             password:        { type: 'string', minLength: 1 },
             institutionCode: { type: 'string', minLength: 1 },
           },

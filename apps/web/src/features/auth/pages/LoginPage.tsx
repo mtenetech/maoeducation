@@ -13,7 +13,7 @@ import { useAuthStore } from '@/store/auth.store'
 
 const loginSchema = z.object({
   institutionCode: z.string().min(1, 'Requerido'),
-  email:           z.string().email('Email inválido'),
+  email:           z.string().min(1, 'Requerido'), // correo o cédula
   password:        z.string().min(1, 'Requerido'),
 })
 
@@ -76,12 +76,12 @@ export function LoginPage() {
 
               <div className="space-y-1.5">
                 <Label htmlFor="email" className="text-slate-300">
-                  Correo electrónico
+                  Correo o cédula
                 </Label>
                 <Input
                   id="email"
-                  type="email"
-                  placeholder="usuario@escuela.edu"
+                  type="text"
+                  placeholder="correo@escuela.edu o cédula"
                   {...register('email')}
                   className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus-visible:ring-primary/50"
                 />

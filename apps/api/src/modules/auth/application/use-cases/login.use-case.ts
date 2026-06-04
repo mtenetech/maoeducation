@@ -23,9 +23,14 @@ export class LoginUseCase {
       throw new UnauthorizedError('Institución no encontrada o inactiva')
     }
 
-    const user = await this.userRepo.findByEmail(dto.email, institution.id)
+    // El identificador puede ser un correo o una cédula. Si trae '@' se busca
+    // por correo; si no, por cédula. Como respaldo se intenta el otro modo.
+    const identifier = dto.email.trim()
+    const user =
+      (await this.userRepo.findByEmail(identifier, institution.id)) ??
+      (await this.userRepo.findByDni(identifier, institution.id))
 
-    // Mensaje genérico para no revelar si el email existe
+    // Mensaje genérico para no revelar si el usuario existe
     if (!user || !user.isActive) {
       throw new UnauthorizedError('Credenciales inválidas')
     }
