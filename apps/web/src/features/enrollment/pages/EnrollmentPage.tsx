@@ -728,7 +728,8 @@ export function EnrollmentPage() {
           <div className="space-y-4 py-2">
             <p className="text-sm text-muted-foreground">
               Se creará el estudiante y se matriculará en el paralelo seleccionado en el filtro
-              de arriba. Para uno que ya existe, usa <strong>Nueva Matrícula</strong>.
+              de arriba. La contraseña inicial será la <strong>cédula</strong>. Para uno que ya
+              existe, usa <strong>Nueva Matrícula</strong>.
             </p>
             {(!yearId || !parallelId) && (
               <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-700">

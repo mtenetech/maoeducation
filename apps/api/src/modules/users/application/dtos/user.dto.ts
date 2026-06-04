@@ -12,11 +12,11 @@ export interface ProfileFieldsDto {
 
 export interface CreateUserDto extends ProfileFieldsDto {
   email: string
-  password: string
+  password?: string // opcional: por defecto = cédula
   firstName: string
   lastName: string
   roleNames: string[]
-  dni?: string
+  dni: string // obligatoria, 10 dígitos, única en la institución
   phone?: string
   birthDate?: string
 }

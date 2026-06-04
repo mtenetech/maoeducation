@@ -50,7 +50,9 @@ export default async function userRoutes(app: FastifyInstance) {
       schema: {
         body: {
           type: 'object',
-          required: ['email', 'password', 'firstName', 'lastName', 'roleNames'],
+          // password es opcional: si no se envía, la contraseña por defecto
+          // será la cédula. dni es obligatorio (10 dígitos, único).
+          required: ['email', 'firstName', 'lastName', 'roleNames', 'dni'],
           properties: {
             email:     { type: 'string', format: 'email' },
             password:  { type: 'string', minLength: 6 },

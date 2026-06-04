@@ -158,10 +158,18 @@ function RepresentantesTab({ id }: { id: string }) {
   })
 
   const mAdd = useMutation({
-    mutationFn: () => addGuardian(id, form),
+    // La contraseña por defecto es la cédula.
+    mutationFn: () => addGuardian(id, { ...form, password: form.password?.trim() ? form.password : form.dni }),
     onSuccess: () => { toast.success('Representante agregado'); setOpen(false); setForm({ relationship: 'padre' }); refresh() },
     onError: (e) => toast.error(getErrorMessage(e)),
   })
+
+  function handleAddGuardian() {
+    if (!form.firstName?.trim() || !form.lastName?.trim()) return toast.error('Nombres y apellidos son obligatorios')
+    if (!form.email?.trim()) return toast.error('El email es obligatorio')
+    if (!/^\d{10}$/.test((form.dni ?? '').trim())) return toast.error('La cédula debe tener 10 dígitos')
+    mAdd.mutate()
+  }
   const mToggleFlag = useMutation({
     mutationFn: ({ gid, data }: { gid: string; data: Record<string, boolean> }) => updateGuardianLink(id, gid, data),
     onSuccess: refresh,
@@ -240,9 +248,13 @@ function RepresentantesTab({ id }: { id: string }) {
               <div className="space-y-1.5"><Label>Apellidos</Label><Input value={form.lastName ?? ''} onChange={(e) => set('lastName', e.target.value)} /></div>
             </div>
             <div className="space-y-1.5"><Label>Email</Label><Input type="email" value={form.email ?? ''} onChange={(e) => set('email', e.target.value)} /></div>
-            <div className="space-y-1.5"><Label>Contraseña</Label><Input type="password" value={form.password ?? ''} onChange={(e) => set('password', e.target.value)} /></div>
+            <div className="space-y-1.5">
+              <Label>Contraseña</Label>
+              <Input type="password" value={form.password ?? ''} onChange={(e) => set('password', e.target.value)} placeholder="Por defecto: la cédula" />
+              <p className="text-xs text-muted-foreground">Si la dejas vacía, la contraseña inicial será la cédula.</p>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5"><Label>Cédula</Label><Input value={form.dni ?? ''} onChange={(e) => set('dni', e.target.value)} /></div>
+              <div className="space-y-1.5"><Label>Cédula *</Label><Input value={form.dni ?? ''} onChange={(e) => set('dni', e.target.value.replace(/\D/g, '').slice(0, 10))} inputMode="numeric" placeholder="10 dígitos" /></div>
               <div className="space-y-1.5"><Label>Teléfono</Label><Input value={form.phone ?? ''} onChange={(e) => set('phone', e.target.value)} /></div>
             </div>
             <div className="space-y-1.5"><Label>Ocupación</Label><Input value={form.occupation ?? ''} onChange={(e) => set('occupation', e.target.value)} /></div>
@@ -263,7 +275,7 @@ function RepresentantesTab({ id }: { id: string }) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-            <Button onClick={() => mAdd.mutate()} loading={mAdd.isPending}>
+            <Button onClick={handleAddGuardian} loading={mAdd.isPending}>
               <UserPlus className="mr-2 h-4 w-4" /> Crear y vincular
             </Button>
           </DialogFooter>

@@ -1,4 +1,3 @@
-import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
 import { prisma } from '../../../../shared/infrastructure/database/prisma'
 import { NotFoundError, ConflictError } from '../../../../shared/domain/errors/app.errors'
@@ -119,7 +118,8 @@ export class PrismaEnrollmentRepository {
       select: { id: true },
     })
     if (emailTaken) throw new ConflictError('Ya existe un estudiante con esa cédula')
-    const passwordHash = await bcrypt.hash(crypto.randomUUID(), 12)
+    // Contraseña por defecto = cédula.
+    const passwordHash = await bcrypt.hash(dto.dni, 12)
 
     return prisma.$transaction(async (tx) => {
       const user = await tx.user.create({

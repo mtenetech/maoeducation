@@ -3,6 +3,7 @@ import { prisma } from '../../../../shared/infrastructure/database/prisma'
 import { CreateUserDto, ListUsersQueryDto, UpdateUserDto } from '../../application/dtos/user.dto'
 import { UserDetail, UserListItem } from '../../domain/entities/user.entity'
 import { ConflictError, NotFoundError } from '../../../../shared/domain/errors/app.errors'
+import { assertValidDni, assertDniUnique } from '../../../../shared/infrastructure/services/dni.helper'
 import type { ProfileFieldsDto } from '../../application/dtos/user.dto'
 
 const EXTRA_FIELDS: (keyof ProfileFieldsDto)[] = [
@@ -120,11 +121,17 @@ export class PrismaUserRepository {
     })
     if (exists) throw new ConflictError('El email ya está registrado en esta institución')
 
+    // Cédula obligatoria, 10 dígitos y única en la institución.
+    const dni = assertValidDni(dto.dni)
+    await assertDniUnique(institutionId, dni)
+
     const roles = await prisma.role.findMany({
       where: { institutionId, name: { in: dto.roleNames } },
     })
 
-    const passwordHash = await bcrypt.hash(dto.password, 12)
+    // Contraseña por defecto = cédula (si no se especifica una).
+    const password = dto.password?.trim() ? dto.password : dni
+    const passwordHash = await bcrypt.hash(password, 12)
 
     const user = await prisma.user.create({
       data: {
@@ -135,7 +142,7 @@ export class PrismaUserRepository {
           create: {
             firstName: dto.firstName,
             lastName:  dto.lastName,
-            dni:       dto.dni,
+            dni,
             phone:     dto.phone,
             birthDate: dto.birthDate ? new Date(dto.birthDate) : null,
             ...extraCreate(dto),
@@ -167,6 +174,13 @@ export class PrismaUserRepository {
   async update(id: string, institutionId: string, dto: UpdateUserDto): Promise<UserDetail> {
     const user = await prisma.user.findFirst({ where: { id, institutionId } })
     if (!user) throw new NotFoundError('Usuario no encontrado')
+
+    // Si cambia la cédula, validar formato y que no se duplique.
+    if (dto.dni !== undefined) {
+      const dni = assertValidDni(dto.dni)
+      await assertDniUnique(institutionId, dni, id)
+      dto.dni = dni
+    }
 
     const passwordHash = dto.password ? await bcrypt.hash(dto.password, 12) : undefined
 
