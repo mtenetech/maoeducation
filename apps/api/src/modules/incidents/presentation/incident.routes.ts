@@ -1,12 +1,11 @@
-import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
-import { pipeline } from 'stream/promises'
 import { FastifyInstance } from 'fastify'
 import { PrismaIncidentRepository } from '../infrastructure/repositories/prisma-incident.repository'
 import { PrismaMessageRepository } from '../../messaging/infrastructure/repositories/prisma-message.repository'
 import { authMiddleware } from '../../../shared/infrastructure/middleware/auth.middleware'
 import { requirePermission } from '../../../shared/infrastructure/middleware/rbac.middleware'
+import { storage } from '../../../shared/infrastructure/services/storage.service'
 import { buildActaPdf } from '../application/services/acta-pdf.service'
 import type {
   AddEventDto,
@@ -23,7 +22,6 @@ import type {
 const repo = new PrismaIncidentRepository()
 const messageRepo = new PrismaMessageRepository()
 
-const UPLOAD_DIR = path.join(process.cwd(), 'uploads', 'incidents')
 
 function personName(p: { profile: { firstName: string; lastName: string } | null } | null): string {
   if (!p?.profile) return 'estudiante'
@@ -228,16 +226,14 @@ export default async function incidentRoutes(app: FastifyInstance) {
 
       const ext = path.extname(data.filename).toLowerCase()
       const storedName = `${crypto.randomUUID()}${ext}`
-      fs.mkdirSync(UPLOAD_DIR, { recursive: true })
-      const filePath = path.join(UPLOAD_DIR, storedName)
-      await pipeline(data.file, fs.createWriteStream(filePath))
-      const stat = fs.statSync(filePath)
+      const buf = await data.toBuffer()
+      await storage.save(`incidents/${storedName}`, buf, data.mimetype)
 
       const attachment = await repo.addAttachment(req.params.id, req.user.institutionId, req.user.sub, {
         fileName: data.filename,
         storedName,
         mimeType: data.mimetype,
-        fileSize: stat.size,
+        fileSize: buf.length,
       })
       return reply.status(201).send({ ...attachment, url: `/uploads/incidents/${storedName}` })
     },
@@ -249,8 +245,7 @@ export default async function incidentRoutes(app: FastifyInstance) {
     async (req, reply) => {
       const attachment = await repo.findAttachment(req.params.attachmentId, req.user.institutionId)
       if (!attachment) return reply.status(404).send({ message: 'Adjunto no encontrado' })
-      const filePath = path.join(UPLOAD_DIR, attachment.storedName)
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
+      await storage.remove(`incidents/${attachment.storedName}`)
       await repo.deleteAttachment(attachment.id)
       return reply.status(204).send()
     },

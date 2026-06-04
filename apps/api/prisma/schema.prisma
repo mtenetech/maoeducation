@@ -4,7 +4,12 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // En producción con PgBouncer: DATABASE_URL apunta al pooler (puerto del
+  // pooler, con ?pgbouncer=true) y DIRECT_URL a la conexión directa de Postgres
+  // (la usan migrate/introspect, que no pueden ir por el pooler).
+  // En local ambas pueden ser la misma URL.
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ============================================================
