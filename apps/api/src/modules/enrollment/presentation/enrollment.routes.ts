@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify'
 import { PrismaEnrollmentRepository } from '../infrastructure/repositories/prisma-enrollment.repository'
 import { authMiddleware } from '../../../shared/infrastructure/middleware/auth.middleware'
 import { requirePermission } from '../../../shared/infrastructure/middleware/rbac.middleware'
+import { BadRequestError } from '../../../shared/domain/errors/app.errors'
 import {
   getTeacherParallelIds,
   isPrivilegedStaff,
@@ -11,6 +12,7 @@ import type {
   CreateEnrollmentDto,
   BulkEnrollmentDto,
   UpdateEnrollmentStatusDto,
+  CreateStudentEnrollmentDto,
 } from '../application/dtos/enrollment.dto'
 
 const repo = new PrismaEnrollmentRepository()
@@ -48,12 +50,41 @@ export default async function enrollmentRoutes(app: FastifyInstance) {
     },
   )
 
+  // Buscador de estudiantes para el selector (accesible al docente).
+  app.get<{ Querystring: { search?: string } }>(
+    '/enrollments/students',
+    { preHandler: [requirePermission('enrollment', 'read', 'own')] },
+    async (req, reply) => {
+      const students = await repo.searchStudents(req.user.institutionId, req.query.search)
+      return reply.send(students)
+    },
+  )
+
   app.post<{ Body: CreateEnrollmentDto }>(
     '/enrollments',
     { preHandler: [requirePermission('enrollment', 'manage', 'own')] },
     async (req, reply) => {
       await assertParallelInScope(req, req.body.parallelId)
       const enrollment = await repo.create(req.user.institutionId, req.body)
+      return reply.status(201).send(enrollment)
+    },
+  )
+
+  // Crear un estudiante nuevo y matricularlo (cuando no existe). Valida
+  // nombres y cédula; el docente solo puede hacerlo en sus paralelos.
+  app.post<{ Body: CreateStudentEnrollmentDto }>(
+    '/enrollments/student',
+    { preHandler: [requirePermission('enrollment', 'manage', 'own')] },
+    async (req, reply) => {
+      const { firstName, lastName, dni, parallelId } = req.body
+      if (!firstName?.trim() || !lastName?.trim()) {
+        throw new BadRequestError('Nombres y apellidos son obligatorios')
+      }
+      if (!/^\d{10}$/.test(dni ?? '')) {
+        throw new BadRequestError('La cédula debe tener 10 dígitos')
+      }
+      await assertParallelInScope(req, parallelId)
+      const enrollment = await repo.createStudentAndEnroll(req.user.institutionId, req.body)
       return reply.status(201).send(enrollment)
     },
   )

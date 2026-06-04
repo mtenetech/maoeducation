@@ -32,6 +32,7 @@ import { academicApi } from '@/features/academic/api/academic.api'
 import {
   listEnrollments,
   createEnrollment,
+  createStudentEnrollment,
   bulkEnroll,
   updateEnrollmentStatus,
   getYears,
@@ -242,6 +243,7 @@ function StudentPicker({
 
 export function EnrollmentPage() {
   const navigate = useNavigate()
+  const qcRoot = useQueryClient()
   // Filter state
   const [yearId, setYearId] = useState('')
   const [parallelId, setParallelId] = useState('')
@@ -249,6 +251,12 @@ export function EnrollmentPage() {
   // Dialog state
   const [singleOpen, setSingleOpen] = useState(false)
   const [bulkOpen, setBulkOpen] = useState(false)
+
+  // Nuevo estudiante (crear + matricular)
+  const [newStudentOpen, setNewStudentOpen] = useState(false)
+  const [nsFirstName, setNsFirstName] = useState('')
+  const [nsLastName, setNsLastName] = useState('')
+  const [nsDni, setNsDni] = useState('')
 
   // Single enrollment form state
   const [singleYearId, setSingleYearId] = useState('')
@@ -302,6 +310,16 @@ export function EnrollmentPage() {
   const createMutation = useCreateEnrollment(yearId, parallelId)
   const bulkMutation = useBulkEnroll(yearId, parallelId)
   const statusMutation = useUpdateStatus(yearId, parallelId)
+  const createStudentMutation = useMutation({
+    mutationFn: (data: {
+      firstName: string; lastName: string; dni: string; parallelId: string; academicYearId: string
+    }) => createStudentEnrollment(data),
+    onSuccess: () => {
+      qcRoot.invalidateQueries({ queryKey: ['enrollments', yearId, parallelId] })
+      toast.success('Estudiante creado y matriculado')
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  })
 
   // Reset parallel when year changes
   useEffect(() => {
@@ -346,6 +364,38 @@ export function EnrollmentPage() {
     bulkMutation.mutate(
       { studentIds: bulkStudentIds, parallelId: bulkParallelId, academicYearId: bulkYearId },
       { onSuccess: () => setBulkOpen(false) },
+    )
+  }
+
+  function openNewStudentDialog() {
+    setNsFirstName('')
+    setNsLastName('')
+    setNsDni('')
+    setNewStudentOpen(true)
+  }
+
+  function handleCreateStudent() {
+    if (!yearId || !parallelId) {
+      toast.error('Selecciona año y paralelo arriba para matricular al nuevo estudiante')
+      return
+    }
+    if (!nsFirstName.trim() || !nsLastName.trim()) {
+      toast.error('Nombres y apellidos son obligatorios')
+      return
+    }
+    if (!/^\d{10}$/.test(nsDni.trim())) {
+      toast.error('La cédula debe tener 10 dígitos')
+      return
+    }
+    createStudentMutation.mutate(
+      {
+        firstName: nsFirstName.trim(),
+        lastName: nsLastName.trim(),
+        dni: nsDni.trim(),
+        parallelId,
+        academicYearId: yearId,
+      },
+      { onSuccess: () => setNewStudentOpen(false) },
     )
   }
 
@@ -468,6 +518,10 @@ export function EnrollmentPage() {
             <Button onClick={openSingleDialog} className="w-full sm:w-auto">
               <UserPlus className="h-4 w-4" />
               Nueva Matrícula
+            </Button>
+            <Button variant="secondary" onClick={openNewStudentDialog} className="w-full sm:w-auto">
+              <UserPlus className="h-4 w-4" />
+              Nuevo estudiante
             </Button>
           </div>
         )}
@@ -660,6 +714,57 @@ export function EnrollmentPage() {
               loading={bulkMutation.isPending}
             >
               Matricular {bulkStudentIds.length > 0 ? `${bulkStudentIds.length} estudiantes` : ''}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Nuevo estudiante (crear + matricular en el paralelo del filtro) */}
+      <Dialog open={newStudentOpen} onOpenChange={setNewStudentOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nuevo estudiante</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              Se creará el estudiante y se matriculará en el paralelo seleccionado en el filtro
+              de arriba. Para uno que ya existe, usa <strong>Nueva Matrícula</strong>.
+            </p>
+            {(!yearId || !parallelId) && (
+              <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                Selecciona año y paralelo en el filtro de arriba antes de crear.
+              </p>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Nombres *</Label>
+                <Input value={nsFirstName} onChange={(e) => setNsFirstName(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Apellidos *</Label>
+                <Input value={nsLastName} onChange={(e) => setNsLastName(e.target.value)} />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Cédula *</Label>
+              <Input
+                value={nsDni}
+                onChange={(e) => setNsDni(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                inputMode="numeric"
+                placeholder="10 dígitos"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewStudentOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleCreateStudent}
+              disabled={!yearId || !parallelId || !nsFirstName.trim() || !nsLastName.trim() || nsDni.length !== 10}
+              loading={createStudentMutation.isPending}
+            >
+              Crear y matricular
             </Button>
           </DialogFooter>
         </DialogContent>

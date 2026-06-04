@@ -30,6 +30,7 @@ export interface StudentOption {
   id: string
   fullName: string
   email: string
+  dni?: string | null
 }
 
 export function listEnrollments(params?: Record<string, string>) {
@@ -57,5 +58,17 @@ export function getParallels(yearId?: string) {
 }
 
 export function getStudents(search?: string) {
-  return apiGet<{ data: StudentOption[]; total: number }>('users', { role: 'student', ...(search ? { search } : {}) }).then((r) => r.data)
+  // Endpoint propio de matrícula (accesible también al docente, no solo admin).
+  return apiGet<StudentOption[]>('enrollments/students', search ? { search } : undefined)
+}
+
+export function createStudentEnrollment(data: {
+  firstName: string
+  lastName: string
+  dni: string
+  birthDate?: string
+  parallelId: string
+  academicYearId: string
+}) {
+  return apiPost<Enrollment>('enrollments/student', data)
 }
