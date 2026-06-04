@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs'
 import { prisma } from '../../../../shared/infrastructure/database/prisma'
 import { BadRequestError, ConflictError, NotFoundError } from '../../../../shared/domain/errors/app.errors'
+import { assertValidDni, assertDniUnique } from '../../../../shared/infrastructure/services/dni.helper'
 import type {
   CreateGuardianDto,
   GuardianItemDto,
@@ -52,9 +53,12 @@ export class PrismaGuardianRepository {
 
     if (!guardianId) {
       // Crear nuevo usuario guardian
-      if (!dto.email || !dto.password || !dto.firstName || !dto.lastName) {
-        throw new BadRequestError('Faltan datos del representante (email, contraseña, nombre y apellido)')
+      if (!dto.email || !dto.firstName || !dto.lastName) {
+        throw new BadRequestError('Faltan datos del representante (email, nombre y apellido)')
       }
+      // Cédula obligatoria, 10 dígitos y única en la institución.
+      const dni = assertValidDni(dto.dni)
+      await assertDniUnique(institutionId, dni)
       const exists = await prisma.user.findUnique({
         where: { institutionId_email: { institutionId, email: dto.email } },
       })
@@ -66,7 +70,9 @@ export class PrismaGuardianRepository {
       })
       if (!role) throw new NotFoundError('Rol guardian no encontrado')
 
-      const passwordHash = await bcrypt.hash(dto.password, 12)
+      // Contraseña por defecto = cédula (si no se especifica una).
+      const password = dto.password?.trim() ? dto.password : dni
+      const passwordHash = await bcrypt.hash(password, 12)
       const guardian = await prisma.user.create({
         data: {
           institutionId,
@@ -76,7 +82,7 @@ export class PrismaGuardianRepository {
             create: {
               firstName: dto.firstName,
               lastName: dto.lastName,
-              dni: dto.dni,
+              dni,
               phone: dto.phone,
               phoneAlt: dto.phoneAlt,
               address: dto.address,

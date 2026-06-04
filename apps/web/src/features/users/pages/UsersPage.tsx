@@ -126,9 +126,10 @@ const createUserSchema = z.object({
   firstName: z.string().min(1, 'El nombre es requerido'),
   lastName: z.string().min(1, 'El apellido es requerido'),
   email: z.string().email('Email inválido'),
-  password: z.string().min(8, 'Mínimo 8 caracteres'),
+  // Opcional: si se deja vacía, la contraseña por defecto es la cédula.
+  password: z.string().min(8, 'Mínimo 8 caracteres').optional().or(z.literal('')),
   roleNames: z.array(z.string()).min(1, 'Selecciona al menos un rol'),
-  dni: z.string().optional(),
+  dni: z.string().regex(/^\d{10}$/, 'La cédula debe tener 10 dígitos'),
   phone: z.string().optional(),
 })
 type CreateUserForm = z.infer<typeof createUserSchema>
@@ -196,7 +197,10 @@ export function UsersPage() {
   }
 
   function onCreateSubmit(values: CreateUserForm) {
-    createUser.mutate(values, {
+    // La contraseña por defecto es la cédula: si no se escribe una, se envía
+    // la cédula como contraseña.
+    const data = { ...values, password: values.password?.trim() ? values.password : values.dni }
+    createUser.mutate(data, {
       onSuccess: () => {
         setCreateOpen(false)
         createForm.reset()
@@ -369,8 +373,11 @@ export function UsersPage() {
               <Input
                 {...createForm.register('password')}
                 type="password"
-                placeholder="••••••••"
+                placeholder="Por defecto: la cédula"
               />
+              <p className="text-xs text-muted-foreground">
+                Si la dejas vacía, la contraseña inicial será la cédula.
+              </p>
               {createForm.formState.errors.password && (
                 <p className="text-xs text-destructive">
                   {createForm.formState.errors.password.message}
@@ -403,8 +410,11 @@ export function UsersPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Cédula / DNI</Label>
-                <Input {...createForm.register('dni')} placeholder="Opcional" />
+                <Label>Cédula / DNI *</Label>
+                <Input {...createForm.register('dni')} placeholder="10 dígitos" inputMode="numeric" maxLength={10} />
+                {createForm.formState.errors.dni && (
+                  <p className="text-xs text-destructive">{createForm.formState.errors.dni.message}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Teléfono</Label>

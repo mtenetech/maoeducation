@@ -1,9 +1,11 @@
+import bcrypt from 'bcryptjs'
 import { prisma } from '../../../../shared/infrastructure/database/prisma'
 import { NotFoundError, ConflictError } from '../../../../shared/domain/errors/app.errors'
 import type {
   CreateEnrollmentDto,
   BulkEnrollmentDto,
   UpdateEnrollmentStatusDto,
+  CreateStudentEnrollmentDto,
 } from '../../application/dtos/enrollment.dto'
 
 const LIST_INCLUDE = {
@@ -53,6 +55,99 @@ export class PrismaEnrollmentRepository {
       },
       include: LIST_INCLUDE,
       orderBy: LIST_ORDER as any,
+    })
+  }
+
+  /** Buscador de estudiantes (rol student) para el selector de matrícula. */
+  async searchStudents(institutionId: string, search?: string) {
+    const term = search?.trim()
+    const users = await prisma.user.findMany({
+      where: {
+        institutionId,
+        userRoles: { some: { role: { name: 'student' } } },
+        ...(term && {
+          OR: [
+            { profile: { firstName: { contains: term, mode: 'insensitive' } } },
+            { profile: { lastName: { contains: term, mode: 'insensitive' } } },
+            { profile: { dni: { contains: term, mode: 'insensitive' } } },
+          ],
+        }),
+      },
+      select: { id: true, email: true, profile: { select: { firstName: true, lastName: true, dni: true } } },
+      orderBy: [{ profile: { lastName: 'asc' } }, { profile: { firstName: 'asc' } }],
+      take: 500,
+    })
+    return users.map((u) => ({
+      id: u.id,
+      email: u.email,
+      fullName: `${u.profile?.firstName ?? ''} ${u.profile?.lastName ?? ''}`.trim(),
+      dni: u.profile?.dni ?? null,
+    }))
+  }
+
+  /**
+   * Crea un estudiante nuevo (rol student) y lo matricula en una sola
+   * transacción. Email y contraseña se autogeneran (el admin puede resetear
+   * la contraseña luego). La cédula debe ser única en la institución.
+   */
+  async createStudentAndEnroll(institutionId: string, dto: CreateStudentEnrollmentDto) {
+    const [parallel, year] = await Promise.all([
+      prisma.parallel.findFirst({ where: { id: dto.parallelId, institutionId } }),
+      prisma.academicYear.findFirst({ where: { id: dto.academicYearId, institutionId } }),
+    ])
+    if (!parallel) throw new NotFoundError('Paralelo no encontrado')
+    if (!year) throw new NotFoundError('Año académico no encontrado')
+
+    // Cédula única dentro de la institución.
+    const dniTaken = await prisma.profile.findFirst({
+      where: { dni: dto.dni, user: { institutionId } },
+      select: { id: true },
+    })
+    if (dniTaken) throw new ConflictError('Ya existe un estudiante con esa cédula')
+
+    const studentRole = await prisma.role.findFirst({
+      where: { institutionId, name: 'student' },
+      select: { id: true },
+    })
+    if (!studentRole) throw new NotFoundError('Rol de estudiante no configurado')
+
+    // Email/clave autogenerados: el alumno no necesita iniciar sesión al matricularse.
+    const email = `${dto.dni}@estudiante.local`
+    const emailTaken = await prisma.user.findUnique({
+      where: { institutionId_email: { institutionId, email } },
+      select: { id: true },
+    })
+    if (emailTaken) throw new ConflictError('Ya existe un estudiante con esa cédula')
+    // Contraseña por defecto = cédula.
+    const passwordHash = await bcrypt.hash(dto.dni, 12)
+
+    return prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          institutionId,
+          email,
+          passwordHash,
+          profile: {
+            create: {
+              firstName: dto.firstName.trim(),
+              lastName: dto.lastName.trim(),
+              dni: dto.dni,
+              birthDate: dto.birthDate ? new Date(dto.birthDate) : null,
+            },
+          },
+          userRoles: { create: { roleId: studentRole.id } },
+        },
+      })
+
+      return tx.studentEnrollment.create({
+        data: {
+          institutionId,
+          studentId: user.id,
+          parallelId: dto.parallelId,
+          academicYearId: dto.academicYearId,
+        },
+        include: LIST_INCLUDE,
+      })
     })
   }
 
