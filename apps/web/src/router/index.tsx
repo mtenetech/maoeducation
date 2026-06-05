@@ -275,6 +275,27 @@ export const router = createBrowserRouter([
           },
         ],
       },
+      // ---- Carpeta del estudiante ----
+      {
+        path: 'student-folder',
+        element: <PermissionGuard permission="student_folder:read" />,
+        children: [
+          {
+            index: true,
+            lazy: () =>
+              import('@/features/student-folder/pages/StudentFolderListPage').then((m) => ({
+                Component: m.StudentFolderListPage,
+              })),
+          },
+          {
+            path: ':id',
+            lazy: () =>
+              import('@/features/student-folder/pages/StudentFolderPage').then((m) => ({
+                Component: m.StudentFolderPage,
+              })),
+          },
+        ],
+      },
       // ---- Schedules ----
       {
         path: 'schedules',

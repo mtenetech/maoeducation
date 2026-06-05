@@ -9,6 +9,7 @@ export async function registerRoutes(app: FastifyInstance) {
   app.register(import('../../modules/attendance/presentation/attendance.routes'), { prefix: '/api/v1' })
   app.register(import('../../modules/incidents/presentation/incident.routes'), { prefix: '/api/v1' })
   app.register(import('../../modules/parent-meetings/presentation/parent-meeting.routes'), { prefix: '/api/v1' })
+  app.register(import('../../modules/student-folder/presentation/student-folder.routes'), { prefix: '/api/v1' })
   app.register(import('../../modules/schedules/presentation/schedule.routes'), { prefix: '/api/v1' })
   app.register(import('../../modules/messaging/presentation/message.routes'), { prefix: '/api/v1' })
 

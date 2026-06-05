@@ -3,7 +3,7 @@ import {
   Home, Users, Settings, BookOpen, GraduationCap,
   ClipboardList, AlertTriangle, MessageSquare, Calendar,
   FileText, ChevronDown, BookMarked, X, UserPlus, ShieldCheck,
-  ClipboardCheck, CalendarDays, Palette, Smile, Award, HeartHandshake,
+  ClipboardCheck, CalendarDays, Palette, Smile, Award, HeartHandshake, FolderOpen,
 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { usePermissions } from '@/shared/hooks/usePermissions'
@@ -113,6 +113,12 @@ const NAV_ITEMS: NavItem[] = [
     icon: HeartHandshake,
     path: '/parent-meetings',
     permission: 'parent_meetings:read',
+  },
+  {
+    label: 'Carpeta del Estudiante',
+    icon: FolderOpen,
+    path: '/student-folder',
+    permission: 'student_folder:read',
   },
   {
     label: 'Mensajes',

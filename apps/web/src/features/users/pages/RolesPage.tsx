@@ -67,6 +67,7 @@ const RESOURCE_LABELS: Record<string, string> = {
   attendance: 'Asistencia',
   incidents: 'Incidentes',
   parent_meetings: 'Atención a padres',
+  student_folder: 'Carpeta del estudiante',
   reports: 'Reportes',
   insumos: 'Insumos',
   messages: 'Mensajes',
