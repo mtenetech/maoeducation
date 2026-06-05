@@ -69,6 +69,9 @@ export const BASE_PERMISSIONS = [
   { resource: 'parent_meetings', action: 'write', scope: 'all' },
   { resource: 'parent_meetings', action: 'write', scope: 'own' },
   { resource: 'parent_meetings', action: 'manage', scope: 'all' },
+  // student_folder (carpeta / expediente del estudiante)
+  { resource: 'student_folder', action: 'read', scope: 'all' },
+  { resource: 'student_folder', action: 'read', scope: 'own' },
   // reports
   { resource: 'reports', action: 'read', scope: 'all' },
   { resource: 'reports', action: 'read', scope: 'own' },
@@ -99,6 +102,7 @@ export const ROLE_PERMISSIONS: Array<{ roleName: string; permKey: string }> = [
   { roleName: 'admin', permKey: 'parent_meetings:manage:all' },
   { roleName: 'admin', permKey: 'parent_meetings:read:all' },
   { roleName: 'admin', permKey: 'parent_meetings:write:all' },
+  { roleName: 'admin', permKey: 'student_folder:read:all' },
   { roleName: 'admin', permKey: 'reports:manage:all' },
   { roleName: 'admin', permKey: 'insumos:manage:all' },
   { roleName: 'admin', permKey: 'tasks:read:all' },
@@ -110,6 +114,7 @@ export const ROLE_PERMISSIONS: Array<{ roleName: string; permKey: string }> = [
   { roleName: 'rector', permKey: 'incident_types:manage:all' },
   { roleName: 'rector', permKey: 'parent_meetings:read:all' },
   { roleName: 'rector', permKey: 'parent_meetings:write:all' },
+  { roleName: 'rector', permKey: 'student_folder:read:all' },
   { roleName: 'rector', permKey: 'reports:read:all' },
   // DECE — gestiona casos derivados y seguimiento
   { roleName: 'dece', permKey: 'users:read:all' },
@@ -118,6 +123,7 @@ export const ROLE_PERMISSIONS: Array<{ roleName: string; permKey: string }> = [
   { roleName: 'dece', permKey: 'incident_types:read:all' },
   { roleName: 'dece', permKey: 'parent_meetings:read:all' },
   { roleName: 'dece', permKey: 'parent_meetings:write:all' },
+  { roleName: 'dece', permKey: 'student_folder:read:all' },
   // Inspector
   { roleName: 'inspector', permKey: 'users:read:all' },
   { roleName: 'inspector', permKey: 'attendance:read:all' },
@@ -126,6 +132,7 @@ export const ROLE_PERMISSIONS: Array<{ roleName: string; permKey: string }> = [
   { roleName: 'inspector', permKey: 'incident_types:read:all' },
   { roleName: 'inspector', permKey: 'parent_meetings:read:all' },
   { roleName: 'inspector', permKey: 'parent_meetings:write:all' },
+  { roleName: 'inspector', permKey: 'student_folder:read:all' },
   { roleName: 'inspector', permKey: 'anamnesis:manage:all' },
   { roleName: 'inspector', permKey: 'reports:read:all' },
   // Profesor
@@ -148,6 +155,7 @@ export const ROLE_PERMISSIONS: Array<{ roleName: string; permKey: string }> = [
   { roleName: 'teacher', permKey: 'incident_types:read:all' },
   { roleName: 'teacher', permKey: 'parent_meetings:read:own' },
   { roleName: 'teacher', permKey: 'parent_meetings:write:own' },
+  { roleName: 'teacher', permKey: 'student_folder:read:own' },
   { roleName: 'teacher', permKey: 'insumos:read:own' },
   { roleName: 'teacher', permKey: 'insumos:write:own' },
   { roleName: 'teacher', permKey: 'tasks:read:own' },
