@@ -1,10 +1,11 @@
-import { useQuery } from '@tanstack/react-query'
-import { getAccessibleStudents, getStudentFolder } from '../api/student-folder.api'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
+import { getAccessibleStudents, getStudentFolder, type StudentListParams } from '../api/student-folder.api'
 
-export function useAccessibleStudents() {
+export function useAccessibleStudents(params: StudentListParams) {
   return useQuery({
-    queryKey: ['student-folder', 'students'],
-    queryFn: getAccessibleStudents,
+    queryKey: ['student-folder', 'students', params],
+    queryFn: () => getAccessibleStudents(params),
+    placeholderData: keepPreviousData,
   })
 }
 

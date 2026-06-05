@@ -4,6 +4,22 @@ export interface FolderStudentItem {
   id: string
   fullName: string
   dni: string | null
+  levelName: string | null
+  parallelName: string | null
+}
+
+export interface PaginatedStudents {
+  data: FolderStudentItem[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+export interface StudentListParams {
+  search?: string
+  parallelId?: string
+  page?: number
+  pageSize?: number
 }
 
 export interface FolderPerson {
@@ -74,8 +90,13 @@ export interface StudentFolder {
   actas: FolderActa[]
 }
 
-export const getAccessibleStudents = () =>
-  apiGet<FolderStudentItem[]>('student-folder/students')
+export const getAccessibleStudents = (params: StudentListParams = {}) =>
+  apiGet<PaginatedStudents>('student-folder/students', {
+    ...(params.search ? { search: params.search } : {}),
+    ...(params.parallelId ? { parallelId: params.parallelId } : {}),
+    page: String(params.page ?? 1),
+    pageSize: String(params.pageSize ?? 20),
+  })
 
 export const getStudentFolder = (id: string) =>
   apiGet<StudentFolder>(`student-folder/students/${id}`)
