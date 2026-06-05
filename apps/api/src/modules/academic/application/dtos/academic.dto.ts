@@ -16,6 +16,7 @@ export interface CreateSubjectDto {
   code?: string
   description?: string
   color?: string
+  isQualitative?: boolean
 }
 
 export interface UpdateSubjectDto {
@@ -23,6 +24,7 @@ export interface UpdateSubjectDto {
   code?: string
   description?: string
   color?: string
+  isQualitative?: boolean
 }
 
 export interface CreateAcademicYearDto {

@@ -338,6 +338,9 @@ model Subject {
   code          String?  @db.VarChar(20)
   description   String?
   isActive      Boolean  @default(true) @map("is_active")
+  // Materia cualitativa: se califica con notas pero en la libreta se muestra como
+  // letra (A+…F−) y NO entra en el promedio general.
+  isQualitative Boolean  @default(false) @map("is_qualitative")
   createdAt     DateTime @default(now()) @map("created_at")
 
   institution       Institution        @relation(fields: [institutionId], references: [id])

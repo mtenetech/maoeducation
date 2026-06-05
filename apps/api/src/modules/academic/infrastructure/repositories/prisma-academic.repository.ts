@@ -98,6 +98,7 @@ export class PrismaAcademicRepository {
         name: dto.name,
         code: dto.code,
         description: dto.description,
+        isQualitative: dto.isQualitative ?? false,
       },
     })
   }
@@ -126,6 +127,7 @@ export class PrismaAcademicRepository {
         ...(dto.name !== undefined && { name: dto.name }),
         ...(dto.code !== undefined && { code: dto.code }),
         ...(dto.description !== undefined && { description: dto.description }),
+        ...(dto.isQualitative !== undefined && { isQualitative: dto.isQualitative }),
       },
     })
   }

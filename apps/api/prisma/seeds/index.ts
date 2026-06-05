@@ -8,6 +8,7 @@ import {
   BASE_ACTIVITY_TYPES,
   DEFAULT_INCIDENT_TYPES,
   DEFAULT_ANAMNESIS_SCHEMA,
+  DEFAULT_QUALITATIVE_SUBJECTS,
 } from '../../src/modules/platform/application/services/institution-bootstrap'
 
 const prisma = new PrismaClient()
@@ -91,6 +92,15 @@ async function main() {
     })
   }
   console.log('✓ Anamnesis template: plantilla por defecto creada')
+
+  // 4d. Materias cualitativas por defecto (libreta)
+  for (const name of DEFAULT_QUALITATIVE_SUBJECTS) {
+    const exists = await prisma.subject.findFirst({ where: { institutionId: institution.id, name } })
+    if (!exists) {
+      await prisma.subject.create({ data: { institutionId: institution.id, name, isQualitative: true } })
+    }
+  }
+  console.log(`✓ Qualitative subjects: ${DEFAULT_QUALITATIVE_SUBJECTS.length} materias cualitativas`)
 
   // 5. Roles del sistema
   const roles = SYSTEM_ROLES

@@ -26,8 +26,10 @@ export interface GradesReportData {
 export interface GradeSummary {
   insumoAvgs: Array<{ id: string; name: string; avg: number | null }>
   insumosBase: number | null
-  examAvg: number | null
-  hasExam: boolean
+  examenAvg: number | null
+  proyectoAvg: number | null
+  summativeAvg: number | null
+  hasSummative: boolean
   total: number | null
   examWeight: number
 }
@@ -66,7 +68,9 @@ export interface MyGradesSubject {
   examWeight: number
   insumoColumns: Array<{ name: string; avg: number | null }>
   regularAvg: number | null
-  examAvg?: number | null
+  examenAvg?: number | null
+  proyectoAvg?: number | null
+  hasSummative?: boolean
   total: number | null
 }
 
@@ -96,6 +100,26 @@ export interface BulletinOptionsData {
   students: Array<{ id: string; profile: { firstName: string; lastName: string; dni?: string } }>
 }
 
+export interface BulletinSubject {
+  assignmentId: string
+  subjectName: string
+  isQualitative?: boolean
+  teacherName: string
+  finalAverage: number | null
+  finalCode?: string | null
+  supletorio?: number | null
+  promFinal?: number | null
+  periodGrades: Array<{
+    periodId: string
+    periodName: string
+    regularAvg: number | null
+    examenAvg: number | null
+    proyectoAvg: number | null
+    total: number | null
+    code?: string | null
+  }>
+}
+
 export interface StudentBulletinData {
   institution: { id: string; name: string }
   academicYear: { id: string; name: string }
@@ -107,19 +131,9 @@ export interface StudentBulletinData {
   }
   student: { id: string; profile: { firstName: string; lastName: string; dni?: string } }
   periods: Array<{ id: string; name: string; periodNumber: number }>
-  subjects: Array<{
-    assignmentId: string
-    subjectName: string
-    teacherName: string
-    finalAverage: number | null
-    periodGrades: Array<{
-      periodId: string
-      periodName: string
-      regularAvg: number | null
-      examAvg: number | null
-      total: number | null
-    }>
-  }>
+  subjects: BulletinSubject[]
+  qualitativeSubjects?: BulletinSubject[]
+  qualitativeValueScale?: Array<{ min: number; max: number; code: string }>
   attendanceByPeriod: Array<{
     periodId: string
     periodName: string

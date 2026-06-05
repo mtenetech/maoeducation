@@ -23,6 +23,7 @@ import { useSubjects, useCreateSubject, useUpdateSubject } from '../hooks/useAca
 const subjectSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido'),
   code: z.string().min(1, 'El código es requerido'),
+  isQualitative: z.boolean().default(false),
 })
 type SubjectForm = z.infer<typeof subjectSchema>
 
@@ -36,18 +37,18 @@ export function SubjectsPage() {
 
   const form = useForm<SubjectForm>({
     resolver: zodResolver(subjectSchema),
-    defaultValues: { name: '', code: '' },
+    defaultValues: { name: '', code: '', isQualitative: false },
   })
 
   function openCreate() {
     setEditing(null)
-    form.reset({ name: '', code: '' })
+    form.reset({ name: '', code: '', isQualitative: false })
     setOpen(true)
   }
 
   function openEdit(subject: Subject) {
     setEditing(subject)
-    form.reset({ name: subject.name, code: subject.code })
+    form.reset({ name: subject.name, code: subject.code, isQualitative: subject.isQualitative ?? false })
     setOpen(true)
   }
 
@@ -75,6 +76,16 @@ export function SubjectsPage() {
           {row.original.code}
         </span>
       ),
+    },
+    {
+      id: 'tipo',
+      header: 'Tipo',
+      cell: ({ row }) =>
+        row.original.isQualitative ? (
+          <Badge variant="secondary">Cualitativa</Badge>
+        ) : (
+          <span className="text-xs text-muted-foreground">Cuantitativa</span>
+        ),
     },
     {
       accessorKey: 'isActive',
@@ -150,6 +161,20 @@ export function SubjectsPage() {
                 <p className="text-xs text-destructive">{form.formState.errors.code.message}</p>
               )}
             </div>
+            <label className="flex items-start gap-2 rounded-md border border-input p-3 cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4"
+                checked={form.watch('isQualitative')}
+                onChange={(e) => form.setValue('isQualitative', e.target.checked)}
+              />
+              <span className="text-sm">
+                <span className="font-medium">Materia cualitativa</span>
+                <span className="block text-xs text-muted-foreground">
+                  Se califica con notas, pero en la libreta se muestra como letra (A+…F−) y no entra en el promedio general.
+                </span>
+              </span>
+            </label>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                 Cancelar

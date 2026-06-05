@@ -17,6 +17,7 @@ export interface Subject {
   name: string
   code: string
   isActive: boolean
+  isQualitative?: boolean
 }
 
 export interface AcademicYear {

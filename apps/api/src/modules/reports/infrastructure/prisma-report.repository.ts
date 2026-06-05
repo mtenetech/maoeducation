@@ -3,7 +3,10 @@ import { NotFoundError } from '../../../shared/domain/errors/app.errors'
 import {
   average,
   computePeriodSummary,
+  activityKind,
+  toQualitativeCode,
   type InsumoGroupInput,
+  type QualitativeBand,
 } from '../../../shared/domain/grade-math'
 import type {
   GradesReportQuery,
@@ -12,6 +15,21 @@ import type {
   BulletinOptionsQuery,
   BulletinReportQuery,
 } from '../application/dtos/report.dto'
+
+// Fallback si la institución no tiene configurada la escala de valor cualitativo.
+const DEFAULT_QUALITATIVE_VALUE_SCALE: QualitativeBand[] = [
+  { min: 9.5, max: 10.0, code: 'A+' },
+  { min: 9.0, max: 9.49, code: 'A-' },
+  { min: 8.0, max: 8.99, code: 'B+' },
+  { min: 7.0, max: 7.99, code: 'B-' },
+  { min: 6.0, max: 6.99, code: 'C+' },
+  { min: 5.0, max: 5.99, code: 'C-' },
+  { min: 4.51, max: 4.99, code: 'D+' },
+  { min: 4.01, max: 4.5, code: 'D-' },
+  { min: 2.67, max: 4.0, code: 'E+' },
+  { min: 1.34, max: 2.66, code: 'E-' },
+  { min: 0, max: 1.33, code: 'F-' },
+]
 
 export class PrismaReportRepository {
   private avg(scores: (number | null)[]) {
@@ -136,7 +154,7 @@ export class PrismaReportRepository {
           activities: ins.activities.map((a: { id: string; maxScore: unknown; activityType: { code: string } }) => ({
             score: grades.get(a.id) ?? null,
             maxScore: Number(a.maxScore),
-            isExam: a.activityType.code === 'exam',
+            kind: activityKind(a.activityType.code),
           })),
         }))
         const summary = { ...computePeriodSummary(groups, examWeight), examWeight }
@@ -206,7 +224,7 @@ export class PrismaReportRepository {
           activities: ins.activities.map((a) => ({
             score: a.grades[0]?.score != null ? Number(a.grades[0].score) : null,
             maxScore: Number(a.maxScore),
-            isExam: a.activityType.code === 'exam',
+            kind: activityKind(a.activityType.code),
           })),
         })),
         ...(activitiesWithoutInsumo.length > 0
@@ -217,7 +235,7 @@ export class PrismaReportRepository {
                 activities: activitiesWithoutInsumo.map((a) => ({
                   score: a.grades[0]?.score != null ? Number(a.grades[0].score) : null,
                   maxScore: Number(a.maxScore),
-                  isExam: a.activityType.code === 'exam',
+                  kind: activityKind(a.activityType.code),
                 })),
               },
             ]
@@ -228,9 +246,9 @@ export class PrismaReportRepository {
       const summary = computePeriodSummary(groups, examWeight)
       const avgById = new Map(summary.insumoAvgs.map((i) => [i.id, i.avg]))
 
-      // Columnas: solo insumos con al menos una actividad no-examen.
+      // Columnas: solo insumos con al menos una actividad formativa.
       const insumoColumns = groups
-        .filter((g) => g.activities.some((a) => !a.isExam))
+        .filter((g) => g.activities.some((a) => a.kind === 'regular'))
         .map((g) => ({ name: g.name, avg: avgById.get(g.id) ?? null }))
 
       results.push({
@@ -242,7 +260,9 @@ export class PrismaReportRepository {
         examWeight,
         insumoColumns,
         regularAvg: summary.insumosBase,
-        examAvg: summary.hasExam ? summary.examAvg : undefined,
+        examenAvg: summary.examenAvg,
+        proyectoAvg: summary.proyectoAvg,
+        hasSummative: summary.hasSummative,
         total: summary.total,
       })
     }
@@ -497,7 +517,7 @@ export class PrismaReportRepository {
       select: {
         id: true,
         examWeight: true,
-        subject: { select: { name: true } },
+        subject: { select: { name: true, isQualitative: true } },
         teacher: { select: { profile: { select: { firstName: true, lastName: true } } } },
       },
       orderBy: { subject: { name: 'asc' } },
@@ -570,7 +590,7 @@ export class PrismaReportRepository {
         ensureGroup(key, insumo.id).activities.push({
           score: activity.grades[0]?.score != null ? Number(activity.grades[0].score) : null,
           maxScore: Number(activity.maxScore),
-          isExam: activity.activityType.code === 'exam',
+          kind: activityKind(activity.activityType.code),
         })
       }
     }
@@ -579,11 +599,30 @@ export class PrismaReportRepository {
       ensureGroup(key, 'no-insumo').activities.push({
         score: activity.grades[0]?.score != null ? Number(activity.grades[0].score) : null,
         maxScore: Number(activity.maxScore),
-        isExam: activity.activityType.code === 'exam',
+        kind: activityKind(activity.activityType.code),
       })
     }
 
+    // Supletorios del estudiante en el año (por asignación)
+    const supletorios = await prisma.subjectRecovery.findMany({
+      where: { institutionId, academicYearId: query.yearId, studentId: query.studentId, type: 'supletorio' },
+      select: { courseAssignmentId: true, score: true },
+    })
+    const supletorioByAssignment = new Map(
+      supletorios.map((r) => [r.courseAssignmentId, r.score != null ? Number(r.score) : null]),
+    )
+
+    // Escala de valor cualitativo (rangos) para traducir nota → letra.
+    const institution = await prisma.institution.findUnique({
+      where: { id: institutionId },
+      select: { id: true, name: true, settings: true },
+    })
+    const qualitativeValueScale: QualitativeBand[] =
+      (institution?.settings as { gradingConfig?: { qualitativeValueScale?: QualitativeBand[] } } | null)
+        ?.gradingConfig?.qualitativeValueScale ?? DEFAULT_QUALITATIVE_VALUE_SCALE
+
     const subjects = assignments.map((assignment) => {
+      const isQualitative = assignment.subject.isQualitative
       const periodGrades = periods.map((period) => {
         const groups = [...(bucket.get(`${assignment.id}:${period.id}`)?.values() ?? [])]
         const s = computePeriodSummary(groups, assignment.examWeight)
@@ -592,19 +631,27 @@ export class PrismaReportRepository {
           periodId: period.id,
           periodName: period.name,
           regularAvg: s.insumosBase,
-          examAvg: s.hasExam ? s.examAvg : null,
+          examenAvg: s.examenAvg,
+          proyectoAvg: s.proyectoAvg,
           total: s.total,
+          // Para materias cualitativas: la letra equivalente del trimestre.
+          code: isQualitative ? toQualitativeCode(s.total, qualitativeValueScale) : null,
         }
       })
 
+      const finalAverage = this.avg(periodGrades.map((p) => p.total))
       return {
         assignmentId: assignment.id,
         subjectName: assignment.subject.name,
+        isQualitative,
         teacherName: assignment.teacher?.profile
           ? `${assignment.teacher.profile.firstName} ${assignment.teacher.profile.lastName}`
           : '',
         periodGrades,
-        finalAverage: this.avg(periodGrades.map((p) => p.total)),
+        finalAverage,
+        finalCode: isQualitative ? toQualitativeCode(finalAverage, qualitativeValueScale) : null,
+        supletorio: supletorioByAssignment.get(assignment.id) ?? null,
+        promFinal: finalAverage,
       }
     })
 
@@ -680,19 +727,23 @@ export class PrismaReportRepository {
       }
     })
 
+    // Materias académicas (cuantitativas) vs cualitativas (se muestran como letra).
+    const academicSubjects = subjects.filter((s) => !s.isQualitative)
+    const qualitativeSubjects = subjects.filter((s) => s.isQualitative)
+
     return {
-      institution: await prisma.institution.findUnique({
-        where: { id: institutionId },
-        select: { id: true, name: true },
-      }),
+      institution: institution ? { id: institution.id, name: institution.name } : null,
       academicYear: { id: year.id, name: year.name },
       parallel,
       student: enrollment.student,
       periods: periods.map((p) => ({ id: p.id, name: p.name, periodNumber: p.periodNumber })),
-      subjects,
+      subjects: academicSubjects,
+      qualitativeSubjects,
+      qualitativeValueScale,
       attendanceByPeriod,
       behaviorByPeriod,
-      overallAverage: this.avg(subjects.map((s) => s.finalAverage)),
+      // El promedio general usa SOLO las materias cuantitativas.
+      overallAverage: this.avg(academicSubjects.map((s) => s.finalAverage)),
     }
   }
 }
