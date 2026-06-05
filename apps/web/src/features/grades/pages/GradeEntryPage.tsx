@@ -189,18 +189,10 @@ function GradesGrid({ data }: { data: GradesReportData }) {
             const { student, grades } = row
             const fullName = `${student.profile.lastName}, ${student.profile.firstName}`
 
-            // Compute insumo averages and overall
-            const insumoAvgs = insumos.map((ins) => {
-              const hasAny = ins.activities.some((a) => grades[a.id] != null)
-              if (!hasAny) return null
-              const maxTotal = ins.activities.reduce((sum, a) => sum + Number(a.maxScore), 0)
-              if (maxTotal === 0) return null
-              const scored = ins.activities.reduce((sum, a) => sum + (grades[a.id] != null ? Number(grades[a.id]) : 0), 0)
-              return (scored / maxTotal) * 10
-            })
-
-            const validAvgs = insumoAvgs.filter((v): v is number => v != null)
-            const overall = validAvgs.length > 0 ? validAvgs.reduce((s, v) => s + v, 0) / validAvgs.length : null
+            // Promedios por insumo y total: vienen del backend (única fuente).
+            const avgById = avgByInsumoId(row.summary)
+            const insumoAvgs = insumos.map((ins) => avgById.get(ins.id) ?? null)
+            const overall = row.summary.total
 
             return (
               <tr key={student.id} className={cn('hover:bg-muted/20', i % 2 === 0 ? 'bg-white' : 'bg-muted/10')}>
@@ -241,40 +233,9 @@ function GradesGrid({ data }: { data: GradesReportData }) {
 
 // ---- Compact Grid ----
 
-function calcInsumoAvg(insumo: GradesReportData['insumos'][0], grades: Record<string, number | null>): number | null {
-  if (insumo.activities.length === 0) return null
-  const maxTotal = insumo.activities.reduce((s, a) => s + Number(a.maxScore), 0)
-  if (maxTotal === 0) return null
-  const hasAny = insumo.activities.some((a) => grades[a.id] !== undefined && grades[a.id] !== null)
-  if (!hasAny) return null
-  const scored = insumo.activities.reduce((s, a) => {
-    const v = grades[a.id]
-    return s + (v != null ? Number(v) : 0)
-  }, 0)
-  return (scored / maxTotal) * 10
-}
-
-function calcActivitiesAvg(
-  activities: GradesReportData['insumos'][0]['activities'],
-  grades: Record<string, number | null>,
-): number | null {
-  if (activities.length === 0) return null
-  const maxTotal = activities.reduce((s, a) => s + Number(a.maxScore), 0)
-  if (maxTotal === 0) return null
-  if (!activities.some((a) => grades[a.id] !== undefined && grades[a.id] !== null)) return null
-  const scored = activities.reduce((s, a) => s + (grades[a.id] != null ? Number(grades[a.id]) : 0), 0)
-  return (scored / maxTotal) * 10
-}
-
-function calcCompactTotal(regularAvgs: (number | null)[], examAvg: number | null, examWeight: number): number | null {
-  const regularWeight = 100 - examWeight
-  const validRegular = regularAvgs.filter((v): v is number => v != null)
-  const regularMean = validRegular.length > 0 ? validRegular.reduce((s, v) => s + v, 0) / validRegular.length : null
-
-  if (regularMean != null && examAvg != null) return regularMean * (regularWeight / 100) + examAvg * (examWeight / 100)
-  if (regularMean != null) return regularMean
-  if (examAvg != null) return examAvg
-  return null
+/** Mapa insumoId -> promedio, a partir del summary calculado en el backend. */
+function avgByInsumoId(summary: GradesReportData['students'][0]['summary']): Map<string, number | null> {
+  return new Map(summary.insumoAvgs.map((i) => [i.id, i.avg]))
 }
 
 interface CompactGridProps {
@@ -370,12 +331,13 @@ function CompactGrid({ data, examWeight, canEditWeight, onEditWeight }: CompactG
         </thead>
         <tbody>
           {students.map((row, i) => {
-            const { student, grades } = row
+            const { student } = row
             const fullName = `${student.profile.lastName}, ${student.profile.firstName}`
-            const insumoAvgs = regularInsumos.map((ins) => calcInsumoAvg(ins, grades))
-            const regularAvg = calcActivitiesAvg(regularActivities, grades)
-            const examAvg = calcActivitiesAvg(examActivities, grades)
-            const total = calcCompactTotal([regularAvg], examAvg, examWeight)
+            const avgById = avgByInsumoId(row.summary)
+            const insumoAvgs = regularInsumos.map((ins) => avgById.get(ins.id) ?? null)
+            const regularAvg = row.summary.insumosBase
+            const examAvg = row.summary.examAvg
+            const total = row.summary.total
 
             return (
               <tr key={student.id} className={cn('hover:bg-muted/20', i % 2 === 0 ? 'bg-white' : 'bg-muted/10')}>
@@ -546,26 +508,9 @@ function SummaryTab({ courseAssignmentId, periodId }: SummaryTabProps) {
 const ALL_PERIODS = '__all__'
 type AnnualView = 'byPeriod' | 'detail'
 
-/** Total ponderado por estudiante para un período, con la misma fórmula que CompactGrid. */
-function periodTotalsByStudent(data: GradesReportData, examWeight: number): Map<string, number | null> {
-  const examIds = new Set<string>()
-  for (const ins of data.insumos) {
-    for (const a of ins.activities) {
-      if (a.activityType.code === 'exam') examIds.add(a.id)
-    }
-  }
-  const regularActs = data.insumos
-    .filter((i) => i.id !== 'no-insumo')
-    .flatMap((i) => i.activities.filter((a) => !examIds.has(a.id)))
-  const examActs = data.insumos.flatMap((i) => i.activities).filter((a) => examIds.has(a.id))
-
-  const totals = new Map<string, number | null>()
-  for (const row of data.students) {
-    const regularAvg = calcActivitiesAvg(regularActs, row.grades)
-    const examAvg = calcActivitiesAvg(examActs, row.grades)
-    totals.set(row.student.id, calcCompactTotal([regularAvg], examAvg, examWeight))
-  }
-  return totals
+/** Total ponderado por estudiante para un período (calculado en el backend). */
+function periodTotalsByStudent(data: GradesReportData): Map<string, number | null> {
+  return new Map(data.students.map((row) => [row.student.id, row.summary.total]))
 }
 
 function mean(values: Array<number | null>): number | null {
@@ -642,7 +587,7 @@ function AnnualSummaryTab({
       </div>
 
       {view === 'byPeriod' ? (
-        <AnnualByPeriodGrid periodData={loaded} examWeight={examWeight} />
+        <AnnualByPeriodGrid periodData={loaded} />
       ) : (
         <AnnualDetailGrid periodData={loaded} examWeight={examWeight} />
       )}
@@ -652,13 +597,11 @@ function AnnualSummaryTab({
 
 function AnnualByPeriodGrid({
   periodData,
-  examWeight,
 }: {
   periodData: Array<{ period: AcademicPeriod; data: GradesReportData }>
-  examWeight: number
 }) {
   // Totales por período y unión de estudiantes
-  const totalsByPeriod = periodData.map((pd) => periodTotalsByStudent(pd.data, examWeight))
+  const totalsByPeriod = periodData.map((pd) => periodTotalsByStudent(pd.data))
   const studentMap = new Map<string, { lastName: string; firstName: string }>()
   for (const pd of periodData) {
     for (const row of pd.data.students) {
@@ -734,11 +677,11 @@ function buildPeriodColumns(data: GradesReportData) {
     .filter((i) => i.id !== 'no-insumo')
     .flatMap((i) => i.activities.filter((a) => !examIds.has(a.id)))
   const examActivities = data.insumos.flatMap((i) => i.activities).filter((a) => examIds.has(a.id))
-  const gradesByStudent = new Map(data.students.map((s) => [s.student.id, s.grades]))
+  const summaryByStudent = new Map(data.students.map((s) => [s.student.id, s.summary]))
   const hasRegular = regularActivities.length > 0
   const hasExam = examActivities.length > 0
   const colCount = regularInsumos.length + (hasRegular ? 1 : 0) + (hasExam ? 1 : 0) + 1
-  return { regularInsumos, regularActivities, examActivities, gradesByStudent, hasRegular, hasExam, colCount }
+  return { regularInsumos, summaryByStudent, hasRegular, hasExam, colCount }
 }
 
 /** Detalle anual horizontal: una tabla, los trimestres como grupos de columnas. */
@@ -844,11 +787,12 @@ function AnnualDetailGrid({
                 {s.lastName}, {s.firstName}
               </td>
               {cols.map((c) => {
-                const grades = c.gradesByStudent.get(s.id) ?? {}
-                const insumoAvgs = c.regularInsumos.map((ins) => calcInsumoAvg(ins, grades))
-                const regularAvg = calcActivitiesAvg(c.regularActivities, grades)
-                const examAvg = calcActivitiesAvg(c.examActivities, grades)
-                const total = calcCompactTotal([regularAvg], examAvg, examWeight)
+                const summary = c.summaryByStudent.get(s.id)
+                const avgById = summary ? avgByInsumoId(summary) : new Map<string, number | null>()
+                const insumoAvgs = c.regularInsumos.map((ins) => avgById.get(ins.id) ?? null)
+                const regularAvg = summary?.insumosBase ?? null
+                const examAvg = summary?.examAvg ?? null
+                const total = summary?.total ?? null
                 return (
                   <React.Fragment key={c.period.id}>
                     {insumoAvgs.map((avg, idx) => (

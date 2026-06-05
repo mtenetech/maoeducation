@@ -1,6 +1,10 @@
 import { prisma } from '../../../../shared/infrastructure/database/prisma'
 import { BadRequestError, ConflictError, NotFoundError } from '../../../../shared/domain/errors/app.errors'
-import { average, periodTotal } from '../../../../shared/domain/grade-math'
+import {
+  average,
+  computePeriodSummary,
+  type InsumoGroupInput,
+} from '../../../../shared/domain/grade-math'
 import { PrismaInstitutionRepository } from '../../../institution/infrastructure/repositories/prisma-institution.repository'
 import type {
   EffectiveStatus,
@@ -80,27 +84,28 @@ export class PrismaPromotionRepository {
     })
     const assignmentIds = assignments.map((a) => a.id)
 
-    // Notas por (alumno, asignación, periodo) → { regular[], exam[] }
-    type Scores = { regular: (number | null)[]; exam: (number | null)[] }
-    const bucket = new Map<string, Scores>()
+    // Notas por (alumno, asignación, periodo) → grupos por insumo (cálculo por categoría)
+    const bucket = new Map<string, Map<string, InsumoGroupInput>>()
     const key = (s: string, a: string, p: string) => `${s}:${a}:${p}`
-    const push = (s: string, a: string, p: string, code: string, score: number | null) => {
+    const ensureGroup = (s: string, a: string, p: string, insumoId: string): InsumoGroupInput => {
       const k = key(s, a, p)
-      if (!bucket.has(k)) bucket.set(k, { regular: [], exam: [] })
-      const slot = bucket.get(k)!
-      if (code === 'exam') slot.exam.push(score)
-      else slot.regular.push(score)
+      if (!bucket.has(k)) bucket.set(k, new Map())
+      const groups = bucket.get(k)!
+      if (!groups.has(insumoId)) groups.set(insumoId, { id: insumoId, name: insumoId, activities: [] })
+      return groups.get(insumoId)!
     }
 
     if (assignmentIds.length > 0 && studentIds.length > 0 && periodIds.length > 0) {
       const insumos = await prisma.insumo.findMany({
         where: { institutionId, courseAssignmentId: { in: assignmentIds }, academicPeriodId: { in: periodIds } },
         select: {
+          id: true,
           courseAssignmentId: true,
           academicPeriodId: true,
           activities: {
             where: { isPublished: true },
             select: {
+              maxScore: true,
               activityType: { select: { code: true } },
               grades: { where: { institutionId, studentId: { in: studentIds } }, select: { studentId: true, score: true } },
             },
@@ -118,6 +123,7 @@ export class PrismaPromotionRepository {
         select: {
           courseAssignmentId: true,
           academicPeriodId: true,
+          maxScore: true,
           activityType: { select: { code: true } },
           grades: { where: { institutionId, studentId: { in: studentIds } }, select: { studentId: true, score: true } },
         },
@@ -125,8 +131,10 @@ export class PrismaPromotionRepository {
 
       const consume = (
         rows: Array<{
+          insumoId: string
           courseAssignmentId: string
           academicPeriodId: string
+          maxScore: unknown
           activityType: { code: string }
           grades: Array<{ studentId: string; score: unknown }>
         }>,
@@ -136,17 +144,23 @@ export class PrismaPromotionRepository {
           for (const sId of studentIds) {
             const raw = gradeByStudent.get(sId)
             const score = raw != null ? Number(raw) : null
-            push(sId, act.courseAssignmentId, act.academicPeriodId, act.activityType.code, score)
+            ensureGroup(sId, act.courseAssignmentId, act.academicPeriodId, act.insumoId).activities.push({
+              score,
+              maxScore: Number(act.maxScore),
+              isExam: act.activityType.code === 'exam',
+            })
           }
         }
       }
       consume(insumos.flatMap((i) => i.activities.map((a) => ({
+        insumoId: i.id,
         courseAssignmentId: i.courseAssignmentId,
         academicPeriodId: i.academicPeriodId,
+        maxScore: a.maxScore,
         activityType: a.activityType,
         grades: a.grades,
       }))))
-      consume(standalone)
+      consume(standalone.map((a) => ({ insumoId: 'no-insumo', ...a })))
     }
 
     const recoveries = await prisma.subjectRecovery.findMany({
@@ -169,11 +183,9 @@ export class PrismaPromotionRepository {
 
         const subjects: PromotionSubjectDto[] = assignments.map((a) => {
           const annualByPeriod = periodIds.map((pId) => {
-            const slot = bucket.get(key(sId, a.id, pId))
-            if (!slot) return null
-            const regularAvg = average(slot.regular)
-            const examAvg = average(slot.exam)
-            return periodTotal(regularAvg, examAvg, a.examWeight, slot.exam.length > 0)
+            const groups = bucket.get(key(sId, a.id, pId))
+            if (!groups) return null
+            return computePeriodSummary([...groups.values()], a.examWeight).total
           })
           const annualAvg = average(annualByPeriod)
           const status = subjectStatus(annualAvg, config)

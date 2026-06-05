@@ -1,6 +1,10 @@
 import { prisma } from '../../../shared/infrastructure/database/prisma'
 import { NotFoundError } from '../../../shared/domain/errors/app.errors'
-import { average, periodTotal } from '../../../shared/domain/grade-math'
+import {
+  average,
+  computePeriodSummary,
+  type InsumoGroupInput,
+} from '../../../shared/domain/grade-math'
 import type {
   GradesReportQuery,
   AttendanceReportQuery,
@@ -112,18 +116,36 @@ export class PrismaReportRepository {
       for (const activity of insumo.activities) {
         for (const grade of activity.grades) {
           if (!gradeMap.has(grade.studentId)) gradeMap.set(grade.studentId, new Map())
-          gradeMap.get(grade.studentId)!.set(activity.id, grade.score ? Number(grade.score) : null)
+          gradeMap.get(grade.studentId)!.set(activity.id, grade.score != null ? Number(grade.score) : null)
         }
       }
     }
 
+    const examWeight = assignment.examWeight ?? 30
+
     return {
       assignment,
       insumos: allInsumos,
-      students: enrollments.map((e) => ({
-        student: e.student,
-        grades: gradeMap.get(e.studentId.toString()) ? Object.fromEntries(gradeMap.get(e.studentId)!) : {},
-      })),
+      students: enrollments.map((e) => {
+        const grades = gradeMap.get(e.studentId) ?? new Map<string, number | null>()
+        // Grupos canónicos para el cálculo: cada insumo (incl. "Sin insumo") con
+        // sus actividades; el examen se identifica por activityType.code.
+        const groups: InsumoGroupInput[] = allInsumos.map((ins) => ({
+          id: ins.id,
+          name: ins.name,
+          activities: ins.activities.map((a: { id: string; maxScore: unknown; activityType: { code: string } }) => ({
+            score: grades.get(a.id) ?? null,
+            maxScore: Number(a.maxScore),
+            isExam: a.activityType.code === 'exam',
+          })),
+        }))
+        const summary = { ...computePeriodSummary(groups, examWeight), examWeight }
+        return {
+          student: e.student,
+          grades: grades.size > 0 ? Object.fromEntries(grades) : {},
+          summary,
+        }
+      }),
     }
   }
 
@@ -146,11 +168,6 @@ export class PrismaReportRepository {
       orderBy: { subject: { name: 'asc' } },
     })
 
-    function avg(scores: (number | null)[]): number | null {
-      const valid = scores.filter((s): s is number => s !== null)
-      return valid.length > 0 ? valid.reduce((a, b) => a + b, 0) / valid.length : null
-    }
-
     const results = []
     for (const assignment of assignments) {
       const insumos = await prisma.insumo.findMany({
@@ -167,45 +184,54 @@ export class PrismaReportRepository {
         },
       })
 
-      const examActivityIds = new Set<string>()
-      for (const ins of insumos) {
-        for (const act of ins.activities) {
-          if (act.activityType.code === 'exam') examActivityIds.add(act.id)
-        }
-      }
+      const activitiesWithoutInsumo = await prisma.activity.findMany({
+        where: {
+          institutionId,
+          courseAssignmentId: assignment.id,
+          academicPeriodId: periodId,
+          isPublished: true,
+          insumoId: null,
+        },
+        include: {
+          grades: { where: { studentId, institutionId }, select: { score: true } },
+          activityType: { select: { code: true } },
+        },
+      })
 
-      // Only show insumos that have at least one non-exam activity (exam-only insumos are covered by the Examen column)
-      const insumoColumns = insumos
-        .filter((ins) => ins.activities.some((a) => !examActivityIds.has(a.id)))
-        .map((ins) => ({
+      // Grupos canónicos: insumos con nombre + "Sin insumo".
+      const groups: InsumoGroupInput[] = [
+        ...insumos.map((ins) => ({
+          id: ins.id,
           name: ins.name,
-          avg: avg(
-            ins.activities
-              .filter((a) => !examActivityIds.has(a.id))
-              .map((a) => (a.grades[0]?.score ? Number(a.grades[0].score) : null)),
-          ),
-        }))
+          activities: ins.activities.map((a) => ({
+            score: a.grades[0]?.score != null ? Number(a.grades[0].score) : null,
+            maxScore: Number(a.maxScore),
+            isExam: a.activityType.code === 'exam',
+          })),
+        })),
+        ...(activitiesWithoutInsumo.length > 0
+          ? [
+              {
+                id: 'no-insumo',
+                name: 'Sin insumo',
+                activities: activitiesWithoutInsumo.map((a) => ({
+                  score: a.grades[0]?.score != null ? Number(a.grades[0].score) : null,
+                  maxScore: Number(a.maxScore),
+                  isExam: a.activityType.code === 'exam',
+                })),
+              },
+            ]
+          : []),
+      ]
 
-      const regularScores = insumos
-        .flatMap((i) => i.activities.filter((a) => !examActivityIds.has(a.id)))
-        .map((a) => (a.grades[0]?.score ? Number(a.grades[0].score) : null))
-      const examScores = insumos
-        .flatMap((i) => i.activities.filter((a) => examActivityIds.has(a.id)))
-        .map((a) => (a.grades[0]?.score ? Number(a.grades[0].score) : null))
-
-      const regularAvg = avg(regularScores)
-      const examAvg = avg(examScores)
       const examWeight = assignment.examWeight
-      const regularWeight = 100 - examWeight
+      const summary = computePeriodSummary(groups, examWeight)
+      const avgById = new Map(summary.insumoAvgs.map((i) => [i.id, i.avg]))
 
-      let total: number | null = null
-      if (examScores.length > 0) {
-        if (regularAvg !== null && examAvg !== null) total = regularAvg * (regularWeight / 100) + examAvg * (examWeight / 100)
-        else if (regularAvg !== null) total = regularAvg * (regularWeight / 100)
-        else if (examAvg !== null) total = examAvg * (examWeight / 100)
-      } else {
-        total = regularAvg
-      }
+      // Columnas: solo insumos con al menos una actividad no-examen.
+      const insumoColumns = groups
+        .filter((g) => g.activities.some((a) => !a.isExam))
+        .map((g) => ({ name: g.name, avg: avgById.get(g.id) ?? null }))
 
       results.push({
         assignmentId: assignment.id,
@@ -215,9 +241,9 @@ export class PrismaReportRepository {
           : '',
         examWeight,
         insumoColumns,
-        regularAvg,
-        examAvg: examScores.length > 0 ? examAvg : undefined,
-        total,
+        regularAvg: summary.insumosBase,
+        examAvg: summary.hasExam ? summary.examAvg : undefined,
+        total: summary.total,
       })
     }
     return results
@@ -495,6 +521,7 @@ export class PrismaReportRepository {
               where: { isPublished: true },
               select: {
                 id: true,
+                maxScore: true,
                 activityType: { select: { code: true } },
                 grades: {
                   where: { institutionId, studentId: query.studentId },
@@ -519,6 +546,7 @@ export class PrismaReportRepository {
             id: true,
             courseAssignmentId: true,
             academicPeriodId: true,
+            maxScore: true,
             activityType: { select: { code: true } },
             grades: {
               where: { institutionId, studentId: query.studentId },
@@ -528,41 +556,44 @@ export class PrismaReportRepository {
         })
       : []
 
-    const bucket = new Map<string, Array<{ code: string; score: number | null }>>()
+    // bucket: (asignación:periodo) -> (insumoId -> actividades) para calcular por categoría
+    const bucket = new Map<string, Map<string, InsumoGroupInput>>()
+    const ensureGroup = (key: string, insumoId: string): InsumoGroupInput => {
+      if (!bucket.has(key)) bucket.set(key, new Map())
+      const groups = bucket.get(key)!
+      if (!groups.has(insumoId)) groups.set(insumoId, { id: insumoId, name: insumoId, activities: [] })
+      return groups.get(insumoId)!
+    }
     for (const insumo of insumos) {
       const key = `${insumo.courseAssignmentId}:${insumo.academicPeriodId}`
-      if (!bucket.has(key)) bucket.set(key, [])
       for (const activity of insumo.activities) {
-        bucket.get(key)!.push({
-          code: activity.activityType.code,
+        ensureGroup(key, insumo.id).activities.push({
           score: activity.grades[0]?.score != null ? Number(activity.grades[0].score) : null,
+          maxScore: Number(activity.maxScore),
+          isExam: activity.activityType.code === 'exam',
         })
       }
     }
     for (const activity of activitiesWithoutInsumo) {
       const key = `${activity.courseAssignmentId}:${activity.academicPeriodId}`
-      if (!bucket.has(key)) bucket.set(key, [])
-      bucket.get(key)!.push({
-        code: activity.activityType.code,
+      ensureGroup(key, 'no-insumo').activities.push({
         score: activity.grades[0]?.score != null ? Number(activity.grades[0].score) : null,
+        maxScore: Number(activity.maxScore),
+        isExam: activity.activityType.code === 'exam',
       })
     }
 
     const subjects = assignments.map((assignment) => {
       const periodGrades = periods.map((period) => {
-        const items = bucket.get(`${assignment.id}:${period.id}`) ?? []
-        const regularScores = items.filter((i) => i.code !== 'exam').map((i) => i.score)
-        const examScores = items.filter((i) => i.code === 'exam').map((i) => i.score)
-        const regularAvg = this.avg(regularScores)
-        const examAvg = this.avg(examScores)
-        const total = periodTotal(regularAvg, examAvg, assignment.examWeight, examScores.length > 0)
+        const groups = [...(bucket.get(`${assignment.id}:${period.id}`)?.values() ?? [])]
+        const s = computePeriodSummary(groups, assignment.examWeight)
 
         return {
           periodId: period.id,
           periodName: period.name,
-          regularAvg,
-          examAvg: examScores.length > 0 ? examAvg : null,
-          total,
+          regularAvg: s.insumosBase,
+          examAvg: s.hasExam ? s.examAvg : null,
+          total: s.total,
         }
       })
 

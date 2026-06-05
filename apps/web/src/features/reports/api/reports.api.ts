@@ -18,7 +18,18 @@ export interface GradesReportData {
   students: Array<{
     student: { id: string; profile: { firstName: string; lastName: string; dni?: string } }
     grades: Record<string, number | null>
+    summary: GradeSummary
   }>
+}
+
+/** Resumen canónico calculado en el backend (única fuente de verdad). */
+export interface GradeSummary {
+  insumoAvgs: Array<{ id: string; name: string; avg: number | null }>
+  insumosBase: number | null
+  examAvg: number | null
+  hasExam: boolean
+  total: number | null
+  examWeight: number
 }
 
 export interface AttendanceReportData {
