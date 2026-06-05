@@ -120,7 +120,7 @@ export function ParallelInsumoSetupPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Configuración de Insumos por Paralelo</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Define los insumos (categorías de evaluación) que se aplicarán a todas las materias de un paralelo en un período.
+          Parametrización general: define una base de insumos para todas las materias del paralelo. Cada profesor puede luego agregar o quitar insumos en su propia materia.
         </p>
       </div>
 
@@ -222,7 +222,7 @@ export function ParallelInsumoSetupPage() {
           </div>
 
           <p className="text-xs text-muted-foreground">
-            Los insumos existentes con el mismo nombre serán actualizados. Los insumos sin actividades que no estén en la lista serán eliminados.
+            Los insumos con el mismo nombre se actualizan y los nuevos se agregan a todas las materias. No se eliminan los insumos que cada profesor haya creado por su cuenta (para quitar uno, hazlo desde la materia en Actividades).
           </p>
         </div>
       )}

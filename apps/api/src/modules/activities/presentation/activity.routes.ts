@@ -123,10 +123,13 @@ export default async function activityRoutes(app: FastifyInstance) {
       const period = await prisma.academicPeriod.findFirst({ where: { id: periodId } })
       if (!period) return reply.status(404).send({ message: 'Período no encontrado' })
 
+      // Parametrización GENERAL (base): agrega/actualiza los insumos de la plantilla
+      // en todas las materias del paralelo, SIN borrar los insumos propios que cada
+      // profesor haya configurado en su materia (aditivo, no destructivo).
       for (const assignment of assignments) {
         const existing = await prisma.insumo.findMany({
           where: { institutionId, courseAssignmentId: assignment.id, academicPeriodId: periodId },
-          include: { _count: { select: { activities: true } } },
+          select: { id: true, name: true },
         })
 
         for (const tpl of template) {
@@ -150,14 +153,6 @@ export default async function activityRoutes(app: FastifyInstance) {
             })
           }
         }
-
-        // Remove insumos not in template that have no activities
-        const toRemove = existing.filter(
-          (e) => !template.some((t) => t.name === e.name) && e._count.activities === 0,
-        )
-        for (const ins of toRemove) {
-          await prisma.insumo.delete({ where: { id: ins.id } })
-        }
       }
 
       return reply.status(200).send({ message: 'Insumos aplicados correctamente', assignments: assignments.length })
@@ -172,18 +167,39 @@ export default async function activityRoutes(app: FastifyInstance) {
       const { parallelId, academicYearId, periodId } = req.query
       const { institutionId } = req.user
 
-      const assignment = await prisma.courseAssignment.findFirst({
+      // Todas las materias del paralelo (no solo la primera): así la plantilla
+      // refleja los insumos ya creados aunque se hayan agregado materias nuevas.
+      const assignments = await prisma.courseAssignment.findMany({
         where: { institutionId, parallelId, academicYearId },
         select: { id: true },
       })
-      if (!assignment) return reply.send([])
+      if (assignments.length === 0) return reply.send([])
 
       const insumos = await prisma.insumo.findMany({
-        where: { institutionId, courseAssignmentId: assignment.id, academicPeriodId: periodId },
+        where: {
+          institutionId,
+          courseAssignmentId: { in: assignments.map((a) => a.id) },
+          academicPeriodId: periodId,
+        },
         orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
         select: { name: true, weight: true, sortOrder: true },
       })
-      return reply.send(insumos)
+
+      // Unión por nombre (un insumo puede existir en varias materias del paralelo).
+      const byName = new Map<string, { name: string; weight: number | null; sortOrder: number }>()
+      for (const ins of insumos) {
+        if (!byName.has(ins.name)) {
+          byName.set(ins.name, {
+            name: ins.name,
+            weight: ins.weight != null ? Number(ins.weight) : null,
+            sortOrder: ins.sortOrder,
+          })
+        }
+      }
+      const template = [...byName.values()].sort(
+        (a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name),
+      )
+      return reply.send(template)
     },
   )
 
