@@ -43,6 +43,7 @@ model Institution {
   incidentEvents        IncidentEvent[]
   incidentCommitments   IncidentCommitment[]
   incidentAttachments   IncidentAttachment[]
+  parentMeetings        ParentMeeting[]
   anamnesisTemplates    AnamnesisTemplate[]
   anamnesisRecords      AnamnesisRecord[]
   behaviorGrades        BehaviorGrade[]
@@ -98,6 +99,10 @@ model User {
   incidentEvents              IncidentEvent[]        @relation("IncidentEventActor")
   incidentCommitments         IncidentCommitment[]   @relation("IncidentCommitmentCreator")
   incidentAttachmentsUploaded IncidentAttachment[]   @relation("IncidentAttachmentUploader")
+
+  // Atención a padres (bitácora)
+  parentMeetingsAsStudent ParentMeeting[] @relation("StudentParentMeetings")
+  parentMeetingsRecorded  ParentMeeting[] @relation("ParentMeetingRecorder")
 
   // Anamnesis
   studentAnamnesis  AnamnesisRecord[] @relation("StudentAnamnesis")
@@ -770,6 +775,35 @@ model IncidentAttachment {
   uploader    User                 @relation("IncidentAttachmentUploader", fields: [uploadedBy], references: [id])
 
   @@map("incident_attachments")
+}
+
+// ============================================================
+// ATENCIÓN A PADRES DE FAMILIA (bitácora)
+// ============================================================
+
+model ParentMeeting {
+  id              String    @id @default(uuid())
+  institutionId   String    @map("institution_id")
+  studentId       String?   @map("student_id") // opcional: el profesor elige de qué niño es
+  recordedBy      String    @map("recorded_by") // funcionario que atiende
+  meetingDate     DateTime  @map("meeting_date") @db.Date
+  meetingTime     String?   @map("meeting_time") @db.VarChar(8) // "14:30"
+  visitorName     String    @map("visitor_name") @db.VarChar(160) // persona que se acercó
+  visitorRelation String?   @map("visitor_relation") @db.VarChar(80) // parentesco
+  subject         String    @db.VarChar(200) // asunto
+  details         String // detalle de lo hablado
+  agreements      String? // acuerdos / compromisos
+  signatureKey    String?   @map("signature_key") @db.VarChar(255) // PNG de la firma en storage
+  signedAt        DateTime? @map("signed_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  institution Institution @relation(fields: [institutionId], references: [id])
+  student     User?       @relation("StudentParentMeetings", fields: [studentId], references: [id])
+  recorder    User        @relation("ParentMeetingRecorder", fields: [recordedBy], references: [id])
+
+  @@index([institutionId, meetingDate])
+  @@map("parent_meetings")
 }
 
 // ============================================================

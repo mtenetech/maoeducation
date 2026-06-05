@@ -66,6 +66,7 @@ const RESOURCE_LABELS: Record<string, string> = {
   grades: 'Calificaciones',
   attendance: 'Asistencia',
   incidents: 'Incidentes',
+  parent_meetings: 'Atención a padres',
   reports: 'Reportes',
   insumos: 'Insumos',
   messages: 'Mensajes',
