@@ -3,7 +3,7 @@ import {
   Home, Users, Settings, BookOpen, GraduationCap,
   ClipboardList, AlertTriangle, MessageSquare, Calendar,
   FileText, ChevronDown, BookMarked, X, UserPlus, ShieldCheck,
-  ClipboardCheck, CalendarDays, Palette, Smile, Award,
+  ClipboardCheck, CalendarDays, Palette, Smile, Award, HeartHandshake,
 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { usePermissions } from '@/shared/hooks/usePermissions'
@@ -107,6 +107,12 @@ const NAV_ITEMS: NavItem[] = [
       { label: 'Casos', path: '/incidents' },
       { label: 'Tipos de falta', path: '/incidents/types' },
     ],
+  },
+  {
+    label: 'Atención a Padres',
+    icon: HeartHandshake,
+    path: '/parent-meetings',
+    permission: 'parent_meetings:read',
   },
   {
     label: 'Mensajes',

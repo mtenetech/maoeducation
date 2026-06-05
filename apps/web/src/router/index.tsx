@@ -254,6 +254,27 @@ export const router = createBrowserRouter([
           },
         ],
       },
+      // ---- Parent meetings (atención a padres) ----
+      {
+        path: 'parent-meetings',
+        element: <PermissionGuard permission="parent_meetings:read" />,
+        children: [
+          {
+            index: true,
+            lazy: () =>
+              import('@/features/parent-meetings/pages/ParentMeetingsPage').then((m) => ({
+                Component: m.ParentMeetingsPage,
+              })),
+          },
+          {
+            path: ':id',
+            lazy: () =>
+              import('@/features/parent-meetings/pages/ParentMeetingDetailPage').then((m) => ({
+                Component: m.ParentMeetingDetailPage,
+              })),
+          },
+        ],
+      },
       // ---- Schedules ----
       {
         path: 'schedules',
