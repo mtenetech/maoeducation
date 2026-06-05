@@ -280,7 +280,23 @@ export class PrismaActivityRepository {
   async delete(id: string, institutionId: string) {
     const activity = await prisma.activity.findFirst({ where: { id, institutionId } })
     if (!activity) throw new NotFoundError('Actividad no encontrada')
-    await prisma.activity.delete({ where: { id } })
+
+    // No permitir borrar una actividad que ya tiene NOTAS registradas.
+    const gradedCount = await prisma.grade.count({
+      where: { activityId: id, score: { not: null } },
+    })
+    if (gradedCount > 0) {
+      throw new ConflictError(
+        'No se puede eliminar una actividad que ya tiene notas registradas. Primero borra las notas.',
+      )
+    }
+
+    // Solo quedan filas de nota vacías (sin valor): se limpian para respetar la FK
+    // (nota → actividad es RESTRICT) y luego se elimina la actividad.
+    await prisma.$transaction([
+      prisma.grade.deleteMany({ where: { activityId: id } }),
+      prisma.activity.delete({ where: { id } }),
+    ])
   }
 
   // ─── Grades ────────────────────────────────────────────────────────────────
