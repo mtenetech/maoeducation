@@ -428,7 +428,9 @@ function ActivityCard({
 
 export function ActivitiesPage() {
   const { hasPermission } = usePermissions()
-  const canWriteInsumos = hasPermission('academic_config:manage')
+  // El profesor gestiona los insumos de SUS materias (insumos:write:own);
+  // el admin también (insumos:write:all / academic_config:manage).
+  const canWriteInsumos = hasPermission('insumos:write') || hasPermission('academic_config:manage')
 
   const { assignments, periods, defaultAssignmentId, defaultPeriodId } = useTeacherDefaults()
 
