@@ -4,6 +4,7 @@ import { authMiddleware } from '../../../shared/infrastructure/middleware/auth.m
 import { requirePermission } from '../../../shared/infrastructure/middleware/rbac.middleware'
 import { assertStudentFichaAccess } from '../../../shared/infrastructure/services/teacher-scope.service'
 import { buildEnrollmentCertificatePdf } from '../application/services/enrollment-certificate-pdf.service'
+import type { ListStudentsQuery } from '../application/dtos/student-folder.dto'
 
 const repo = new PrismaStudentFolderRepository()
 
@@ -18,16 +19,17 @@ function personName(
 export default async function studentFolderRoutes(app: FastifyInstance) {
   app.addHook('preHandler', authMiddleware)
 
-  // Estudiantes cuyo expediente puede abrir el actor
-  app.get(
+  // Estudiantes cuyo expediente puede abrir el actor (paginado + búsqueda + filtro)
+  app.get<{ Querystring: ListStudentsQuery }>(
     '/student-folder/students',
     { preHandler: [requirePermission('student_folder', 'read')] },
     async (req, reply) =>
       reply.send(
-        await repo.listAccessibleStudents(req.user.institutionId, {
-          userId: req.user.sub,
-          roles: req.user.roles,
-        }),
+        await repo.listAccessibleStudents(
+          req.user.institutionId,
+          { userId: req.user.sub, roles: req.user.roles },
+          req.query,
+        ),
       ),
   )
 

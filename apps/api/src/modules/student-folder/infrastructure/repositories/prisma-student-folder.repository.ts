@@ -1,10 +1,15 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '../../../../shared/infrastructure/database/prisma'
 import { NotFoundError } from '../../../../shared/domain/errors/app.errors'
 import {
   isPrivilegedStaff,
   getTeacherParallelIds,
 } from '../../../../shared/infrastructure/services/teacher-scope.service'
-import type { FolderActor, StudentListItem } from '../../application/dtos/student-folder.dto'
+import type {
+  FolderActor,
+  ListStudentsQuery,
+  PaginatedStudents,
+} from '../../application/dtos/student-folder.dto'
 
 const personSelect = {
   id: true,
@@ -21,40 +26,96 @@ function fullName(
 
 export class PrismaStudentFolderRepository {
   /**
-   * Estudiantes cuyo expediente puede abrir el actor:
+   * Estudiantes cuyo expediente puede abrir el actor (paginado + búsqueda + filtro):
    * - staff privilegiado (admin/rector/dece/inspector) → todos los `student`.
-   * - docente → estudiantes matriculados en sus paralelos (dicta o es tutor).
+   * - docente → solo estudiantes matriculados en sus paralelos (dicta o es tutor).
+   * Búsqueda por nombre o cédula; filtro opcional por paralelo.
    */
   async listAccessibleStudents(
     institutionId: string,
     actor: FolderActor,
-  ): Promise<StudentListItem[]> {
-    let students: Array<{
-      id: string
-      profile: { firstName: string; lastName: string; dni: string | null } | null
-    }>
+    query: ListStudentsQuery,
+  ): Promise<PaginatedStudents> {
+    const page = Math.max(1, parseInt(query.page ?? '1', 10) || 1)
+    const pageSize = Math.min(100, Math.max(1, parseInt(query.pageSize ?? '20', 10) || 20))
+    const search = (query.search ?? '').trim()
 
-    if (isPrivilegedStaff(actor.roles)) {
-      students = await prisma.user.findMany({
-        where: { institutionId, userRoles: { some: { role: { name: 'student' } } } },
-        select: personSelect,
-      })
-    } else if (actor.roles.includes('teacher')) {
-      const parallelIds = await getTeacherParallelIds(institutionId, actor.userId)
-      if (parallelIds.length === 0) return []
-      const enrollments = await prisma.studentEnrollment.findMany({
-        where: { institutionId, parallelId: { in: parallelIds } },
-        select: { student: { select: personSelect } },
-      })
-      const byId = new Map(enrollments.map((e) => [e.student.id, e.student]))
-      students = [...byId.values()]
-    } else {
-      return []
+    // Alcance de paralelos: privilegiado = todos; docente = solo los suyos.
+    let scopedParallelIds: string[] | null = null
+    if (!isPrivilegedStaff(actor.roles)) {
+      if (!actor.roles.includes('teacher')) {
+        return { data: [], total: 0, page, pageSize }
+      }
+      scopedParallelIds = await getTeacherParallelIds(institutionId, actor.userId)
+      if (scopedParallelIds.length === 0) return { data: [], total: 0, page, pageSize }
     }
 
-    return students
-      .map((s) => ({ id: s.id, fullName: fullName(s), dni: s.profile?.dni ?? null }))
-      .sort((a, b) => a.fullName.localeCompare(b.fullName))
+    // Paralelos efectivos = filtro pedido ∩ alcance del actor.
+    let effectiveParallelIds: string[] | null = scopedParallelIds
+    if (query.parallelId) {
+      if (scopedParallelIds && !scopedParallelIds.includes(query.parallelId)) {
+        return { data: [], total: 0, page, pageSize }
+      }
+      effectiveParallelIds = [query.parallelId]
+    }
+
+    const where: Prisma.UserWhereInput = {
+      institutionId,
+      userRoles: { some: { role: { name: 'student' } } },
+      ...(effectiveParallelIds
+        ? { studentEnrollments: { some: { parallelId: { in: effectiveParallelIds } } } }
+        : {}),
+      ...(search
+        ? {
+            OR: [
+              { profile: { firstName: { contains: search, mode: 'insensitive' } } },
+              { profile: { lastName: { contains: search, mode: 'insensitive' } } },
+              { profile: { dni: { contains: search, mode: 'insensitive' } } },
+            ],
+          }
+        : {}),
+    }
+
+    const [total, rows] = await prisma.$transaction([
+      prisma.user.count({ where }),
+      prisma.user.findMany({
+        where,
+        select: {
+          id: true,
+          profile: { select: { firstName: true, lastName: true, dni: true } },
+          studentEnrollments: {
+            select: {
+              parallel: { select: { name: true, level: { select: { name: true } } } },
+              academicYear: { select: { startDate: true } },
+            },
+            orderBy: { academicYear: { startDate: 'desc' } },
+            take: 1,
+          },
+        },
+        orderBy: [
+          { profile: { lastName: 'asc' } },
+          { profile: { firstName: 'asc' } },
+        ],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ])
+
+    return {
+      data: rows.map((s) => {
+        const enr = s.studentEnrollments[0]
+        return {
+          id: s.id,
+          fullName: fullName(s),
+          dni: s.profile?.dni ?? null,
+          levelName: enr?.parallel.level?.name ?? null,
+          parallelName: enr?.parallel.name ?? null,
+        }
+      }),
+      total,
+      page,
+      pageSize,
+    }
   }
 
   /** Expediente consolidado del estudiante: datos, matrículas, incidentes, actas y atenciones. */
