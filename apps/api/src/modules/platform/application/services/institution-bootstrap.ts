@@ -261,6 +261,21 @@ export const DEFAULT_GRADING_CONFIG = {
     { code: 'D', label: 'Mejorable' },
     { code: 'E', label: 'Insatisfactorio' },
   ],
+  // Escala de VALOR (con +/−) para traducir la nota numérica de las materias
+  // cualitativas a una letra en la libreta. Configurable por institución.
+  qualitativeValueScale: [
+    { min: 9.5, max: 10.0, code: 'A+' },
+    { min: 9.0, max: 9.49, code: 'A-' },
+    { min: 8.0, max: 8.99, code: 'B+' },
+    { min: 7.0, max: 7.99, code: 'B-' },
+    { min: 6.0, max: 6.99, code: 'C+' },
+    { min: 5.0, max: 5.99, code: 'C-' },
+    { min: 4.51, max: 4.99, code: 'D+' },
+    { min: 4.01, max: 4.5, code: 'D-' },
+    { min: 2.67, max: 4.0, code: 'E+' },
+    { min: 1.34, max: 2.66, code: 'E-' },
+    { min: 0, max: 1.33, code: 'F-' },
+  ],
   promotion: {
     minToPass: 7.0,
     supletorioMin: 5.0,
@@ -270,6 +285,13 @@ export const DEFAULT_GRADING_CONFIG = {
   },
   defaultExamWeight: 30,
 } as const
+
+// Materias cualitativas por defecto (se califican con notas; en la libreta se
+// muestran como letra A+…F− y no entran al promedio general).
+export const DEFAULT_QUALITATIVE_SUBJECTS = [
+  'Cívica y acompañamiento integral en el aula',
+  'Animación a la lectura',
+] as const
 
 export interface BootstrapAdminInput {
   email: string
@@ -367,6 +389,15 @@ export async function bootstrapInstitution(
       isDefault: true,
       schema: DEFAULT_ANAMNESIS_SCHEMA as unknown as Prisma.InputJsonValue,
     },
+  })
+
+  // 7d. Materias cualitativas por defecto (libreta)
+  await tx.subject.createMany({
+    data: DEFAULT_QUALITATIVE_SUBJECTS.map((name) => ({
+      institutionId: inst.id,
+      name,
+      isQualitative: true,
+    })),
   })
 
   // 8. Usuario admin inicial

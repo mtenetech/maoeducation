@@ -3,6 +3,7 @@ import { BadRequestError, ConflictError, NotFoundError } from '../../../../share
 import {
   average,
   computePeriodSummary,
+  activityKind,
   type InsumoGroupInput,
 } from '../../../../shared/domain/grade-math'
 import { PrismaInstitutionRepository } from '../../../institution/infrastructure/repositories/prisma-institution.repository'
@@ -147,7 +148,7 @@ export class PrismaPromotionRepository {
             ensureGroup(sId, act.courseAssignmentId, act.academicPeriodId, act.insumoId).activities.push({
               score,
               maxScore: Number(act.maxScore),
-              isExam: act.activityType.code === 'exam',
+              kind: activityKind(act.activityType.code),
             })
           }
         }

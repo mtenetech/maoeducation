@@ -180,6 +180,38 @@ export default async function reportRoutes(app: FastifyInstance) {
       ])
       const b = branding.effective
       const tutor = bulletin.parallel?.tutor?.profile
+      type PG = {
+        periodId: string
+        regularAvg: number | null
+        examenAvg: number | null
+        proyectoAvg: number | null
+        total: number | null
+        code?: string | null
+      }
+      type Subj = {
+        subjectName: string
+        isQualitative?: boolean
+        periodGrades: PG[]
+        supletorio?: number | null
+        promFinal?: number | null
+        finalAverage: number | null
+        finalCode?: string | null
+      }
+      const mapSubject = (s: Subj) => ({
+        subjectName: s.subjectName,
+        isQualitative: !!s.isQualitative,
+        periodGrades: s.periodGrades.map((g) => ({
+          periodId: g.periodId,
+          regularAvg: g.regularAvg,
+          examenAvg: g.examenAvg,
+          proyectoAvg: g.proyectoAvg,
+          total: g.total,
+          code: g.code ?? null,
+        })),
+        supletorio: s.supletorio ?? null,
+        promFinal: s.promFinal ?? s.finalAverage,
+        finalCode: s.finalCode ?? null,
+      })
       const pdf = await buildBulletinPdf({
         institutionName: b.institutionName || bulletin.institution?.name || '',
         title: b.title ?? '',
@@ -187,38 +219,34 @@ export default async function reportRoutes(app: FastifyInstance) {
         directorName: b.directorName ?? '',
         directorRole: b.directorRole ?? '',
         teacherLabel: b.teacherLabel ?? '',
-        studentName: `${bulletin.student.profile?.firstName ?? ''} ${bulletin.student.profile?.lastName ?? ''}`.trim(),
+        studentName: `${bulletin.student.profile?.lastName ?? ''} ${bulletin.student.profile?.firstName ?? ''}`.trim(),
         studentDni: bulletin.student.profile?.dni ?? null,
+        studentCode: bulletin.student.profile?.dni ?? null,
         parallelName: bulletin.parallel?.name ?? '',
         levelName: bulletin.parallel?.level?.name ?? '',
         tutorName: tutor ? `${tutor.firstName} ${tutor.lastName}` : '',
         yearName: bulletin.academicYear?.name ?? '',
         periods: bulletin.periods.map((p: { id: string; name: string }) => ({ id: p.id, name: p.name })),
-        subjects: bulletin.subjects.map((s: {
-          subjectName: string
-          periodGrades: Array<{ periodId: string; periodName: string; total: number | null }>
-          finalAverage: number | null
-        }) => ({
-          subjectName: s.subjectName,
-          periodGrades: s.periodGrades.map((g) => ({ periodId: g.periodId, periodName: g.periodName, total: g.total })),
-          finalAverage: s.finalAverage,
-        })),
+        subjects: (bulletin.subjects as Subj[]).map(mapSubject),
+        qualitativeSubjects: ((bulletin.qualitativeSubjects ?? []) as Subj[]).map(mapSubject),
         overallAverage: bulletin.overallAverage ?? null,
         qualitativeScale: gradingConfig.qualitativeScale,
+        qualitativeValueScale: bulletin.qualitativeValueScale ?? [],
         attendanceByPeriod: (bulletin.attendanceByPeriod ?? []).map((a: {
-          periodName: string; justifiedAbsences: number; unjustifiedAbsences: number; lateCount: number
+          periodId: string; justifiedAbsences: number; unjustifiedAbsences: number; attendedDays: number; lateCount: number
         }) => ({
-          periodName: a.periodName,
+          periodId: a.periodId,
           justifiedAbsences: a.justifiedAbsences,
           unjustifiedAbsences: a.unjustifiedAbsences,
+          attendedDays: a.attendedDays,
           lateCount: a.lateCount,
         })),
-        behaviorByPeriod: (bulletin.behaviorByPeriod ?? []).map((b: {
-          periodName: string; code: string | null; notes: string | null
+        behaviorByPeriod: (bulletin.behaviorByPeriod ?? []).map((bp: {
+          periodId: string; code: string | null; notes: string | null
         }) => ({
-          periodName: b.periodName,
-          code: b.code,
-          label: b.code ? gradingConfig.behaviorScale.find((s) => s.code === b.code)?.label ?? null : null,
+          periodId: bp.periodId,
+          code: bp.code,
+          notes: bp.notes,
         })),
       })
       const studentSlug = `${bulletin.student.profile?.lastName ?? 'boletin'}`.replace(/\s+/g, '_')

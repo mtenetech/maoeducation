@@ -248,26 +248,23 @@ interface CompactGridProps {
 function CompactGrid({ data, examWeight, canEditWeight, onEditWeight }: CompactGridProps) {
   const { insumos, students } = data
   const regularWeight = 100 - examWeight
+  const halfWeight = Math.round(examWeight / 2)
 
-  // Collect IDs of all exam-type activities
-  const examActivityIds = new Set<string>()
-  for (const ins of insumos) {
-    for (const act of ins.activities) {
-      if (act.activityType.code === 'exam') examActivityIds.add(act.id)
-    }
-  }
+  const kindOf = (code: string) => (code === 'exam' ? 'exam' : code === 'project' ? 'project' : 'regular')
 
-  // All regular activities (non-exam) across all insumos (excluding 'no-insumo')
-  const regularActivities = insumos
+  const allActs = insumos.flatMap((i) => i.activities)
+  const hasExam = allActs.some((a) => kindOf(a.activityType.code) === 'exam')
+  const hasProject = allActs.some((a) => kindOf(a.activityType.code) === 'project')
+  const hasSummative = hasExam || hasProject
+
+  // Insumos con nombre y al menos una actividad formativa (para columnas individuales)
+  const regularInsumos = insumos
     .filter((i) => i.id !== 'no-insumo')
-    .flatMap((i) => i.activities.filter((a) => !examActivityIds.has(a.id)))
+    .map((i) => ({ ...i, activities: i.activities.filter((a) => kindOf(a.activityType.code) === 'regular') }))
+    .filter((i) => i.activities.length > 0)
+  const hasRegular = insumos.some((i) => i.activities.some((a) => kindOf(a.activityType.code) === 'regular'))
 
-  // All exam activities
-  const examActivities = insumos.flatMap((i) => i.activities).filter((a) => examActivityIds.has(a.id))
-  const hasExam = examActivities.length > 0
-  const hasRegular = regularActivities.length > 0
-
-  if (!hasRegular && !hasExam) {
+  if (!hasRegular && !hasSummative) {
     return (
       <EmptyState
         icon={BarChart3}
@@ -276,12 +273,6 @@ function CompactGrid({ data, examWeight, canEditWeight, onEditWeight }: CompactG
       />
     )
   }
-
-  // Named insumos with only their non-exam activities (for individual columns)
-  const regularInsumos = insumos
-    .filter((i) => i.id !== 'no-insumo')
-    .map((i) => ({ ...i, activities: i.activities.filter((a) => !examActivityIds.has(a.id)) }))
-    .filter((i) => i.activities.length > 0)
 
   return (
     <div className="overflow-x-auto rounded-lg border">
@@ -299,9 +290,9 @@ function CompactGrid({ data, examWeight, canEditWeight, onEditWeight }: CompactG
             ))}
             {hasRegular && (
               <th className="border border-border px-3 py-2 text-center font-semibold text-primary whitespace-nowrap bg-blue-50/50">
-                Insumos
+                Formativa
                 <div className="text-[10px] font-normal text-muted-foreground">
-                  {hasExam ? `${regularWeight}%` : 'promedio'}
+                  {hasSummative ? `${regularWeight}%` : 'promedio'}
                 </div>
               </th>
             )}
@@ -314,18 +305,24 @@ function CompactGrid({ data, examWeight, canEditWeight, onEditWeight }: CompactG
                       type="button"
                       onClick={onEditWeight}
                       className="text-muted-foreground hover:text-foreground transition-colors"
-                      title="Cambiar peso del examen"
+                      title="Cambiar peso de la sumativa (examen + proyecto)"
                     >
                       <Settings2 className="h-3 w-3" />
                     </button>
                   )}
                 </div>
-                <div className="text-[10px] font-normal text-muted-foreground">{examWeight}%</div>
+                <div className="text-[10px] font-normal text-muted-foreground">{halfWeight}%</div>
+              </th>
+            )}
+            {hasProject && (
+              <th className="border border-border px-3 py-2 text-center font-semibold text-primary whitespace-nowrap">
+                Proyecto
+                <div className="text-[10px] font-normal text-muted-foreground">{halfWeight}%</div>
               </th>
             )}
             <th className="border border-border px-3 py-2 text-center font-semibold bg-muted whitespace-nowrap">
               Total
-              {hasExam && <div className="text-[10px] font-normal text-muted-foreground">ponderado</div>}
+              {hasSummative && <div className="text-[10px] font-normal text-muted-foreground">ponderado</div>}
             </th>
           </tr>
         </thead>
@@ -336,7 +333,8 @@ function CompactGrid({ data, examWeight, canEditWeight, onEditWeight }: CompactG
             const avgById = avgByInsumoId(row.summary)
             const insumoAvgs = regularInsumos.map((ins) => avgById.get(ins.id) ?? null)
             const regularAvg = row.summary.insumosBase
-            const examAvg = row.summary.examAvg
+            const examenAvg = row.summary.examenAvg
+            const proyectoAvg = row.summary.proyectoAvg
             const total = row.summary.total
 
             return (
@@ -360,8 +358,15 @@ function CompactGrid({ data, examWeight, canEditWeight, onEditWeight }: CompactG
                 )}
                 {hasExam && (
                   <td className="border border-border px-3 py-2 text-center tabular-nums">
-                    <span className={scoreColor(examAvg, 10)}>
-                      {examAvg != null ? examAvg.toFixed(2) : '—'}
+                    <span className={scoreColor(examenAvg, 10)}>
+                      {examenAvg != null ? examenAvg.toFixed(2) : '—'}
+                    </span>
+                  </td>
+                )}
+                {hasProject && (
+                  <td className="border border-border px-3 py-2 text-center tabular-nums">
+                    <span className={scoreColor(proyectoAvg, 10)}>
+                      {proyectoAvg != null ? proyectoAvg.toFixed(2) : '—'}
                     </span>
                   </td>
                 )}
@@ -663,25 +668,19 @@ function AnnualByPeriodGrid({
 
 /** Estructura de columnas de un período (mismos criterios que CompactGrid). */
 function buildPeriodColumns(data: GradesReportData) {
-  const examIds = new Set<string>()
-  for (const ins of data.insumos) {
-    for (const a of ins.activities) {
-      if (a.activityType.code === 'exam') examIds.add(a.id)
-    }
-  }
+  const kindOf = (code: string) => (code === 'exam' ? 'exam' : code === 'project' ? 'project' : 'regular')
+  const allActs = data.insumos.flatMap((i) => i.activities)
   const regularInsumos = data.insumos
     .filter((i) => i.id !== 'no-insumo')
-    .map((i) => ({ ...i, activities: i.activities.filter((a) => !examIds.has(a.id)) }))
+    .map((i) => ({ ...i, activities: i.activities.filter((a) => kindOf(a.activityType.code) === 'regular') }))
     .filter((i) => i.activities.length > 0)
-  const regularActivities = data.insumos
-    .filter((i) => i.id !== 'no-insumo')
-    .flatMap((i) => i.activities.filter((a) => !examIds.has(a.id)))
-  const examActivities = data.insumos.flatMap((i) => i.activities).filter((a) => examIds.has(a.id))
   const summaryByStudent = new Map(data.students.map((s) => [s.student.id, s.summary]))
-  const hasRegular = regularActivities.length > 0
-  const hasExam = examActivities.length > 0
-  const colCount = regularInsumos.length + (hasRegular ? 1 : 0) + (hasExam ? 1 : 0) + 1
-  return { regularInsumos, summaryByStudent, hasRegular, hasExam, colCount }
+  const hasRegular = allActs.some((a) => kindOf(a.activityType.code) === 'regular')
+  const hasExam = allActs.some((a) => kindOf(a.activityType.code) === 'exam')
+  const hasProject = allActs.some((a) => kindOf(a.activityType.code) === 'project')
+  const colCount =
+    regularInsumos.length + (hasRegular ? 1 : 0) + (hasExam ? 1 : 0) + (hasProject ? 1 : 0) + 1
+  return { regularInsumos, summaryByStudent, hasRegular, hasExam, hasProject, colCount }
 }
 
 /** Detalle anual horizontal: una tabla, los trimestres como grupos de columnas. */
@@ -693,6 +692,7 @@ function AnnualDetailGrid({
   examWeight: number
 }) {
   const regularWeight = 100 - examWeight
+  const halfWeight = Math.round(examWeight / 2)
   const cols = periodData.map((pd) => ({ period: pd.period, ...buildPeriodColumns(pd.data) }))
 
   const studentMap = new Map<string, { lastName: string; firstName: string }>()
@@ -755,16 +755,22 @@ function AnnualDetailGrid({
                       c.regularInsumos.length === 0 && 'border-l-2 border-l-border/80',
                     )}
                   >
-                    Insumos
+                    Formativa
                     <div className="text-[10px] font-normal text-muted-foreground">
-                      {c.hasExam ? `${regularWeight}%` : 'promedio'}
+                      {c.hasExam || c.hasProject ? `${regularWeight}%` : 'promedio'}
                     </div>
                   </th>
                 )}
                 {c.hasExam && (
                   <th className="whitespace-nowrap border border-border px-3 py-1.5 text-center font-semibold text-primary">
                     Examen
-                    <div className="text-[10px] font-normal text-muted-foreground">{examWeight}%</div>
+                    <div className="text-[10px] font-normal text-muted-foreground">{halfWeight}%</div>
+                  </th>
+                )}
+                {c.hasProject && (
+                  <th className="whitespace-nowrap border border-border px-3 py-1.5 text-center font-semibold text-primary">
+                    Proyecto
+                    <div className="text-[10px] font-normal text-muted-foreground">{halfWeight}%</div>
                   </th>
                 )}
                 <th
@@ -774,7 +780,9 @@ function AnnualDetailGrid({
                   )}
                 >
                   Total
-                  {c.hasExam && <div className="text-[10px] font-normal text-muted-foreground">ponderado</div>}
+                  {(c.hasExam || c.hasProject) && (
+                    <div className="text-[10px] font-normal text-muted-foreground">ponderado</div>
+                  )}
                 </th>
               </React.Fragment>
             ))}
@@ -791,7 +799,8 @@ function AnnualDetailGrid({
                 const avgById = summary ? avgByInsumoId(summary) : new Map<string, number | null>()
                 const insumoAvgs = c.regularInsumos.map((ins) => avgById.get(ins.id) ?? null)
                 const regularAvg = summary?.insumosBase ?? null
-                const examAvg = summary?.examAvg ?? null
+                const examenAvg = summary?.examenAvg ?? null
+                const proyectoAvg = summary?.proyectoAvg ?? null
                 const total = summary?.total ?? null
                 return (
                   <React.Fragment key={c.period.id}>
@@ -818,7 +827,12 @@ function AnnualDetailGrid({
                     )}
                     {c.hasExam && (
                       <td className="border border-border px-3 py-2 text-center tabular-nums">
-                        <span className={scoreColor(examAvg, 10)}>{examAvg != null ? examAvg.toFixed(2) : '—'}</span>
+                        <span className={scoreColor(examenAvg, 10)}>{examenAvg != null ? examenAvg.toFixed(2) : '—'}</span>
+                      </td>
+                    )}
+                    {c.hasProject && (
+                      <td className="border border-border px-3 py-2 text-center tabular-nums">
+                        <span className={scoreColor(proyectoAvg, 10)}>{proyectoAvg != null ? proyectoAvg.toFixed(2) : '—'}</span>
                       </td>
                     )}
                     <td
@@ -877,16 +891,22 @@ function StudentGradesTable({ subjects }: { subjects: MyGradesSubject[] }) {
             ))}
             {allInsumoNames.length > 0 && (
               <th className="border border-border px-3 py-2 text-center font-semibold text-primary bg-blue-50/50 whitespace-nowrap">
-                Insumos
+                Formativa
                 <div className="text-[10px] font-normal text-muted-foreground">
-                  {subjects.some((s) => s.examAvg !== undefined) ? `${100 - (subjects[0]?.examWeight ?? 30)}%` : 'promedio'}
+                  {subjects.some((s) => s.hasSummative) ? `${100 - (subjects[0]?.examWeight ?? 30)}%` : 'promedio'}
                 </div>
               </th>
             )}
-            {subjects.some((s) => s.examAvg !== undefined) && (
+            {subjects.some((s) => s.examenAvg != null) && (
               <th className="border border-border px-3 py-2 text-center font-semibold text-primary whitespace-nowrap">
                 Examen
-                <div className="text-[10px] font-normal text-muted-foreground">{subjects[0]?.examWeight ?? 30}%</div>
+                <div className="text-[10px] font-normal text-muted-foreground">{Math.round((subjects[0]?.examWeight ?? 30) / 2)}%</div>
+              </th>
+            )}
+            {subjects.some((s) => s.proyectoAvg != null) && (
+              <th className="border border-border px-3 py-2 text-center font-semibold text-primary whitespace-nowrap">
+                Proyecto
+                <div className="text-[10px] font-normal text-muted-foreground">{Math.round((subjects[0]?.examWeight ?? 30) / 2)}%</div>
               </th>
             )}
             <th className="border border-border px-3 py-2 text-center font-semibold bg-muted whitespace-nowrap">
@@ -917,10 +937,17 @@ function StudentGradesTable({ subjects }: { subjects: MyGradesSubject[] }) {
                   </span>
                 </td>
               )}
-              {subjects.some((sub) => sub.examAvg !== undefined) && (
+              {subjects.some((sub) => sub.examenAvg != null) && (
                 <td className="border border-border px-3 py-2 text-center tabular-nums">
-                  <span className={scoreColor(s.examAvg ?? null, 10)}>
-                    {s.examAvg != null ? s.examAvg.toFixed(2) : '—'}
+                  <span className={scoreColor(s.examenAvg ?? null, 10)}>
+                    {s.examenAvg != null ? s.examenAvg.toFixed(2) : '—'}
+                  </span>
+                </td>
+              )}
+              {subjects.some((sub) => sub.proyectoAvg != null) && (
+                <td className="border border-border px-3 py-2 text-center tabular-nums">
+                  <span className={scoreColor(s.proyectoAvg ?? null, 10)}>
+                    {s.proyectoAvg != null ? s.proyectoAvg.toFixed(2) : '—'}
                   </span>
                 </td>
               )}

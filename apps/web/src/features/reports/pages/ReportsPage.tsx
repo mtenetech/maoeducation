@@ -34,6 +34,7 @@ import {
   type EnrollmentReportData,
   type GradesReportData,
   type StudentBulletinData,
+  type BulletinSubject,
 } from '../api/reports.api'
 
 type Tab = 'bulletin' | 'grades' | 'attendance' | 'enrollment'
@@ -521,14 +522,16 @@ function BulletinReportView({ data }: { data: StudentBulletinData }) {
     { min: 4.01, max: 6.99, code: 'PAAR', label: 'Está próximo a alcanzar' },
     { min: 0, max: 4, code: 'NAAR', label: 'No alcanza los aprendizajes' },
   ]
-  const qualValue = (v: number | null) => {
-    if (v == null) return '—'
-    return qualScale.find((s) => v >= s.min && v <= s.max)?.code ?? '—'
-  }
+  const valueScale = data.qualitativeValueScale ?? []
   const scaleRows = qualScale.map((s) => ({
     range: `${s.min.toFixed(2)} - ${s.max.toFixed(2)}`,
     qualitative: s.label,
-    value: s.code,
+    // Códigos de valor (+/−) cuyo rango cae dentro de esta banda cuantitativa.
+    value:
+      valueScale
+        .filter((v) => v.min >= s.min && v.max <= s.max)
+        .map((v) => v.code)
+        .join(' · ') || s.code,
   }))
 
   // Comportamiento real capturado por periodo (con su escala A–E configurable)
@@ -582,54 +585,92 @@ function BulletinReportView({ data }: { data: StudentBulletinData }) {
             <InfoCell label="Promedio final" value={formatScore(data.overallAverage)} />
           </div>
 
-          <table className="w-full border-collapse text-[11px]">
-            <thead>
-              <tr>
-                <th className="border px-2 py-1.5">N°</th>
-                <th className="border px-2 py-1.5 text-left">Asignatura</th>
-                {data.periods.map((period) => (
-                  <th key={period.id} colSpan={3} className="border px-2 py-1.5">
-                    {period.name.toUpperCase()}
-                  </th>
-                ))}
-                <th className="border px-2 py-1.5">Prom. final</th>
-                <th className="border px-2 py-1.5">Escala</th>
-              </tr>
-              <tr>
-                <th className="border px-2 py-1" />
-                <th className="border px-2 py-1" />
-                {data.periods.map((period) => (
-                  <React.Fragment key={`${period.id}-headers`}>
-                    <th className="border px-2 py-1">Eva.</th>
-                    <th className="border px-2 py-1">Exam.</th>
-                    <th className="border px-2 py-1">Prom.</th>
-                  </React.Fragment>
-                ))}
-                <th className="border px-2 py-1" />
-                <th className="border px-2 py-1" />
-              </tr>
-            </thead>
-            <tbody>
-              {data.subjects.map((subject, index) => (
-                <tr key={subject.assignmentId}>
-                  <td className="border px-2 py-1 text-center">{index + 1}</td>
-                  <td className="border px-2 py-1 font-medium">{subject.subjectName}</td>
-                  {data.periods.map((period) => {
-                    const grade = subject.periodGrades.find((item) => item.periodId === period.id)
-                    return (
-                      <React.Fragment key={`${subject.assignmentId}-${period.id}`}>
-                        <td className="border px-2 py-1 text-center">{formatScore(grade?.regularAvg ?? null)}</td>
-                        <td className="border px-2 py-1 text-center">{formatScore(grade?.examAvg ?? null)}</td>
-                        <td className="border px-2 py-1 text-center font-semibold">{formatScore(grade?.total ?? null)}</td>
+          {(() => {
+            const academic = data.subjects
+            const qualitative = data.qualitativeSubjects ?? []
+            const gradeFor = (s: BulletinSubject, periodId: string) =>
+              s.periodGrades.find((g) => g.periodId === periodId)
+            const periodGeneral = (periodId: string) => {
+              const vals = academic
+                .map((s) => gradeFor(s, periodId)?.total)
+                .filter((v): v is number => v != null)
+              return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null
+            }
+            return (
+              <table className="w-full border-collapse text-[11px]">
+                <thead>
+                  <tr>
+                    <th rowSpan={2} className="border px-2 py-1.5">N°</th>
+                    <th rowSpan={2} className="border px-2 py-1.5 text-left">Asignatura</th>
+                    {data.periods.map((period) => (
+                      <th key={period.id} colSpan={4} className="border px-2 py-1.5">
+                        {period.name.toUpperCase()}
+                      </th>
+                    ))}
+                    <th rowSpan={2} className="border px-2 py-1.5">SUPLE.</th>
+                    <th rowSpan={2} className="border px-2 py-1.5">PROM. FINAL</th>
+                  </tr>
+                  <tr>
+                    {data.periods.map((period) => (
+                      <React.Fragment key={`${period.id}-headers`}>
+                        <th className="border px-1 py-1 font-normal">Form.<div className="text-[9px] text-gray-500">70%</div></th>
+                        <th className="border px-1 py-1 font-normal">Exam.<div className="text-[9px] text-gray-500">15%</div></th>
+                        <th className="border px-1 py-1 font-normal">Proy.<div className="text-[9px] text-gray-500">15%</div></th>
+                        <th className="border px-1 py-1">Prom.</th>
                       </React.Fragment>
-                    )
-                  })}
-                  <td className="border px-2 py-1 text-center font-bold">{formatScore(subject.finalAverage)}</td>
-                  <td className="border px-2 py-1 text-center">{qualValue(subject.finalAverage)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {academic.map((subject, index) => (
+                    <tr key={subject.assignmentId}>
+                      <td className="border px-2 py-1 text-center">{index + 1}</td>
+                      <td className="border px-2 py-1 font-medium">{subject.subjectName}</td>
+                      {data.periods.map((period) => {
+                        const g = gradeFor(subject, period.id)
+                        return (
+                          <React.Fragment key={`${subject.assignmentId}-${period.id}`}>
+                            <td className="border px-1 py-1 text-center">{formatScore(g?.regularAvg ?? null)}</td>
+                            <td className="border px-1 py-1 text-center">{formatScore(g?.examenAvg ?? null)}</td>
+                            <td className="border px-1 py-1 text-center">{formatScore(g?.proyectoAvg ?? null)}</td>
+                            <td className="border px-1 py-1 text-center font-semibold">{formatScore(g?.total ?? null)}</td>
+                          </React.Fragment>
+                        )
+                      })}
+                      <td className="border px-2 py-1 text-center">{formatScore(subject.supletorio ?? null)}</td>
+                      <td className="border px-2 py-1 text-center font-bold">{formatScore(subject.promFinal ?? subject.finalAverage)}</td>
+                    </tr>
+                  ))}
+                  {/* PROM. general por trimestre (solo materias cuantitativas) */}
+                  <tr className="bg-gray-50 font-semibold">
+                    <td className="border px-2 py-1" />
+                    <td className="border px-2 py-1 text-right">PROM.</td>
+                    {data.periods.map((period) => (
+                      <td key={`gen-${period.id}`} colSpan={4} className="border px-2 py-1 text-center">
+                        {formatScore(periodGeneral(period.id))}
+                      </td>
+                    ))}
+                    <td className="border px-2 py-1" />
+                    <td className="border px-2 py-1 text-center">{formatScore(data.overallAverage)}</td>
+                  </tr>
+                  {/* Materias cualitativas: se muestran como letra y NO promedian */}
+                  {qualitative.map((subject, index) => (
+                    <tr key={subject.assignmentId} className="bg-amber-50/40">
+                      <td className="border px-2 py-1 text-center">{academic.length + index + 1}</td>
+                      <td className="border px-2 py-1 font-medium">{subject.subjectName}</td>
+                      {data.periods.map((period) => (
+                        <td key={`q-${subject.assignmentId}-${period.id}`} colSpan={4} className="border px-2 py-1 text-center font-semibold">
+                          {gradeFor(subject, period.id)?.code ?? '—'}
+                        </td>
+                      ))}
+                      <td className="border px-2 py-1" />
+                      <td className="border px-2 py-1 text-center font-bold">{subject.finalCode ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )
+          })()}
 
           <div className="mt-4 grid gap-4 xl:grid-cols-[1.25fr_0.95fr]">
             <div className="space-y-3">
@@ -649,14 +690,15 @@ function BulletinReportView({ data }: { data: StudentBulletinData }) {
                 <tbody>
                   <tr>
                     {data.periods.map((period) => {
-                      const code = behaviorByPeriodMap.get(period.id)?.code ?? null
+                      const b = behaviorByPeriodMap.get(period.id)
+                      const code = b?.code ?? null
                       return (
                         <td
                           key={`behavior-body-${period.id}`}
-                          className="border px-2 py-2 text-center align-top font-semibold"
-                          title={behaviorLabelFor(code)}
+                          className="border px-2 py-2 text-center align-top"
                         >
-                          {code ?? '—'}
+                          <div className="font-semibold" title={behaviorLabelFor(code)}>{code ?? '—'}</div>
+                          {b?.notes && <div className="mt-1 text-[10px] text-gray-600">{b.notes}</div>}
                         </td>
                       )
                     })}

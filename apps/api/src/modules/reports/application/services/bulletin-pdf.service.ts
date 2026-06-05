@@ -4,28 +4,35 @@ import PDFDocument from 'pdfkit'
 
 interface PeriodGrade {
   periodId: string
-  periodName: string
+  regularAvg: number | null
+  examenAvg: number | null
+  proyectoAvg: number | null
   total: number | null
+  code: string | null
 }
 interface SubjectRow {
   subjectName: string
+  isQualitative: boolean
   periodGrades: PeriodGrade[]
-  finalAverage: number | null
+  supletorio: number | null
+  promFinal: number | null
+  finalCode: string | null
 }
 interface PeriodCol {
   id: string
   name: string
 }
 interface AttendanceRow {
-  periodName: string
+  periodId: string
   justifiedAbsences: number
   unjustifiedAbsences: number
+  attendedDays: number
   lateCount: number
 }
 interface BehaviorRow {
-  periodName: string
+  periodId: string
   code: string | null
-  label: string | null
+  notes: string | null
 }
 
 export interface QualitativeLevel {
@@ -33,6 +40,11 @@ export interface QualitativeLevel {
   max: number
   code: string
   label: string
+}
+export interface QualitativeValue {
+  min: number
+  max: number
+  code: string
 }
 
 export interface BulletinPdfData {
@@ -44,31 +56,26 @@ export interface BulletinPdfData {
   teacherLabel: string
   studentName: string
   studentDni: string | null
+  studentCode: string | null
   parallelName: string
   levelName: string
   tutorName: string
   yearName: string
   periods: PeriodCol[]
   subjects: SubjectRow[]
+  qualitativeSubjects: SubjectRow[]
   overallAverage: number | null
   attendanceByPeriod: AttendanceRow[]
   behaviorByPeriod: BehaviorRow[]
   qualitativeScale: QualitativeLevel[]
+  qualitativeValueScale: QualitativeValue[]
 }
 
 const NUM = (n: number | null) => (n == null ? '—' : n.toFixed(2))
+const fmtDate = (d: Date) => new Intl.DateTimeFormat('es-EC').format(d)
 
-// Equivalencia cualitativa según la escala configurable de la institución
-function cualitativa(v: number | null, scale: QualitativeLevel[]): string {
-  if (v == null) return '—'
-  const lvl = scale.find((s) => v >= s.min && v <= s.max)
-  return lvl ? lvl.code : '—'
-}
-
-/** Resuelve el logo a algo que pdfkit pueda embeber: Buffer (data URI) o ruta en disco. */
 function resolveLogo(logoUrl: string | null): Buffer | string | null {
   if (!logoUrl) return null
-  // data URI base64 (cómo se guardan ahora los logos, para persistir en hostings efímeros)
   const dm = /^data:[^;]+;base64,(.+)$/.exec(logoUrl)
   if (dm) {
     try {
@@ -77,7 +84,6 @@ function resolveLogo(logoUrl: string | null): Buffer | string | null {
       return null
     }
   }
-  // legacy: archivo en /uploads/...
   const m = /\/uploads\/(.+)$/.exec(logoUrl)
   if (!m) return null
   const p = path.join(process.cwd(), 'uploads', m[1])
@@ -86,7 +92,7 @@ function resolveLogo(logoUrl: string | null): Buffer | string | null {
 
 export function buildBulletinPdf(data: BulletinPdfData): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 28 })
+    const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 24 })
     const chunks: Buffer[] = []
     doc.on('data', (c) => chunks.push(c as Buffer))
     doc.on('end', () => resolve(Buffer.concat(chunks)))
@@ -98,136 +104,187 @@ export function buildBulletinPdf(data: BulletinPdfData): Promise<Buffer> {
 
     // ── Encabezado ──
     const logo = resolveLogo(data.logoUrl)
-    let hasLogo = false
     if (logo) {
       try {
-        doc.image(logo, left, y, { fit: [46, 46] })
-        hasLogo = true
+        doc.image(logo, doc.page.width / 2 - 18, y, { fit: [36, 36] })
       } catch {
-        /* logo inválido (p.ej. SVG, que pdfkit no soporta): se ignora */
+        /* ignore */
       }
     }
-    const headX = left + (hasLogo ? 56 : 0)
-    doc.font('Helvetica-Bold').fontSize(13).text(data.institutionName.toUpperCase(), headX, y, {
-      width: pageW - (hasLogo ? 56 : 0),
+    doc.font('Helvetica-Bold').fontSize(13).text(data.institutionName.toUpperCase(), left, y + 2, {
+      width: pageW,
+      align: 'center',
     })
-    doc.font('Helvetica-Bold').fontSize(10).text(data.title || 'INFORME DE CALIFICACIONES', headX, doc.y + 1)
-    y = Math.max(y + 50, doc.y + 6)
+    doc.fontSize(9).text(data.yearName, { width: pageW, align: 'center' })
+    y = doc.y + 6
 
-    // ── Datos del estudiante ──
-    doc.font('Helvetica').fontSize(8.5)
-    const info = [
-      `Estudiante: ${data.studentName}`,
-      data.studentDni ? `Cédula: ${data.studentDni}` : '',
-      `Curso: ${data.levelName} "${data.parallelName}"`,
-      `Año lectivo: ${data.yearName}`,
-    ].filter(Boolean)
-    doc.text(info.join('     '), left, y)
-    y = doc.y + 8
+    // ── Datos del estudiante (grilla) ──
+    doc.fontSize(8).font('Helvetica')
+    const infoRow = (cells: Array<[string, string]>) => {
+      const cw = pageW / cells.length
+      cells.forEach(([label, value], i) => {
+        doc.font('Helvetica-Bold').text(`${label}: `, left + i * cw, y, { continued: true, width: cw })
+        doc.font('Helvetica').text(value || '—')
+      })
+      y = doc.y + 3
+    }
+    infoRow([
+      ['CÓDIGO', data.studentCode ?? '—'],
+      ['ESTUDIANTE', data.studentName],
+      ['FECHA', fmtDate(new Date())],
+    ])
+    infoRow([
+      ['CURSO', data.levelName],
+      ['PARALELO', data.parallelName],
+      ['DOCENTE TUTOR/A', data.tutorName || '—'],
+    ])
+    y += 4
 
     // ── Tabla de calificaciones ──
     const periods = data.periods
-    const subjColW = 200
-    const finalColW = 52
-    const cualColW = 44
-    const periodColW = Math.max(
-      48,
-      (pageW - subjColW - finalColW - cualColW) / Math.max(periods.length, 1),
-    )
-    const rowH = 18
-    const headH = 20
+    const subjW = 150
+    const supleW = 34
+    const finalW = 40
+    const perPeriodW = (pageW - subjW - supleW - finalW) / Math.max(periods.length, 1)
+    const subW = perPeriodW / 4 // Form / Exam / Proy / Prom
+    const rowH = 15
 
-    const xs = {
-      subj: left,
-      periods: periods.map((_, i) => left + subjColW + i * periodColW),
-      final: left + subjColW + periods.length * periodColW,
-      cual: left + subjColW + periods.length * periodColW + finalColW,
-    }
-    const tableW = subjColW + periods.length * periodColW + finalColW + cualColW
+    const colX = (pi: number, sub: number) => left + subjW + pi * perPeriodW + sub * subW
+    const supleX = left + subjW + periods.length * perPeriodW
+    const finalX = supleX + supleW
 
-    // Cabecera
-    doc.rect(left, y, tableW, headH).fill('#1e293b')
-    doc.fill('#ffffff').font('Helvetica-Bold').fontSize(8)
-    doc.text('ASIGNATURA', xs.subj + 4, y + 6, { width: subjColW - 6 })
+    // Cabecera fila 1
+    doc.font('Helvetica-Bold').fontSize(7)
+    doc.rect(left, y, subjW, rowH * 2).stroke()
+    doc.text('ASIGNATURA', left + 3, y + rowH - 4, { width: subjW - 6 })
     periods.forEach((p, i) => {
-      doc.text(p.name, xs.periods[i], y + 6, { width: periodColW, align: 'center' })
+      doc.rect(left + subjW + i * perPeriodW, y, perPeriodW, rowH).stroke()
+      doc.text(p.name.toUpperCase(), left + subjW + i * perPeriodW, y + 4, { width: perPeriodW, align: 'center' })
     })
-    doc.text('FINAL', xs.final, y + 6, { width: finalColW, align: 'center' })
-    doc.text('EQUIV.', xs.cual, y + 6, { width: cualColW, align: 'center' })
-    y += headH
+    doc.rect(supleX, y, supleW, rowH * 2).stroke()
+    doc.text('SUPLE.', supleX, y + rowH - 4, { width: supleW, align: 'center' })
+    doc.rect(finalX, y, finalW, rowH * 2).stroke()
+    doc.text('PROM. FINAL', finalX, y + rowH - 6, { width: finalW, align: 'center' })
 
-    // Filas
-    doc.font('Helvetica').fontSize(8).fill('#000000')
-    data.subjects.forEach((s, idx) => {
-      if (idx % 2 === 1) doc.rect(left, y, tableW, rowH).fill('#f1f5f9').fill('#000000')
-      doc.fill('#000000')
-      doc.text(s.subjectName, xs.subj + 4, y + 5, { width: subjColW - 6, ellipsis: true })
-      periods.forEach((p, i) => {
-        const pg = s.periodGrades.find((g) => g.periodId === p.id)
-        doc.text(NUM(pg?.total ?? null), xs.periods[i], y + 5, { width: periodColW, align: 'center' })
+    // Cabecera fila 2 (sub-columnas)
+    const subLabels = ['Form.', 'Exam.', 'Proy.', 'Prom.']
+    doc.fontSize(6)
+    periods.forEach((_, pi) => {
+      subLabels.forEach((lbl, si) => {
+        doc.rect(colX(pi, si), y + rowH, subW, rowH).stroke()
+        doc.text(lbl, colX(pi, si), y + rowH + 4, { width: subW, align: 'center' })
       })
-      doc.font('Helvetica-Bold').text(NUM(s.finalAverage), xs.final, y + 5, { width: finalColW, align: 'center' })
-      doc.text(cualitativa(s.finalAverage, data.qualitativeScale), xs.cual, y + 5, { width: cualColW, align: 'center' })
-      doc.font('Helvetica')
-      // borde inferior
-      doc.moveTo(left, y + rowH).lineTo(left + tableW, y + rowH).strokeColor('#cbd5e1').lineWidth(0.5).stroke()
+    })
+    y += rowH * 2
+
+    const cell = (x: number, w: number, txt: string, bold = false) => {
+      doc.rect(x, y, w, rowH).stroke()
+      doc.font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(7).text(txt, x, y + 4, { width: w, align: 'center' })
+    }
+
+    // Filas de materias cuantitativas
+    data.subjects.forEach((s) => {
+      doc.rect(left, y, subjW, rowH).stroke()
+      doc.font('Helvetica').fontSize(7).text(s.subjectName, left + 3, y + 4, { width: subjW - 6, ellipsis: true })
+      periods.forEach((p, pi) => {
+        const g = s.periodGrades.find((x) => x.periodId === p.id)
+        cell(colX(pi, 0), subW, NUM(g?.regularAvg ?? null))
+        cell(colX(pi, 1), subW, NUM(g?.examenAvg ?? null))
+        cell(colX(pi, 2), subW, NUM(g?.proyectoAvg ?? null))
+        cell(colX(pi, 3), subW, NUM(g?.total ?? null), true)
+      })
+      cell(supleX, supleW, NUM(s.supletorio))
+      cell(finalX, finalW, NUM(s.promFinal), true)
       y += rowH
     })
 
-    // Promedio general
-    doc.font('Helvetica-Bold').fontSize(8.5)
-    doc.text('PROMEDIO GENERAL', xs.subj + 4, y + 5, { width: subjColW + periods.length * periodColW - 6 })
-    doc.text(NUM(data.overallAverage), xs.final, y + 5, { width: finalColW, align: 'center' })
-    doc.text(cualitativa(data.overallAverage, data.qualitativeScale), xs.cual, y + 5, { width: cualColW, align: 'center' })
-    y += rowH + 10
+    // PROM. general por trimestre
+    doc.rect(left, y, subjW, rowH).stroke()
+    doc.font('Helvetica-Bold').fontSize(7).text('PROM.', left + 3, y + 4, { width: subjW - 6, align: 'right' })
+    periods.forEach((p, pi) => {
+      const vals = data.subjects
+        .map((s) => s.periodGrades.find((x) => x.periodId === p.id)?.total)
+        .filter((v): v is number => v != null)
+      const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null
+      doc.rect(colX(pi, 0), y, perPeriodW, rowH).stroke()
+      doc.text(NUM(avg), colX(pi, 0), y + 4, { width: perPeriodW, align: 'center' })
+    })
+    doc.rect(supleX, y, supleW, rowH).stroke()
+    cell(finalX, finalW, NUM(data.overallAverage), true)
+    y += rowH
 
-    // ── Comportamiento ──
-    const behaviorWithGrade = data.behaviorByPeriod.filter((b) => b.code)
-    if (behaviorWithGrade.length > 0) {
-      doc.font('Helvetica-Bold').fontSize(8.5).text('Comportamiento', left, y)
-      y = doc.y + 2
-      doc.font('Helvetica').fontSize(8)
-      behaviorWithGrade.forEach((b) => {
-        const label = b.label ? ` (${b.label})` : ''
-        doc.text(`${b.periodName}:  ${b.code}${label}`, left, doc.y + 1)
+    // Filas de materias cualitativas (letra por trimestre)
+    data.qualitativeSubjects.forEach((s) => {
+      doc.rect(left, y, subjW, rowH).stroke()
+      doc.font('Helvetica').fontSize(7).text(s.subjectName, left + 3, y + 4, { width: subjW - 6, ellipsis: true })
+      periods.forEach((p, pi) => {
+        const g = s.periodGrades.find((x) => x.periodId === p.id)
+        doc.rect(colX(pi, 0), y, perPeriodW, rowH).stroke()
+        doc.font('Helvetica-Bold').fontSize(7).text(g?.code ?? '—', colX(pi, 0), y + 4, { width: perPeriodW, align: 'center' })
       })
-      y = doc.y + 14
-    }
+      doc.rect(supleX, y, supleW, rowH).stroke()
+      cell(finalX, finalW, s.finalCode ?? '—', true)
+      y += rowH
+    })
 
-    // ── Asistencia ──
-    if (data.attendanceByPeriod.length > 0) {
-      doc.font('Helvetica-Bold').fontSize(8.5).text('Asistencia', left, y)
-      y = doc.y + 2
-      doc.font('Helvetica').fontSize(8)
-      data.attendanceByPeriod.forEach((a) => {
-        doc.text(
-          `${a.periodName}:  faltas justif. ${a.justifiedAbsences} · injustif. ${a.unjustifiedAbsences} · atrasos ${a.lateCount}`,
-          left,
-          doc.y + 1,
-        )
-      })
-      y = doc.y + 14
-    }
+    y += 10
 
-    // ── Escala + Firmas ──
-    doc.font('Helvetica').fontSize(7).fill('#475569')
-    const escalaTxt =
-      'Escala: ' +
-      data.qualitativeScale
-        .map((s) => `${s.code} = ${s.label} (${s.min}–${s.max})`)
-        .join(' · ')
-    doc.text(escalaTxt, left, y, { width: pageW })
-    doc.fill('#000000')
+    // ── Comportamiento + Faltas (izquierda) y Escala (derecha) ──
+    const startY = y
+    doc.font('Helvetica-Bold').fontSize(8).text('COMPORTAMIENTO', left, y)
+    y = doc.y + 2
+    doc.font('Helvetica').fontSize(7)
+    const behaviorMap = new Map(data.behaviorByPeriod.map((b) => [b.periodId, b]))
+    periods.forEach((p) => {
+      const b = behaviorMap.get(p.id)
+      doc.text(`${p.name}: ${b?.code ?? '—'}${b?.notes ? ` — ${b.notes}` : ''}`, left, doc.y + 1, { width: pageW * 0.6 })
+    })
+    y = doc.y + 6
 
-    const signY = doc.page.height - doc.page.margins.bottom - 38
+    doc.font('Helvetica-Bold').fontSize(8).text('FALTAS / ATRASOS', left, y)
+    y = doc.y + 2
+    doc.font('Helvetica').fontSize(7)
+    const att = new Map(data.attendanceByPeriod.map((a) => [a.periodId, a]))
+    periods.forEach((p) => {
+      const a = att.get(p.id)
+      doc.text(
+        `${p.name}: justif. ${a?.justifiedAbsences ?? 0} · injustif. ${a?.unjustifiedAbsences ?? 0} · asistidos ${a?.attendedDays ?? 0} · atrasos ${a?.lateCount ?? 0}`,
+        left,
+        doc.y + 1,
+      )
+    })
+
+    // Escala (derecha)
+    const scaleX = left + pageW * 0.62
+    const scaleW = pageW * 0.38
+    let sy = startY
+    doc.font('Helvetica-Bold').fontSize(7)
+    doc.text('ESCALA', scaleX, sy)
+    sy = doc.y + 2
+    data.qualitativeScale.forEach((lvl) => {
+      const codes = data.qualitativeValueScale
+        .filter((v) => v.min >= lvl.min && v.max <= lvl.max)
+        .map((v) => v.code)
+        .join(' ')
+      doc.font('Helvetica').fontSize(6.5).text(
+        `${lvl.label}  (${lvl.min.toFixed(2)}–${lvl.max.toFixed(2)})  ${codes}`,
+        scaleX,
+        sy,
+        { width: scaleW },
+      )
+      sy = doc.y + 1
+    })
+
+    // ── Firmas ──
+    const signY = doc.page.height - doc.page.margins.bottom - 30
     const colW = pageW / 2
-    doc.fontSize(8)
+    doc.font('Helvetica').fontSize(8)
     doc.text('_______________________________', left, signY, { width: colW, align: 'center' })
-    doc.text(`${data.tutorName || ''}`, left, signY + 12, { width: colW, align: 'center' })
-    doc.text(data.teacherLabel || 'DOCENTE TUTOR/A', left, signY + 23, { width: colW, align: 'center' })
+    doc.text(data.tutorName || '', left, signY + 12, { width: colW, align: 'center' })
+    doc.text(data.teacherLabel || 'DOCENTE TUTOR/A', left, signY + 22, { width: colW, align: 'center' })
     doc.text('_______________________________', left + colW, signY, { width: colW, align: 'center' })
-    doc.text(`${data.directorName || ''}`, left + colW, signY + 12, { width: colW, align: 'center' })
-    doc.text(data.directorRole || 'DIRECTOR/A', left + colW, signY + 23, { width: colW, align: 'center' })
+    doc.text(data.directorName || '', left + colW, signY + 12, { width: colW, align: 'center' })
+    doc.text(data.directorRole || 'DIRECTOR/A', left + colW, signY + 22, { width: colW, align: 'center' })
 
     doc.end()
   })

@@ -3,17 +3,33 @@
  * boletín, resumen del profesor, "mis notas" del alumno y promoción.
  *
  * Regla (confirmada por el usuario):
- *  - La base de insumos es el PROMEDIO DE LOS PROMEDIOS POR INSUMO (por categoría):
- *    cada insumo promedia sus actividades, y la base promedia esos promedios.
- *    Cada insumo pesa igual (los pesos por-insumo NO se usan).
+ *  - La base FORMATIVA es el PROMEDIO DE LOS PROMEDIOS POR INSUMO (por categoría):
+ *    cada insumo promedia sus actividades regulares, y la base promedia esos promedios.
+ *    Cada insumo pesa igual (los pesos por-insumo NO se usan). Pondera 100 - summativeWeight (70%).
+ *  - El restante (summativeWeight, 30%) = PROMEDIO de Examen y Proyecto:
+ *    examen = actividades tipo `exam`, proyecto = actividades tipo `project`.
+ *    (Equivale a Examen 15% + Proyecto 15% cuando summativeWeight = 30.)
  *  - Las actividades sin nota se IGNORAN (para un cero, se registra 0 explícito).
- *  - El examen (actividades tipo `exam`) pondera según `examWeight`; el resto, 100 - examWeight.
  */
 
 /** Promedio simple ignorando valores nulos. Devuelve null si no hay ninguno. */
 export function average(scores: Array<number | null | undefined>): number | null {
   const valid = scores.filter((s): s is number => s != null)
   return valid.length > 0 ? valid.reduce((a, b) => a + b, 0) / valid.length : null
+}
+
+/** Banda de la escala de valor cualitativo (rango numérico → código A+…F−). */
+export interface QualitativeBand {
+  min: number
+  max: number
+  code: string
+}
+
+/** Traduce una nota numérica (/10) a su código cualitativo (A+…F−), o null. */
+export function toQualitativeCode(value: number | null, scale: QualitativeBand[]): string | null {
+  if (value == null) return null
+  const band = scale.find((b) => value >= b.min && value <= b.max)
+  return band ? band.code : null
 }
 
 /** Normaliza una nota a escala /10 según su puntaje máximo. null si no hay nota. */
@@ -23,11 +39,21 @@ export function normalize10(score: number | null | undefined, maxScore: number):
   return (score / maxScore) * 10
 }
 
-/** Actividad para el cálculo: su nota (cruda), su puntaje máximo y si es examen. */
+/** Tipo de actividad para el cálculo: formativa (regular), examen o proyecto. */
+export type ActivityKind = 'regular' | 'exam' | 'project'
+
+/** Deriva el `kind` a partir del código del tipo de actividad. */
+export function activityKind(activityTypeCode: string): ActivityKind {
+  if (activityTypeCode === 'exam') return 'exam'
+  if (activityTypeCode === 'project') return 'project'
+  return 'regular'
+}
+
+/** Actividad para el cálculo: su nota (cruda), su puntaje máximo y su tipo. */
 export interface ScoredActivity {
   score: number | null
   maxScore: number
-  isExam: boolean
+  kind: ActivityKind
 }
 
 /** Grupo de actividades de un insumo (o "Sin insumo"). */
@@ -37,36 +63,38 @@ export interface InsumoGroupInput {
   activities: ScoredActivity[]
 }
 
-/** Promedio de un insumo: promedio de sus actividades NO-examen normalizadas a /10. */
+/** Promedio formativo de un insumo: promedio de sus actividades regulares normalizadas a /10. */
 export function insumoGroupAverage(activities: ScoredActivity[]): number | null {
-  return average(activities.filter((a) => !a.isExam).map((a) => normalize10(a.score, a.maxScore)))
+  return average(activities.filter((a) => a.kind === 'regular').map((a) => normalize10(a.score, a.maxScore)))
 }
 
 export interface PeriodSummary {
   insumoAvgs: Array<{ id: string; name: string; avg: number | null }>
   insumosBase: number | null
-  examAvg: number | null
-  hasExam: boolean
+  examenAvg: number | null
+  proyectoAvg: number | null
+  summativeAvg: number | null
+  hasSummative: boolean
   total: number | null
 }
 
 /**
- * Total ponderado de un periodo: base de insumos (regular) + examen según su peso.
- * Si no hay examen, el total es la base de insumos.
+ * Total ponderado de un periodo: base formativa + sumativa (examen/proyecto) según su peso.
+ * Si no hay sumativa, el total es la base formativa.
  */
 export function periodTotal(
   regularAvg: number | null,
-  examAvg: number | null,
-  examWeight: number,
-  hasExam: boolean,
+  summativeAvg: number | null,
+  summativeWeight: number,
+  hasSummative: boolean,
 ): number | null {
-  if (hasExam) {
-    const regularWeight = 100 - examWeight
-    if (regularAvg != null && examAvg != null) {
-      return regularAvg * (regularWeight / 100) + examAvg * (examWeight / 100)
+  if (hasSummative) {
+    const regularWeight = 100 - summativeWeight
+    if (regularAvg != null && summativeAvg != null) {
+      return regularAvg * (regularWeight / 100) + summativeAvg * (summativeWeight / 100)
     }
     if (regularAvg != null) return regularAvg
-    if (examAvg != null) return examAvg
+    if (summativeAvg != null) return summativeAvg
     return null
   }
   return regularAvg
@@ -74,10 +102,10 @@ export function periodTotal(
 
 /**
  * Resumen canónico de un periodo para una asignación/estudiante:
- * promedio por insumo (por categoría), base de insumos, examen y total ponderado.
- * `hasExam` se basa en que existan actividades de examen (aunque no tengan nota aún).
+ * base formativa (promedio por insumo), examen, proyecto, sumativa (promedio de ambos)
+ * y total ponderado. `hasSummative` se basa en que existan actividades de examen o proyecto.
  */
-export function computePeriodSummary(groups: InsumoGroupInput[], examWeight: number): PeriodSummary {
+export function computePeriodSummary(groups: InsumoGroupInput[], summativeWeight: number): PeriodSummary {
   const insumoAvgs = groups.map((g) => ({
     id: g.id,
     name: g.name,
@@ -85,10 +113,14 @@ export function computePeriodSummary(groups: InsumoGroupInput[], examWeight: num
   }))
   const insumosBase = average(insumoAvgs.map((i) => i.avg))
 
-  const examActivities = groups.flatMap((g) => g.activities).filter((a) => a.isExam)
-  const examAvg = average(examActivities.map((a) => normalize10(a.score, a.maxScore)))
-  const hasExam = examActivities.length > 0
+  const all = groups.flatMap((g) => g.activities)
+  const examActivities = all.filter((a) => a.kind === 'exam')
+  const projectActivities = all.filter((a) => a.kind === 'project')
+  const examenAvg = average(examActivities.map((a) => normalize10(a.score, a.maxScore)))
+  const proyectoAvg = average(projectActivities.map((a) => normalize10(a.score, a.maxScore)))
+  const summativeAvg = average([examenAvg, proyectoAvg])
+  const hasSummative = examActivities.length > 0 || projectActivities.length > 0
 
-  const total = periodTotal(insumosBase, examAvg, examWeight, hasExam)
-  return { insumoAvgs, insumosBase, examAvg, hasExam, total }
+  const total = periodTotal(insumosBase, summativeAvg, summativeWeight, hasSummative)
+  return { insumoAvgs, insumosBase, examenAvg, proyectoAvg, summativeAvg, hasSummative, total }
 }
