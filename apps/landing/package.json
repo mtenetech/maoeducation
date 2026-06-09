@@ -6,13 +6,14 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
-    "preview": "astro preview",
-    "start": "astro preview --host 0.0.0.0 --port ${PORT:-4321}",
+    "preview": "sirv dist --host 0.0.0.0 --port ${PORT:-4321}",
+    "start": "sirv dist --host 0.0.0.0 --port ${PORT:-4321}",
     "lint": "echo 'landing: sin typecheck (validado en build)'"
   },
   "dependencies": {
     "astro": "^4.16.18",
     "@astrojs/tailwind": "^5.1.4",
+    "sirv-cli": "^3.0.1",
     "tailwindcss": "^3.4.17"
   }
 }
