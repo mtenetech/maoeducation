@@ -97,7 +97,7 @@ export function PlatformLoginPage() {
           </CardContent>
         </Card>
 
-        <p className="text-center text-xs text-slate-500">© {new Date().getFullYear()} MaoEducación</p>
+        <p className="text-center text-xs text-slate-500">© {new Date().getFullYear()} Auleka</p>
       </div>
     </div>
   )

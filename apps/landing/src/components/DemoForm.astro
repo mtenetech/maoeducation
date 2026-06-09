@@ -1,0 +1,118 @@
+---
+const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000'
+---
+
+<section id="demo" class="bg-slate-900 py-20">
+  <div class="mx-auto grid max-w-5xl items-center gap-12 px-5 md:grid-cols-2">
+    <div class="text-white">
+      <h2 class="font-display text-3xl font-bold tracking-tight md:text-4xl">
+        Solicita una demo gratis
+      </h2>
+      <p class="mt-4 text-lg text-slate-300">
+        Te mostramos Auleka con los datos de tu colegio en una llamada de 30 minutos. Sin compromiso.
+      </p>
+      <ul class="mt-6 space-y-3 text-slate-300">
+        <li class="flex items-start gap-2">
+          <span class="mt-1 text-brand-green">✓</span> Demo personalizada a tu institución
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="mt-1 text-brand-green">✓</span> Acompañamos la migración de tus datos
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="mt-1 text-brand-green">✓</span> Capacitación incluida para tu equipo
+        </li>
+      </ul>
+    </div>
+
+    <div class="rounded-2xl bg-white p-6 shadow-xl md:p-8">
+      <form id="demo-form" class="space-y-4">
+        <!-- honeypot anti-spam (oculto) -->
+        <input type="text" name="website" tabindex="-1" autocomplete="off" class="hidden" aria-hidden="true" />
+
+        <div>
+          <label for="name" class="mb-1 block text-sm font-medium text-slate-700">Nombre y apellido *</label>
+          <input id="name" name="name" required minlength="2"
+            class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20" />
+        </div>
+
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label for="email" class="mb-1 block text-sm font-medium text-slate-700">Correo *</label>
+            <input id="email" name="email" type="email" required
+              class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20" />
+          </div>
+          <div>
+            <label for="phone" class="mb-1 block text-sm font-medium text-slate-700">WhatsApp</label>
+            <input id="phone" name="phone" type="tel"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20" />
+          </div>
+        </div>
+
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label for="institutionName" class="mb-1 block text-sm font-medium text-slate-700">Institución</label>
+            <input id="institutionName" name="institutionName"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20" />
+          </div>
+          <div>
+            <label for="city" class="mb-1 block text-sm font-medium text-slate-700">Ciudad</label>
+            <input id="city" name="city"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20" />
+          </div>
+        </div>
+
+        <div>
+          <label for="role" class="mb-1 block text-sm font-medium text-slate-700">¿Cuál es tu rol?</label>
+          <select id="role" name="role"
+            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20">
+            <option value="">Selecciona…</option>
+            <option value="rector">Rector / Director</option>
+            <option value="dueño">Dueño / Sostenedor</option>
+            <option value="docente">Docente</option>
+            <option value="administrativo">Administrativo</option>
+            <option value="otro">Otro</option>
+          </select>
+        </div>
+
+        <button type="submit" id="demo-submit"
+          class="w-full rounded-lg bg-brand-blue px-5 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-brand-blue-dark disabled:cursor-not-allowed disabled:opacity-60">
+          Solicitar demo
+        </button>
+
+        <p id="demo-error" class="hidden text-sm text-red-600"></p>
+        <p class="text-center text-xs text-slate-400">Al enviar aceptas que te contactemos sobre Auleka.</p>
+      </form>
+    </div>
+  </div>
+</section>
+
+<script define:vars={{ apiUrl }}>
+  const form = document.getElementById('demo-form')
+  const btn = document.getElementById('demo-submit')
+  const errorEl = document.getElementById('demo-error')
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault()
+    errorEl.classList.add('hidden')
+    btn.disabled = true
+    btn.textContent = 'Enviando…'
+
+    const data = Object.fromEntries(new FormData(form).entries())
+    data.source = 'landing'
+
+    try {
+      const res = await fetch(`${apiUrl}/api/v1/leads`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) throw new Error('bad response')
+      window.location.href = '/gracias'
+    } catch (err) {
+      errorEl.textContent = 'No pudimos enviar tu solicitud. Inténtalo de nuevo o escríbenos a hola@auleka.com.'
+      errorEl.classList.remove('hidden')
+      btn.disabled = false
+      btn.textContent = 'Solicitar demo'
+    }
+  })
+</script>

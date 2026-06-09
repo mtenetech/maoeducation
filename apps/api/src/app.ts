@@ -49,9 +49,14 @@ export function buildApp() {
   // > 1 KB para no malgastar CPU en payloads pequeños.
   app.register(compress, { global: true, threshold: 1024 })
 
-  // CORS — en producción configurar orígenes específicos
+  // CORS — en producción, allowlist de orígenes (landing + app).
+  // CORS_ORIGINS="https://auleka.com,https://app.auleka.com" (cae en FRONTEND_URL si no está).
+  const allowedOrigins = (env.CORS_ORIGINS ?? env.FRONTEND_URL ?? '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean)
   app.register(cors, {
-    origin: env.NODE_ENV === 'development' ? true : process.env.FRONTEND_URL,
+    origin: env.NODE_ENV === 'development' ? true : allowedOrigins,
     credentials: true,
   })
 

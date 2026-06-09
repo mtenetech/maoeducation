@@ -28,7 +28,9 @@
     --sidebar-foreground: 210 40% 98%;
     --sidebar-border: 222.2 40% 18%;
     --sidebar-accent: 222.2 40% 18%;
-    --success: 142.1 76.2% 36.3%;
+    /* Verde de marca Auleka (#16A34A) — usado como éxito y acento de marca */
+    --success: 142 71% 45%;
+    --brand-green: 142 71% 45%;
     --warning: 37.7 92.1% 50.2%;
   }
 

@@ -1,0 +1,52 @@
+---
+interface Props {
+  title?: string
+  description?: string
+}
+
+const {
+  title = 'Auleka — Todo tu colegio en un solo lugar',
+  description = 'Auleka es la plataforma integral de gestión escolar para Ecuador: notas conformes a MINEDUC, asistencia, matrícula, DECE, carpeta del estudiante y reportes. Menos papeleo, más enseñar.',
+} = Astro.props
+
+const canonical = new URL(Astro.url.pathname, Astro.site).toString()
+const ogImage = new URL('/og-image.svg', Astro.site).toString()
+---
+
+<!doctype html>
+<html lang="es" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+
+    <!-- Open Graph / redes -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:locale" content="es_EC" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- Fuentes -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-white font-sans text-slate-800 antialiased">
+    <slot />
+  </body>
+</html>
+
+<style is:global>
+  html {
+    -webkit-font-smoothing: antialiased;
+  }
+</style>

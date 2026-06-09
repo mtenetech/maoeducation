@@ -44,8 +44,8 @@ export function LoginPage() {
             <BookMarked className="h-6 w-6" />
           </div>
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-white">MaoEducación</h1>
-            <p className="text-sm text-slate-400">Sistema de Gestión Académica</p>
+            <h1 className="text-2xl font-bold text-white font-display">Auleka</h1>
+            <p className="text-sm text-slate-400">Todo tu colegio en un solo lugar</p>
           </div>
         </div>
 
@@ -127,7 +127,7 @@ export function LoginPage() {
         </Card>
 
         <p className="text-center text-xs text-slate-500">
-          © {new Date().getFullYear()} MaoEducación
+          © {new Date().getFullYear()} Auleka
         </p>
       </div>
     </div>
