@@ -1,0 +1,23 @@
+---
+const year = new Date().getFullYear()
+---
+
+<footer class="border-t border-slate-200 bg-white py-12">
+  <div class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 px-5 md:flex-row">
+    <div class="flex items-center gap-2">
+      <img src="/isotipo.svg" alt="Auleka" width="30" height="30" />
+      <div>
+        <span class="font-display text-lg font-bold text-slate-900">auleka</span>
+        <p class="text-xs text-slate-500">Todo tu colegio en un solo lugar.</p>
+      </div>
+    </div>
+
+    <nav class="flex flex-wrap items-center justify-center gap-6 text-sm text-slate-600">
+      <a href="#features" class="hover:text-brand-blue">Funciones</a>
+      <a href="#por-que" class="hover:text-brand-blue">Por qué Auleka</a>
+      <a href="#precio" class="hover:text-brand-blue">Planes</a>
+      <a href="mailto:hola@auleka.com" class="hover:text-brand-blue">hola@auleka.com</a>
+    </nav>
+  </div>
+  <p class="mt-8 text-center text-xs text-slate-400">© {year} Auleka · Hecho en Ecuador 🇪🇨</p>
+</footer>

@@ -996,3 +996,23 @@ model PlatformAdmin {
 
   @@map("platform_admins")
 }
+
+// Lead de marketing: prospecto que solicita una demo desde la landing (auleka.com).
+// NO pertenece a ninguna institución (es pre-tenant).
+model Lead {
+  id              String   @id @default(uuid())
+  name            String   @db.VarChar(150)
+  email           String   @db.VarChar(255)
+  phone           String?  @db.VarChar(50)
+  institutionName String?  @map("institution_name") @db.VarChar(200)
+  city            String?  @db.VarChar(100)
+  role            String?  @db.VarChar(80) // rector | dueño | docente | otro
+  studentsCount   Int?     @map("students_count")
+  message         String?  @db.Text
+  source          String   @default("landing") @db.VarChar(50)
+  status          String   @default("new") @db.VarChar(30) // new | contacted | demo | won | lost
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([status, createdAt])
+  @@map("leads")
+}

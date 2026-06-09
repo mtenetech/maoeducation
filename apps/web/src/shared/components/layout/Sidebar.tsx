@@ -165,7 +165,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const location   = useLocation()
   const [expanded, setExpanded] = useState<string | null>(null)
   const institution = useAuthStore((s) => s.user?.institution ?? null)
-  const brandName = institution?.name ?? 'MaoEducación'
+  const brandName = institution?.name ?? 'Auleka'
   const logoUrl = institution?.branding?.logoUrl ?? null
 
   const visible = NAV_ITEMS.filter(

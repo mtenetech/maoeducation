@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" role="img" aria-label="Auleka — Todo tu colegio en un solo lugar">
+  <defs>
+    <linearGradient id="ogBg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F8FAFC"/>
+      <stop offset="1" stop-color="#EFF6FF"/>
+    </linearGradient>
+    <linearGradient id="ogMark" x1="80" y1="70" x2="200" y2="190" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#16A34A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#ogBg)"/>
+  <!-- barra de marca superior -->
+  <rect x="0" y="0" width="1200" height="12" fill="url(#ogMark)"/>
+
+  <!-- isotipo -->
+  <rect x="90" y="90" width="120" height="120" rx="28" fill="url(#ogMark)"/>
+  <circle cx="178" cy="112" r="9" fill="#ffffff" opacity="0.95"/>
+  <text x="148" y="151" text-anchor="middle" dominant-baseline="central"
+        font-family="Poppins, 'Segoe UI', system-ui, sans-serif" font-weight="700" font-size="82" fill="#ffffff">a</text>
+  <text x="238" y="151" dominant-baseline="central"
+        font-family="Poppins, 'Segoe UI', system-ui, sans-serif" font-weight="700" font-size="74" letter-spacing="-1" fill="#1E293B">auleka</text>
+
+  <!-- titular -->
+  <text x="90" y="330" font-family="Poppins, 'Segoe UI', system-ui, sans-serif" font-weight="700" font-size="76" fill="#1E293B">Todo tu colegio</text>
+  <text x="90" y="420" font-family="Poppins, 'Segoe UI', system-ui, sans-serif" font-weight="700" font-size="76" fill="#2563EB">en un solo lugar.</text>
+
+  <!-- subtítulo -->
+  <text x="92" y="490" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-weight="500" font-size="34" fill="#475569">Gestión escolar integral · conforme a MINEDUC</text>
+
+  <!-- chips de features -->
+  <g font-family="Inter, system-ui, sans-serif" font-weight="600" font-size="26" fill="#16A34A">
+    <rect x="90" y="540" width="200" height="56" rx="28" fill="#ffffff" stroke="#BBF7D0"/>
+    <text x="190" y="569" text-anchor="middle" dominant-baseline="central">Notas</text>
+    <rect x="306" y="540" width="230" height="56" rx="28" fill="#ffffff" stroke="#BBF7D0"/>
+    <text x="421" y="569" text-anchor="middle" dominant-baseline="central">Matrícula</text>
+    <rect x="552" y="540" width="200" height="56" rx="28" fill="#ffffff" stroke="#BBF7D0"/>
+    <text x="652" y="569" text-anchor="middle" dominant-baseline="central">DECE</text>
+    <rect x="768" y="540" width="320" height="56" rx="28" fill="#ffffff" stroke="#BBF7D0"/>
+    <text x="928" y="569" text-anchor="middle" dominant-baseline="central">Carpeta del estudiante</text>
+  </g>
+</svg>

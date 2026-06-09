@@ -1,0 +1,8 @@
+[phases.install]
+cmds = ["pnpm install --no-frozen-lockfile"]
+
+[phases.build]
+cmds = ["pnpm build"]
+
+[start]
+cmd = "npx astro preview --host 0.0.0.0 --port $PORT"

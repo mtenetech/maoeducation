@@ -10,6 +10,9 @@ const schema = z.object({
   JWT_REFRESH_EXPIRES:  z.string().default('7d'),
   LOG_LEVEL:            z.string().default('info'),
   FRONTEND_URL:         z.string().url().optional(),
+  // Orígenes permitidos por CORS en producción, separados por coma.
+  // Ej: "https://auleka.com,https://app.auleka.com"
+  CORS_ORIGINS:         z.string().optional(),
 })
 
 const parsed = schema.safeParse(process.env)

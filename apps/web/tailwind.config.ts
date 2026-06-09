@@ -39,6 +39,7 @@ export default {
         },
         success: 'hsl(var(--success))',
         warning: 'hsl(var(--warning))',
+        brand: 'hsl(var(--brand-green))',
       },
       borderRadius: {
         lg: 'var(--radius)',
@@ -47,6 +48,7 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
+        display: ['Poppins', 'Inter', 'system-ui', 'sans-serif'],
       },
     },
   },

@@ -1,0 +1,32 @@
+---
+import Layout from '../layouts/Layout.astro'
+import Footer from '../components/Footer.astro'
+
+const appUrl = import.meta.env.PUBLIC_APP_URL || 'https://app.auleka.com'
+---
+
+<Layout title="¡Gracias! · Auleka" description="Recibimos tu solicitud de demo. Te contactaremos muy pronto.">
+  <main class="flex min-h-[80vh] items-center justify-center px-5 py-20">
+    <div class="max-w-lg text-center">
+      <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-gradient text-white">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+      </div>
+      <h1 class="mt-6 font-display text-3xl font-bold text-slate-900">¡Gracias! Recibimos tu solicitud.</h1>
+      <p class="mt-4 text-lg text-slate-600">
+        Un miembro del equipo de Auleka te contactará muy pronto para agendar tu demo.
+        Si quieres, escríbenos directo por WhatsApp y lo coordinamos al instante.
+      </p>
+      <div class="mt-8 flex flex-wrap justify-center gap-3">
+        <a href="/" class="rounded-lg border border-slate-200 px-6 py-3 text-base font-semibold text-slate-700 transition hover:bg-slate-50">
+          Volver al inicio
+        </a>
+        <a href="https://wa.me/593000000000" class="rounded-lg bg-brand-green px-6 py-3 text-base font-semibold text-white transition hover:bg-brand-green-dark">
+          Escríbenos por WhatsApp
+        </a>
+      </div>
+    </div>
+  </main>
+  <Footer />
+</Layout>
