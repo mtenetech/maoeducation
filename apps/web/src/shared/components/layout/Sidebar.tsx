@@ -225,6 +225,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                       <NavLink
                         key={child.path}
                         to={child.path}
+                        onClick={onMobileClose}
                         className={({ isActive }) =>
                           cn(
                             'block rounded-md px-3 py-1.5 text-xs transition-colors',
@@ -247,6 +248,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
             <NavLink
               key={item.path}
               to={item.path}
+              onClick={onMobileClose}
               title={collapsed ? item.label : undefined}
               className={({ isActive }) =>
                 cn(
