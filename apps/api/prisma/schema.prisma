@@ -556,6 +556,7 @@ model Activity {
   academicPeriodId   String    @map("academic_period_id")
   activityTypeId     String    @map("activity_type_id")
   insumoId           String?   @map("insumo_id")
+  taskId             String?   @unique @map("task_id")
   name               String    @db.VarChar(200)
   description        String?
   maxScore           Decimal   @default(10) @map("max_score") @db.Decimal(5, 2)
@@ -571,6 +572,7 @@ model Activity {
   academicPeriod   AcademicPeriod   @relation(fields: [academicPeriodId], references: [id])
   activityType     ActivityType     @relation(fields: [activityTypeId], references: [id])
   insumo           Insumo?          @relation(fields: [insumoId], references: [id])
+  task             Task?            @relation(fields: [taskId], references: [id])
   creator          User             @relation("ActivityCreator", fields: [createdBy], references: [id])
   grades           Grade[]
 
@@ -586,6 +588,7 @@ model Grade {
   studentId     String    @map("student_id")
   score         Decimal?  @db.Decimal(5, 2)
   isExcused     Boolean   @default(false) @map("is_excused")
+  status        String    @default("entregado") @db.VarChar(20)
   notes         String?
   gradedBy      String?   @map("graded_by")
   gradedAt      DateTime? @map("graded_at")
@@ -957,6 +960,7 @@ model Task {
   courseAssignment CourseAssignment @relation(fields: [courseAssignmentId], references: [id])
   creator          User             @relation("TaskCreator", fields: [createdBy], references: [id])
   attachments      TaskAttachment[]
+  activity         Activity?
 
   @@index([institutionId, courseAssignmentId])
   @@index([institutionId, dueDate])

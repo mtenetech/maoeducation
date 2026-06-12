@@ -185,6 +185,16 @@ export class PrismaActivityRepository {
       if (!insumo) throw new NotFoundError('Insumo no encontrado')
     }
 
+    if (dto.taskId) {
+      const task = await prisma.task.findFirst({ where: { id: dto.taskId, institutionId } })
+      if (!task) throw new NotFoundError('Tarea no encontrada')
+      if (task.courseAssignmentId !== dto.courseAssignmentId) {
+        throw new ConflictError('La tarea pertenece a otra asignación de curso')
+      }
+      const linked = await prisma.activity.findUnique({ where: { taskId: dto.taskId } })
+      if (linked) throw new ConflictError('Esta tarea ya tiene una actividad calificable')
+    }
+
     return prisma.activity.create({
       data: {
         institutionId,
@@ -192,6 +202,7 @@ export class PrismaActivityRepository {
         academicPeriodId: dto.academicPeriodId,
         activityTypeId: dto.activityTypeId,
         insumoId: dto.insumoId,
+        taskId: dto.taskId,
         name: dto.name,
         description: dto.description,
         maxScore: dto.maxScore,
@@ -357,8 +368,21 @@ export class PrismaActivityRepository {
     }
 
     const results = await Promise.all(
-      dto.grades.map((g) =>
-        prisma.grade.upsert({
+      dto.grades.map((g) => {
+        const status = g.status ?? 'entregado'
+        // Regla de negocio del estado de entrega:
+        //  - no_realizado → cuenta como 0 si no se ingresó otra nota
+        //  - excusado     → se ignora en el promedio (score null + isExcused)
+        let score = g.score
+        let isExcused = false
+        if (status === 'no_realizado') {
+          score = g.score ?? 0
+        } else if (status === 'excusado') {
+          score = null
+          isExcused = true
+        }
+
+        return prisma.grade.upsert({
           where: {
             activityId_studentId: {
               activityId: g.activityId,
@@ -369,17 +393,21 @@ export class PrismaActivityRepository {
             institutionId,
             activityId: g.activityId,
             studentId: g.studentId,
-            score: g.score,
+            score,
+            status,
+            isExcused,
             notes: g.notes,
             gradedBy: gradedById,
           },
           update: {
-            score: g.score,
+            score,
+            status,
+            isExcused,
             notes: g.notes,
             gradedBy: gradedById,
           },
-        }),
-      ),
+        })
+      }),
     )
     return results
   }

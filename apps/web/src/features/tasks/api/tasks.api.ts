@@ -29,6 +29,7 @@ export interface Task {
   createdAt: string
   courseAssignment: TaskAssignment
   creator: { id: string; profile: { firstName: string; lastName: string } }
+  activity: { id: string; isPublished: boolean } | null
   attachments: TaskAttachment[]
 }
 

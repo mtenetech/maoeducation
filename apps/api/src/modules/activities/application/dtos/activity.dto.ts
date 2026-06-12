@@ -31,6 +31,7 @@ export interface CreateActivityDto {
   academicPeriodId: string
   activityTypeId: string
   insumoId?: string
+  taskId?: string
   name: string
   description?: string
   maxScore: number
@@ -52,6 +53,7 @@ export interface BulkGradeDto {
     studentId: string
     activityId: string
     score: number | null
+    status?: string
     notes?: string
   }>
 }

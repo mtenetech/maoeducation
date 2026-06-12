@@ -29,28 +29,33 @@ export interface Activity {
   activityTypeId: string
   activityTypeName?: string
   insumoId?: string
+  taskId?: string
   courseAssignmentId: string
   academicPeriodId: string
 }
+
+export type GradeStatus = 'entregado' | 'no_realizado' | 'atrasado' | 'excusado'
 
 export interface StudentGrade {
   studentId: string
   studentName: string
   activityId: string
   score: number | null
+  status: GradeStatus
   isExcused: boolean
 }
 
 interface GradeApiRow {
   student: { id: string; profile: { firstName: string; lastName: string } }
   enrollmentStatus: string
-  grade: { id: string; score: number | null; notes?: string | null } | null
+  grade: { id: string; score: number | null; status?: string | null; notes?: string | null } | null
 }
 
 export interface GradeInput {
   studentId: string
   activityId: string
   score: number | null
+  status?: GradeStatus
   notes?: string
 }
 
@@ -110,6 +115,7 @@ export const activitiesApi = {
         studentName: `${r.student.profile.firstName} ${r.student.profile.lastName}`,
         activityId,
         score: r.grade?.score ?? null,
+        status: (r.grade?.status as GradeStatus) ?? 'entregado',
         isExcused: false,
       })),
     ),
