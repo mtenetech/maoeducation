@@ -1,9 +1,11 @@
 import * as React from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { Link } from 'react-router-dom'
 import {
   Plus, BookOpen, Clock, CheckCircle2, Pencil, Trash2, Send,
   CalendarDays, Paperclip, Download, X, FileText, Image, File,
+  ClipboardCheck, GraduationCap, AlertCircle,
 } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
@@ -23,7 +25,9 @@ import { getErrorMessage, cn } from '@/shared/lib/utils'
 import {
   tasksApi, getAttachmentUrl, type Task, type CreateTaskPayload, type TaskAttachment,
 } from '../api/tasks.api'
+import { activitiesApi } from '@/features/activities/api/activities.api'
 import { useTeacherDefaults } from '@/features/academic/hooks/useTeacherDefaults'
+import type { AcademicPeriod } from '@/features/academic/api/academic.api'
 import { useAuthStore } from '@/store/auth.store'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -134,10 +138,11 @@ interface TaskDetailProps {
   onEdit: (t: Task) => void
   onPublish: (t: Task) => void
   onDelete: (t: Task) => void
+  onConvert: (t: Task) => void
   onAttachmentChange: () => void
 }
 
-function TaskDetailSheet({ task, isTeacher, onClose, onEdit, onPublish, onDelete, onAttachmentChange }: TaskDetailProps) {
+function TaskDetailSheet({ task, isTeacher, onClose, onEdit, onPublish, onDelete, onConvert, onAttachmentChange }: TaskDetailProps) {
   const [attachments, setAttachments] = React.useState<TaskAttachment[]>([])
   const [uploading, setUploading] = React.useState(false)
   const fileRef = React.useRef<HTMLInputElement>(null)
@@ -184,6 +189,11 @@ function TaskDetailSheet({ task, isTeacher, onClose, onEdit, onPublish, onDelete
           {/* Status */}
           <div className="flex items-center gap-3 flex-wrap">
             {!task.isPublished && <Badge variant="secondary">Borrador</Badge>}
+            {task.activity && (
+              <Badge className="bg-emerald-600 hover:bg-emerald-700 gap-1">
+                <ClipboardCheck className="h-3 w-3" /> Calificable
+              </Badge>
+            )}
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <Send className="h-3.5 w-3.5" /> Envío: {formatDate(task.publishAt)}
             </span>
@@ -240,12 +250,28 @@ function TaskDetailSheet({ task, isTeacher, onClose, onEdit, onPublish, onDelete
             />
           </div>
 
+          {/* "No realizado" report — only once the task is gradeable */}
+          {isTeacher && task.activity && (
+            <div className="pt-2 border-t">
+              <NotDoneReport activityId={task.activity.id} />
+            </div>
+          )}
+
           {/* Teacher actions */}
           {isTeacher && (
             <div className="flex flex-wrap gap-2 pt-2 border-t">
               {!task.isPublished && (
                 <Button size="sm" className="gap-1.5" onClick={() => { onPublish(task); onClose() }}>
                   <CheckCircle2 className="h-3.5 w-3.5" /> Publicar
+                </Button>
+              )}
+              {task.activity ? (
+                <Button asChild size="sm" variant="outline" className="gap-1.5">
+                  <Link to="/grades"><GraduationCap className="h-3.5 w-3.5" /> Calificar</Link>
+                </Button>
+              ) : (
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => { onConvert(task); onClose() }}>
+                  <ClipboardCheck className="h-3.5 w-3.5" /> Crear como actividad
                 </Button>
               )}
               <Button size="sm" variant="outline" className="gap-1.5" onClick={() => { onEdit(task); onClose() }}>
@@ -357,6 +383,178 @@ function TaskFormDialog({ open, onClose, onSave, isPending, assignments, default
   )
 }
 
+// ─── Convert task → gradeable activity ────────────────────────────────────────
+
+interface ConvertDialogProps {
+  task: Task | null
+  periods: AcademicPeriod[]
+  defaultPeriodId: string
+  onClose: () => void
+  onConverted: () => void
+}
+
+function ConvertToActivityDialog({ task, periods, defaultPeriodId, onClose, onConverted }: ConvertDialogProps) {
+  const [periodId, setPeriodId] = React.useState('')
+  const [activityTypeId, setActivityTypeId] = React.useState('')
+  const [insumoId, setInsumoId] = React.useState('')
+  const [maxScore, setMaxScore] = React.useState('10')
+
+  const courseAssignmentId = task?.courseAssignmentId ?? ''
+
+  React.useEffect(() => {
+    if (task) {
+      setPeriodId(defaultPeriodId || '')
+      setActivityTypeId('')
+      setInsumoId('')
+      setMaxScore('10')
+    }
+  }, [task, defaultPeriodId])
+
+  const { data: types = [] } = useQuery({
+    queryKey: ['activity-types'],
+    queryFn: () => activitiesApi.getTypes(),
+    enabled: !!task,
+  })
+  const activeTypes = types.filter((t) => t.isActive)
+
+  const { data: insumos = [] } = useQuery({
+    queryKey: ['insumos', courseAssignmentId, periodId],
+    queryFn: () => activitiesApi.getInsumos(courseAssignmentId, periodId),
+    enabled: !!task && !!courseAssignmentId && !!periodId,
+  })
+
+  const convert = useMutation({
+    mutationFn: () =>
+      activitiesApi.createActivity({
+        courseAssignmentId,
+        academicPeriodId: periodId,
+        activityTypeId,
+        insumoId: insumoId || undefined,
+        taskId: task!.id,
+        name: task!.title,
+        description: task!.description ?? undefined,
+        maxScore: Number(maxScore),
+        activityDate: task!.dueDate.slice(0, 10),
+      } as Parameters<typeof activitiesApi.createActivity>[0]),
+    onSuccess: () => {
+      toast.success('Actividad creada — ya puedes calificarla en Notas')
+      onConverted()
+    },
+    onError: (e) => toast.error(getErrorMessage(e)),
+  })
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!periodId || !activityTypeId) { toast.error('Selecciona el período y el tipo de actividad'); return }
+    const max = Number(maxScore)
+    if (isNaN(max) || max <= 0) { toast.error('El puntaje máximo debe ser mayor a 0'); return }
+    convert.mutate()
+  }
+
+  return (
+    <Dialog open={!!task} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Crear como actividad</DialogTitle>
+        </DialogHeader>
+        {task && (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Se creará una actividad calificable a partir de <span className="font-medium text-foreground">{task.title}</span>.
+            </p>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Período *</label>
+              <Select value={periodId || '__none__'} onValueChange={(v) => { setPeriodId(v === '__none__' ? '' : v); setInsumoId('') }}>
+                <SelectTrigger><SelectValue placeholder="Seleccionar período" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__" disabled>Seleccionar período</SelectItem>
+                  {periods.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Tipo de actividad *</label>
+              <Select value={activityTypeId || '__none__'} onValueChange={(v) => setActivityTypeId(v === '__none__' ? '' : v)}>
+                <SelectTrigger><SelectValue placeholder="Seleccionar tipo" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__" disabled>Seleccionar tipo</SelectItem>
+                  {activeTypes.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Insumo</label>
+              <Select value={insumoId || '__none__'} onValueChange={(v) => setInsumoId(v === '__none__' ? '' : v)} disabled={!periodId}>
+                <SelectTrigger><SelectValue placeholder="Sin insumo" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Sin insumo</SelectItem>
+                  {insumos.map((i) => (
+                    <SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {periodId && insumos.length === 0 && (
+                <p className="text-xs text-muted-foreground">No hay insumos en este período para esta materia.</p>
+              )}
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Puntaje máximo *</label>
+              <Input
+                type="number" min={1} step={0.01} inputMode="decimal"
+                value={maxScore} onChange={(e) => setMaxScore(e.target.value)} className="w-28"
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+              <Button type="submit" disabled={convert.isPending}>
+                {convert.isPending ? 'Creando…' : 'Crear actividad'}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ─── "No realizado" report (inside task detail, once it has an activity) ───────
+
+function NotDoneReport({ activityId }: { activityId: string }) {
+  const { data: grades = [], isLoading } = useQuery({
+    queryKey: ['grades', 'activity', activityId],
+    queryFn: () => activitiesApi.getGradesByActivity(activityId),
+    enabled: !!activityId,
+  })
+
+  if (isLoading) return null
+
+  const notDone = grades.filter((g) => g.status === 'no_realizado')
+
+  return (
+    <div className="space-y-2">
+      <h4 className="text-sm font-semibold flex items-center gap-1.5">
+        <AlertCircle className="h-4 w-4 text-amber-600" /> No realizaron ({notDone.length} de {grades.length})
+      </h4>
+      {notDone.length === 0 ? (
+        <p className="text-sm text-muted-foreground italic">Nadie marcado como no realizado.</p>
+      ) : (
+        <ul className="space-y-1">
+          {notDone.map((g) => (
+            <li key={g.studentId} className="text-sm flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
+              {g.studentName}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 // ─── Task Card (compact — click to open detail) ───────────────────────────────
 
 function TaskCard({ task, onClick }: { task: Task; onClick: () => void }) {
@@ -373,6 +571,11 @@ function TaskCard({ task, onClick }: { task: Task; onClick: () => void }) {
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <span className="font-medium text-sm truncate">{task.title}</span>
           {!task.isPublished && <Badge variant="secondary" className="text-xs shrink-0">Borrador</Badge>}
+          {task.activity && (
+            <Badge className="text-xs shrink-0 bg-emerald-600 hover:bg-emerald-700 gap-1">
+              <ClipboardCheck className="h-3 w-3" /> Calificable
+            </Badge>
+          )}
           {task.attachments?.length > 0 && (
             <span className="flex items-center gap-0.5 text-xs text-muted-foreground shrink-0">
               <Paperclip className="h-3 w-3" />{task.attachments.length}
@@ -400,11 +603,12 @@ export function TasksPage() {
   const isAdmin = (user?.roles.includes('admin') || user?.roles.includes('inspector')) ?? false
   const qc = useQueryClient()
 
-  const { assignments, defaultAssignmentId, activeYear } = useTeacherDefaults()
+  const { assignments, defaultAssignmentId, activeYear, periods, defaultPeriodId } = useTeacherDefaults()
   const [selectedAssignmentId, setSelectedAssignmentId] = React.useState('')
   const [showForm, setShowForm] = React.useState(false)
   const [editing, setEditing] = React.useState<Task | null>(null)
   const [detailTask, setDetailTask] = React.useState<Task | null>(null)
+  const [converting, setConverting] = React.useState<Task | null>(null)
   const [filter, setFilter] = React.useState<'all' | 'pending' | 'overdue'>('all')
 
   React.useEffect(() => {
@@ -545,7 +749,17 @@ export function TasksPage() {
         onEdit={(t) => { setEditing(t); setShowForm(true) }}
         onPublish={(t) => publishMutation.mutate(t.id)}
         onDelete={(t) => { if (confirm('¿Eliminar esta tarea?')) deleteMutation.mutate(t.id) }}
+        onConvert={(t) => setConverting(t)}
         onAttachmentChange={() => qc.invalidateQueries({ queryKey: ['tasks'] })}
+      />
+
+      {/* Convert task → gradeable activity */}
+      <ConvertToActivityDialog
+        task={converting}
+        periods={periods}
+        defaultPeriodId={defaultPeriodId}
+        onClose={() => setConverting(null)}
+        onConverted={() => { setConverting(null); qc.invalidateQueries({ queryKey: ['tasks'] }) }}
       />
 
       {/* Create / edit form */}

@@ -24,7 +24,7 @@ import {
 import { PageLoader } from '@/shared/components/feedback/loading-spinner'
 import { EmptyState } from '@/shared/components/feedback/empty-state'
 import { getErrorMessage, cn } from '@/shared/lib/utils'
-import { activitiesApi, type StudentGrade, type GradeInput } from '@/features/activities/api/activities.api'
+import { activitiesApi, type StudentGrade, type GradeInput, type GradeStatus } from '@/features/activities/api/activities.api'
 import { useTeacherDefaults } from '@/features/academic/hooks/useTeacherDefaults'
 import { getGradesReport, getMyGrades, type GradesReportData, type MyGradesSubject } from '@/features/reports/api/reports.api'
 import { academicApi, type AcademicPeriod } from '@/features/academic/api/academic.api'
@@ -68,16 +68,28 @@ function useBulkSaveGrades() {
 type Tab = 'entry' | 'summary'
 
 // ---- Grade Row Component ----
+const STATUS_OPTIONS: Array<{ value: GradeStatus; label: string }> = [
+  { value: 'entregado', label: 'Entregado' },
+  { value: 'no_realizado', label: 'No realizado' },
+  { value: 'atrasado', label: 'Atrasado' },
+  { value: 'excusado', label: 'Excusado' },
+]
+
 interface GradeRowProps {
   grade: StudentGrade
   maxScore: number
   localScore: number | null | undefined
+  localStatus: GradeStatus | undefined
   isModified: boolean
   onChange: (studentId: string, value: number | null) => void
+  onStatusChange: (studentId: string, status: GradeStatus) => void
 }
 
-function GradeRow({ grade, maxScore, localScore, isModified, onChange }: GradeRowProps) {
+function GradeRow({ grade, maxScore, localScore, localStatus, isModified, onChange, onStatusChange }: GradeRowProps) {
   const displayScore = localScore !== undefined ? localScore : grade.score
+  const status = localStatus ?? grade.status
+  // El puntaje solo se edita cuando hubo entrega (a tiempo o tarde).
+  const scoreEditable = status === 'entregado' || status === 'atrasado'
 
   return (
     <TableRow className={cn(isModified && 'bg-amber-50/50')}>
@@ -91,7 +103,8 @@ function GradeRow({ grade, maxScore, localScore, isModified, onChange }: GradeRo
             step={0.01}
             inputMode="decimal"
             pattern="[0-9]*[.,]?[0-9]*"
-            value={displayScore ?? ''}
+            disabled={!scoreEditable}
+            value={status === 'excusado' ? '' : displayScore ?? ''}
             onChange={(e) => {
               const val = e.target.value === '' ? null : parseFloat(e.target.value)
               onChange(grade.studentId, val)
@@ -99,11 +112,24 @@ function GradeRow({ grade, maxScore, localScore, isModified, onChange }: GradeRo
             className={cn(
               'w-20 text-center text-base md:w-24 md:text-sm',
               isModified && 'border-amber-400 focus-visible:ring-amber-400',
+              !scoreEditable && 'bg-muted text-muted-foreground',
             )}
-            placeholder="—"
+            placeholder={status === 'excusado' ? 'Exc.' : '—'}
           />
           <span className="text-xs text-muted-foreground">/ {maxScore}</span>
         </div>
+      </TableCell>
+      <TableCell>
+        <Select value={status} onValueChange={(v) => onStatusChange(grade.studentId, v as GradeStatus)}>
+          <SelectTrigger className="h-8 w-36 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {STATUS_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </TableCell>
       <TableCell>
         {isModified && (
@@ -1161,11 +1187,13 @@ export function GradeEntryPage() {
 
   // Local grade state
   const [localGrades, setLocalGrades] = React.useState<Record<string, number | null>>({})
+  const [localStatus, setLocalStatus] = React.useState<Record<string, GradeStatus>>({})
   const [modified, setModified] = React.useState<Set<string>>(new Set())
 
   // Reset local state when activity changes
   React.useEffect(() => {
     setLocalGrades({})
+    setLocalStatus({})
     setModified(new Set())
   }, [selectedActivityId])
 
@@ -1184,20 +1212,34 @@ export function GradeEntryPage() {
     setModified((prev) => new Set(prev).add(studentId))
   }
 
+  function handleStatusChange(studentId: string, status: GradeStatus) {
+    setLocalStatus((prev) => ({ ...prev, [studentId]: status }))
+    // Ajustar la nota según el estado: no realizado → 0, excusado → sin nota.
+    if (status === 'no_realizado') {
+      setLocalGrades((prev) => ({ ...prev, [studentId]: 0 }))
+    } else if (status === 'excusado') {
+      setLocalGrades((prev) => ({ ...prev, [studentId]: null }))
+    }
+    setModified((prev) => new Set(prev).add(studentId))
+  }
+
   function handleSaveAll() {
     if (modified.size === 0) {
       toast.info('No hay cambios pendientes')
       return
     }
+    const current = new Map(grades.map((g) => [g.studentId, g]))
     const gradesToSave: GradeInput[] = Array.from(modified).map((studentId) => ({
       studentId,
       activityId: selectedActivityId,
       score: localGrades[studentId] ?? null,
+      status: localStatus[studentId] ?? current.get(studentId)?.status ?? 'entregado',
     }))
     bulkSave.mutate(gradesToSave, {
       onSuccess: () => {
         setModified(new Set())
         setLocalGrades({})
+        setLocalStatus({})
       },
     })
   }
@@ -1386,6 +1428,7 @@ export function GradeEntryPage() {
                 <TableRow className="hover:bg-transparent">
                   <TableHead>Estudiante</TableHead>
                   <TableHead>Nota</TableHead>
+                  <TableHead>Entrega</TableHead>
                   <TableHead className="w-32">Estado</TableHead>
                 </TableRow>
               </TableHeader>
@@ -1396,8 +1439,10 @@ export function GradeEntryPage() {
                     grade={grade}
                     maxScore={selectedActivity?.maxScore ?? 10}
                     localScore={localGrades[grade.studentId]}
+                    localStatus={localStatus[grade.studentId]}
                     isModified={modified.has(grade.studentId)}
                     onChange={handleScoreChange}
+                    onStatusChange={handleStatusChange}
                   />
                 ))}
               </TableBody>
