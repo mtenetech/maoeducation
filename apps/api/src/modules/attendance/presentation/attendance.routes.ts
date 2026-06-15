@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify'
 import { PrismaAttendanceRepository } from '../infrastructure/repositories/prisma-attendance.repository'
 import { authMiddleware } from '../../../shared/infrastructure/middleware/auth.middleware'
-import { isPrivilegedStaff } from '../../../shared/infrastructure/services/teacher-scope.service'
+import { isPrivilegedStaff, assertStudentFichaAccess } from '../../../shared/infrastructure/services/teacher-scope.service'
 import { prisma } from '../../../shared/infrastructure/database/prisma'
 import { ForbiddenError, BadRequestError } from '../../../shared/domain/errors/app.errors'
 import type { BulkAttendanceDto, CreateJustificationDto } from '../application/dtos/attendance.dto'
@@ -83,6 +83,7 @@ export default async function attendanceRoutes(app: FastifyInstance) {
   app.get<{ Params: { studentId: string } }>(
     '/attendance/student/:studentId/absences',
     async (req, reply) => {
+      await assertStudentFichaAccess(req, req.params.studentId)
       const result = await repo.getStudentAbsences(req.user.institutionId, req.params.studentId)
       return reply.status(200).send(result)
     },

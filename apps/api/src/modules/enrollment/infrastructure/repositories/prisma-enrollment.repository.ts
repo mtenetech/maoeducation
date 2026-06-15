@@ -59,12 +59,16 @@ export class PrismaEnrollmentRepository {
   }
 
   /** Buscador de estudiantes (rol student) para el selector de matrícula. */
-  async searchStudents(institutionId: string, search?: string) {
+  async searchStudents(institutionId: string, search?: string, parallelIds?: string[]) {
     const term = search?.trim()
     const users = await prisma.user.findMany({
       where: {
         institutionId,
         userRoles: { some: { role: { name: 'student' } } },
+        // Scope para docentes: solo estudiantes matriculados en sus paralelos
+        ...(parallelIds && {
+          studentEnrollments: { some: { parallelId: { in: parallelIds } } },
+        }),
         ...(term && {
           OR: [
             { profile: { firstName: { contains: term, mode: 'insensitive' } } },

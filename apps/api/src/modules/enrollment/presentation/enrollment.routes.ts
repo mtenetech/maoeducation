@@ -50,12 +50,17 @@ export default async function enrollmentRoutes(app: FastifyInstance) {
     },
   )
 
-  // Buscador de estudiantes para el selector (accesible al docente).
+  // Buscador de estudiantes para el selector.
+  // Docentes ven solo los de sus paralelos; staff privilegiado ve todos.
   app.get<{ Querystring: { search?: string } }>(
     '/enrollments/students',
     { preHandler: [requirePermission('enrollment', 'read', 'own')] },
     async (req, reply) => {
-      const students = await repo.searchStudents(req.user.institutionId, req.query.search)
+      const { sub, institutionId, roles } = req.user
+      const parallelIds = isPrivilegedStaff(roles)
+        ? undefined
+        : await getTeacherParallelIds(institutionId, sub)
+      const students = await repo.searchStudents(institutionId, req.query.search, parallelIds)
       return reply.send(students)
     },
   )
