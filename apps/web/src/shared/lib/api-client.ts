@@ -3,10 +3,33 @@ import { useAuthStore } from '@/store/auth.store'
 
 const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
-let isRefreshing = false
+// Shared promise so concurrent 401s await the same refresh instead of racing
+let refreshPromise: Promise<string> | null = null
+
+function doRefresh(): Promise<string> {
+  if (!refreshPromise) {
+    refreshPromise = ky
+      .post(`${API_BASE}/api/v1/auth/refresh`, { credentials: 'include' })
+      .json<{ accessToken: string }>()
+      .then((r) => {
+        useAuthStore.getState().setAccessToken(r.accessToken)
+        return r.accessToken
+      })
+      .catch((err) => {
+        useAuthStore.getState().clearAuth()
+        window.location.href = '/login'
+        throw err
+      })
+      .finally(() => {
+        refreshPromise = null
+      })
+  }
+  return refreshPromise
+}
 
 export const apiClient = ky.create({
   prefixUrl: `${API_BASE}/api/v1`,
+  credentials: 'include',
   timeout: 30000,
   hooks: {
     beforeRequest: [
@@ -19,19 +42,13 @@ export const apiClient = ky.create({
     ],
     afterResponse: [
       async (request, options, response) => {
-        if (response.status === 401 && !isRefreshing) {
-          isRefreshing = true
+        if (response.status === 401) {
           try {
-            const refreshed = await ky.post(`${API_BASE}/api/v1/auth/refresh`).json<{ accessToken: string }>()
-            useAuthStore.getState().setAccessToken(refreshed.accessToken)
-            // Retry original request with new token
-            request.headers.set('Authorization', `Bearer ${refreshed.accessToken}`)
-            isRefreshing = false
+            const newToken = await doRefresh()
+            request.headers.set('Authorization', `Bearer ${newToken}`)
             return ky(request)
           } catch {
-            isRefreshing = false
-            useAuthStore.getState().clearAuth()
-            window.location.href = '/login'
+            // doRefresh already redirected to /login
           }
         }
       },
