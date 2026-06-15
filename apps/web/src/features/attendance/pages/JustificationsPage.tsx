@@ -1,27 +1,12 @@
 import * as React from 'react'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { ShieldCheck, Users } from 'lucide-react'
+import { Search, ShieldCheck, UserX } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/shared/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/shared/components/ui/table'
-import { Card } from '@/shared/components/ui/card'
+import { Badge } from '@/shared/components/ui/badge'
 import {
   Dialog,
   DialogContent,
@@ -31,347 +16,316 @@ import {
 } from '@/shared/components/ui/dialog'
 import { PageLoader } from '@/shared/components/feedback/loading-spinner'
 import { EmptyState } from '@/shared/components/feedback/empty-state'
+import { cn } from '@/shared/lib/utils'
 import {
-  getAttendance,
-  getAssignments,
-  type AttendanceEntry,
+  searchStudents,
+  getStudentAbsences,
+  type StudentSearchResult,
+  type StudentAbsenceRecord,
 } from '@/features/attendance/api/attendance.api'
 import { apiPost } from '@/shared/lib/api-client'
 
-// ---- Types ----
-
-interface CreateJustificationPayload {
+function createJustification(payload: {
   studentId: string
   attendanceRecordIds: string[]
   reason: string
   documentUrl?: string
-}
-
-// ---- API ----
-
-function createJustification(payload: CreateJustificationPayload) {
+}) {
   return apiPost('attendance/justifications', payload)
 }
 
-// ---- Main Page ----
+const STATUS_LABEL: Record<string, string> = { absent: 'Ausente', late: 'Tarde' }
+const STATUS_CLASS: Record<string, string> = {
+  absent: 'bg-red-100 text-red-700 border-red-200',
+  late: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+}
+
+function fmtDate(iso: string) {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Intl.DateTimeFormat('es-EC', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
+    .format(new Date(y, m - 1, d))
+}
 
 export function JustificationsPage() {
   const qc = useQueryClient()
 
-  const [selectedAssignment, setSelectedAssignment] = useState('')
-  const [selectedDate, setSelectedDate] = useState(
-    () => new Date().toISOString().split('T')[0],
-  )
-  const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(new Set())
+  const [search, setSearch] = useState('')
+  const [selectedStudent, setSelectedStudent] = useState<StudentSearchResult | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [dialogOpen, setDialogOpen] = useState(false)
   const [reason, setReason] = useState('')
   const [documentUrl, setDocumentUrl] = useState('')
 
-  // ---- Queries ----
+  // Debounce search
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  React.useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300)
+    return () => clearTimeout(t)
+  }, [search])
 
-  const { data: assignments = [] } = useQuery({
-    queryKey: ['assignments'],
-    queryFn: () => getAssignments(),
+  const { data: students = [], isFetching: searching } = useQuery({
+    queryKey: ['student-search', debouncedSearch],
+    queryFn: () => searchStudents(debouncedSearch),
+    enabled: debouncedSearch.length >= 2,
+    staleTime: 30_000,
   })
 
   const {
-    data: attendanceData = [],
-    isLoading: attendanceLoading,
+    data: absencesData,
+    isLoading: absencesLoading,
   } = useQuery({
-    queryKey: ['attendance', selectedAssignment, selectedDate],
-    queryFn: () => getAttendance(selectedAssignment, selectedDate),
-    enabled: !!selectedAssignment && !!selectedDate,
+    queryKey: ['student-absences', selectedStudent?.id],
+    queryFn: () => getStudentAbsences(selectedStudent!.id),
+    enabled: !!selectedStudent,
   })
 
-  // ---- Filter absent/late records ----
-
-  const absentEntries = React.useMemo(
-    () =>
-      attendanceData.filter(
-        (e: AttendanceEntry) =>
-          e.record?.status === 'absent' || e.record?.status === 'late',
-      ),
-    [attendanceData],
-  )
-
-  // ---- Mutation ----
+  const records = absencesData?.records ?? []
+  const allSelected = selectedIds.size > 0 && selectedIds.size === records.length
 
   const justifyMutation = useMutation({
-    mutationFn: () => {
-      const selected = absentEntries.filter((e: AttendanceEntry) =>
-        selectedStudentIds.has(e.student.id),
-      )
-
-      // Group by student — each student gets one justification with their record ids
-      return Promise.all(
-        selected.map((e: AttendanceEntry) =>
-          createJustification({
-            studentId: e.student.id,
-            attendanceRecordIds: e.record ? [e.record.id] : [],
-            reason,
-            documentUrl: documentUrl || undefined,
-          }),
-        ),
-      )
-    },
+    mutationFn: () =>
+      createJustification({
+        studentId: selectedStudent!.id,
+        attendanceRecordIds: [...selectedIds],
+        reason,
+        documentUrl: documentUrl || undefined,
+      }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['attendance', selectedAssignment, selectedDate] })
-      toast.success('Justificación(es) creada(s) correctamente')
+      qc.invalidateQueries({ queryKey: ['student-absences', selectedStudent?.id] })
+      toast.success('Justificación creada correctamente')
       setDialogOpen(false)
-      setSelectedStudentIds(new Set())
+      setSelectedIds(new Set())
       setReason('')
       setDocumentUrl('')
     },
-    onError: () => {
-      toast.error('Error al crear la justificación')
-    },
+    onError: () => toast.error('Error al crear la justificación'),
   })
 
-  // ---- Handlers ----
+  function selectStudent(s: StudentSearchResult) {
+    setSelectedStudent(s)
+    setSelectedIds(new Set())
+    setSearch('')
+    setDebouncedSearch('')
+  }
 
-  function toggleStudent(studentId: string) {
-    setSelectedStudentIds((prev) => {
+  function toggleRecord(id: string) {
+    setSelectedIds((prev) => {
       const next = new Set(prev)
-      if (next.has(studentId)) {
-        next.delete(studentId)
-      } else {
-        next.add(studentId)
-      }
+      next.has(id) ? next.delete(id) : next.add(id)
       return next
     })
   }
 
   function toggleAll() {
-    if (selectedStudentIds.size === absentEntries.length) {
-      setSelectedStudentIds(new Set())
-    } else {
-      setSelectedStudentIds(new Set(absentEntries.map((e: AttendanceEntry) => e.student.id)))
-    }
+    setSelectedIds(allSelected ? new Set() : new Set(records.map((r) => r.id)))
   }
 
-  function handleAssignmentChange(value: string) {
-    setSelectedAssignment(value)
-    setSelectedStudentIds(new Set())
-  }
-
-  function handleDateChange(e: React.ChangeEvent<HTMLInputElement>) {
-    setSelectedDate(e.target.value)
-    setSelectedStudentIds(new Set())
-  }
-
-  function assignmentLabel(a: (typeof assignments)[number]) {
-    return `${a.parallel.level.name} - ${a.parallel.name} / ${a.subject.name}`
-  }
-
-  const selectedEntries = absentEntries.filter((e: AttendanceEntry) =>
-    selectedStudentIds.has(e.student.id),
-  )
-
-  // ---- Status label ----
-
-  const STATUS_LABEL: Record<string, string> = {
-    absent: 'Ausente',
-    late: 'Tarde',
-  }
-
-  // ---- Render ----
+  const showDropdown = debouncedSearch.length >= 2 && !selectedStudent
 
   return (
     <div className="space-y-6 p-6">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Justificaciones de Ausencia</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Gestiona las justificaciones de ausencia e inasistencia de los estudiantes
+          Busca un estudiante y selecciona las ausencias a justificar
         </p>
       </div>
 
-      {/* Filter bar */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
-        <div className="w-full sm:w-72">
-          <Select value={selectedAssignment} onValueChange={handleAssignmentChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Seleccionar asignación" />
-            </SelectTrigger>
-            <SelectContent>
-              {assignments.map((a) => (
-                <SelectItem key={a.id} value={a.id}>
-                  {assignmentLabel(a)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="w-full sm:w-44">
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={handleDateChange}
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          />
-        </div>
-
-        {selectedStudentIds.size > 0 && (
-          <Button
-            onClick={() => setDialogOpen(true)}
-            className="w-full sm:ml-auto sm:w-auto"
-          >
-            <ShieldCheck className="h-4 w-4 mr-1" />
-            Crear Justificación ({selectedStudentIds.size})
-          </Button>
+      {/* Student search */}
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+        <Input
+          placeholder="Buscar por nombre o cédula…"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value)
+            if (selectedStudent) setSelectedStudent(null)
+          }}
+          className="pl-9"
+        />
+        {/* Dropdown results */}
+        {showDropdown && (
+          <div className="absolute z-10 w-full mt-1 bg-popover border border-border rounded-md shadow-lg max-h-60 overflow-y-auto">
+            {searching ? (
+              <p className="p-3 text-sm text-muted-foreground">Buscando…</p>
+            ) : students.length === 0 ? (
+              <p className="p-3 text-sm text-muted-foreground">Sin resultados</p>
+            ) : (
+              students.map((s) => (
+                <button
+                  key={s.id}
+                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-accent transition-colors"
+                  onClick={() => selectStudent(s)}
+                >
+                  <span className="font-medium">{s.fullName}</span>
+                  {s.dni && <span className="text-muted-foreground ml-2 text-xs">{s.dni}</span>}
+                </button>
+              ))
+            )}
+          </div>
         )}
       </div>
 
-      {/* Content area */}
-      {!selectedAssignment ? (
-        <EmptyState
-          icon={Users}
-          title="Selecciona una asignación y fecha"
-          description="Elige la asignación y la fecha para ver los estudiantes ausentes o tardíos"
-        />
-      ) : attendanceLoading ? (
-        <PageLoader />
-      ) : absentEntries.length === 0 ? (
-        <EmptyState
-          icon={ShieldCheck}
-          title="Sin ausencias"
-          description="No hay estudiantes ausentes o tardíos para esta asignación en esta fecha"
-        />
-      ) : (
-        <Card className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="w-10">
-                  <input
-                    type="checkbox"
-                    checked={selectedStudentIds.size === absentEntries.length}
-                    onChange={toggleAll}
-                    className="rounded border-input"
-                  />
-                </TableHead>
-                <TableHead className="w-10">#</TableHead>
-                <TableHead>Estudiante</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Notas</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {absentEntries.map((entry: AttendanceEntry, index: number) => {
-                const studentId = entry.student.id
-                const isSelected = selectedStudentIds.has(studentId)
-                const fullName = `${entry.student.profile.firstName} ${entry.student.profile.lastName}`
-                const status = entry.record?.status ?? 'absent'
-
-                return (
-                  <TableRow
-                    key={studentId}
-                    className={isSelected ? 'bg-muted/50' : ''}
-                    onClick={() => toggleStudent(studentId)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleStudent(studentId)}
-                        className="rounded border-input"
-                      />
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-xs">
-                      {index + 1}
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium text-sm">{fullName}</p>
-                        {entry.student.profile.dni && (
-                          <p className="text-xs text-muted-foreground">
-                            {entry.student.profile.dni}
-                          </p>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className={
-                          status === 'absent'
-                            ? 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border bg-red-100 text-red-700 border-red-300'
-                            : 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border bg-yellow-100 text-yellow-700 border-yellow-300'
-                        }
-                      >
-                        {STATUS_LABEL[status] ?? status}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {entry.record?.notes ?? '—'}
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
-        </Card>
+      {/* Selected student header */}
+      {selectedStudent && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
+              <span className="text-sm font-bold text-primary">
+                {selectedStudent.fullName[0]}
+              </span>
+            </div>
+            <div>
+              <p className="font-semibold">{selectedStudent.fullName}</p>
+              <p className="text-xs text-muted-foreground">
+                {selectedStudent.dni && `CI: ${selectedStudent.dni} · `}
+                {absencesData && `${absencesData.levelName} "${absencesData.parallelName}" · modo ${absencesData.attendanceMode === 'daily' ? 'diario' : 'por materia'}`}
+              </p>
+            </div>
+          </div>
+          {selectedIds.size > 0 && (
+            <Button onClick={() => setDialogOpen(true)}>
+              <ShieldCheck className="h-4 w-4 mr-1.5" />
+              Justificar ({selectedIds.size})
+            </Button>
+          )}
+        </div>
       )}
 
-      {/* Create Justification Dialog */}
+      {/* Absences list */}
+      {!selectedStudent ? (
+        <EmptyState
+          icon={Search}
+          title="Busca un estudiante"
+          description="Escribe al menos 2 caracteres para buscar por nombre o cédula"
+        />
+      ) : absencesLoading ? (
+        <PageLoader />
+      ) : records.length === 0 ? (
+        <EmptyState
+          icon={ShieldCheck}
+          title="Sin ausencias pendientes"
+          description="Este estudiante no tiene ausencias o tardanzas sin justificar"
+        />
+      ) : (
+        <div className="border rounded-lg overflow-hidden">
+          {/* Table header */}
+          <div className="grid grid-cols-[2rem_1fr_auto_auto] gap-3 px-4 py-2.5 bg-muted/50 border-b text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={toggleAll}
+                className="rounded border-input"
+              />
+            </div>
+            <div>Fecha</div>
+            <div>{absencesData?.attendanceMode === 'daily' ? 'Tipo' : 'Materia'}</div>
+            <div>Estado</div>
+          </div>
+
+          {/* Rows */}
+          <div className="divide-y">
+            {records.map((r: StudentAbsenceRecord) => (
+              <div
+                key={r.id}
+                onClick={() => toggleRecord(r.id)}
+                className={cn(
+                  'grid grid-cols-[2rem_1fr_auto_auto] gap-3 px-4 py-3 items-center cursor-pointer transition-colors',
+                  selectedIds.has(r.id) ? 'bg-primary/5' : 'hover:bg-muted/30',
+                )}
+              >
+                <div onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(r.id)}
+                    onChange={() => toggleRecord(r.id)}
+                    className="rounded border-input"
+                  />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{fmtDate(r.date)}</p>
+                  {r.notes && <p className="text-xs text-muted-foreground mt-0.5">{r.notes}</p>}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {absencesData?.attendanceMode === 'daily'
+                    ? 'Todo el día'
+                    : (r.subject?.name ?? '—')}
+                </div>
+                <div>
+                  <span className={cn(
+                    'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border',
+                    STATUS_CLASS[r.status] ?? 'bg-gray-100 text-gray-700 border-gray-200',
+                  )}>
+                    {STATUS_LABEL[r.status] ?? r.status}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Footer */}
+          <div className="px-4 py-2 bg-muted/30 border-t text-xs text-muted-foreground">
+            {records.length} ausencia{records.length !== 1 ? 's' : ''} pendiente{records.length !== 1 ? 's' : ''}
+            {selectedIds.size > 0 && ` · ${selectedIds.size} seleccionada${selectedIds.size !== 1 ? 's' : ''}`}
+          </div>
+        </div>
+      )}
+
+      {/* Justification dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Crear Justificación</DialogTitle>
           </DialogHeader>
-
           <div className="space-y-4 py-2">
-            {/* Selected students (read-only) */}
             <div>
-              <Label className="text-sm font-medium">Estudiantes seleccionados</Label>
-              <div className="mt-1.5 border rounded-md p-3 space-y-1 max-h-40 overflow-y-auto bg-muted/30">
-                {selectedEntries.map((e: AttendanceEntry) => (
-                  <p key={e.student.id} className="text-sm">
-                    {e.student.profile.firstName} {e.student.profile.lastName}
-                  </p>
-                ))}
+              <Label className="text-sm font-medium">Ausencias a justificar</Label>
+              <div className="mt-1.5 border rounded-md p-3 space-y-1 max-h-36 overflow-y-auto bg-muted/30">
+                {[...selectedIds].map((id) => {
+                  const r = records.find((x) => x.id === id)
+                  if (!r) return null
+                  return (
+                    <p key={id} className="text-sm flex items-center gap-2">
+                      <span>{fmtDate(r.date)}</span>
+                      {absencesData?.attendanceMode === 'per_subject' && r.subject && (
+                        <span className="text-muted-foreground">· {r.subject.name}</span>
+                      )}
+                    </p>
+                  )
+                })}
               </div>
             </div>
-
-            {/* Reason */}
             <div className="space-y-1.5">
               <Label htmlFor="reason">Motivo *</Label>
               <textarea
                 id="reason"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="Describe el motivo de la justificación..."
+                placeholder="Describe el motivo de la justificación…"
                 rows={3}
                 className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
               />
             </div>
-
-            {/* Document URL */}
             <div className="space-y-1.5">
-              <Label htmlFor="documentUrl">URL del documento</Label>
+              <Label htmlFor="docUrl">URL del documento (opcional)</Label>
               <Input
-                id="documentUrl"
+                id="docUrl"
                 value={documentUrl}
                 onChange={(e) => setDocumentUrl(e.target.value)}
-                placeholder="https://..."
+                placeholder="https://…"
               />
             </div>
           </div>
-
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDialogOpen(false)}
-              disabled={justifyMutation.isPending}
-            >
+            <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={justifyMutation.isPending}>
               Cancelar
             </Button>
             <Button
               onClick={() => justifyMutation.mutate()}
               disabled={!reason.trim() || justifyMutation.isPending}
             >
-              {justifyMutation.isPending ? 'Justificando...' : 'Justificar'}
+              {justifyMutation.isPending ? 'Guardando…' : 'Justificar'}
             </Button>
           </DialogFooter>
         </DialogContent>
