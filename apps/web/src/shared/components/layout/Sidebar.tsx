@@ -2,7 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import {
   Home, Users, Settings, BookOpen, GraduationCap,
   ClipboardList, AlertTriangle, MessageSquare, Calendar,
-  FileText, ChevronDown, BookMarked, X, UserPlus, ShieldCheck,
+  FileText, ChevronDown, X, UserPlus, ShieldCheck,
   ClipboardCheck, CalendarDays, Palette, Smile, Award, HeartHandshake, FolderOpen,
 } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
@@ -165,8 +165,6 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const location   = useLocation()
   const [expanded, setExpanded] = useState<string | null>(null)
   const institution = useAuthStore((s) => s.user?.institution ?? null)
-  const brandName = institution?.name ?? 'Auleka'
-  const logoUrl = institution?.branding?.logoUrl ?? null
 
   const visible = NAV_ITEMS.filter(
     (item) => !item.permission || hasPermission(item.permission),
@@ -176,22 +174,21 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
     <div className="flex flex-col h-full">
       {/* Logo */}
       <div className={cn(
-        'flex items-center h-14 px-4 border-b border-sidebar-border shrink-0',
-        collapsed ? 'justify-center' : 'gap-3',
+        'flex items-center h-14 px-3 border-b border-sidebar-border shrink-0',
+        collapsed ? 'justify-center' : 'gap-2.5',
       )}>
-        {logoUrl ? (
-          <img
-            src={logoUrl}
-            alt={brandName}
-            className={cn('object-contain shrink-0', collapsed ? 'h-8 w-8' : 'h-9 max-w-[150px]')}
-          />
-        ) : (
-          <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary text-primary-foreground shrink-0">
-            <BookMarked className="h-4 w-4" />
+        <img src="/isotipo.svg" alt="Auleka" className="h-8 w-8 shrink-0" />
+        {!collapsed && (
+          <div className="flex flex-col min-w-0">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-primary leading-none">
+              auleka
+            </span>
+            {institution?.name && (
+              <span className="text-sm font-semibold text-sidebar-foreground truncate leading-tight mt-0.5">
+                {institution.name}
+              </span>
+            )}
           </div>
-        )}
-        {!collapsed && !logoUrl && (
-          <span className="font-semibold text-sidebar-foreground text-sm truncate">{brandName}</span>
         )}
       </div>
 
