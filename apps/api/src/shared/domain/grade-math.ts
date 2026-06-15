@@ -101,6 +101,23 @@ export function periodTotal(
 }
 
 /**
+ * Aplica la nota de recuperación pedagógica al total del período según el modo configurado.
+ * - replace_if_higher: la nota de recuperación reemplaza el período solo si es mayor.
+ * - average: promedia la nota original con la de recuperación.
+ * Si no hay recuperación (recoveryScore null), devuelve el total original.
+ */
+export function applyRecovery(
+  periodTotal: number | null,
+  recoveryScore: number | null,
+  mode: 'replace_if_higher' | 'average',
+): number | null {
+  if (periodTotal === null) return null
+  if (recoveryScore === null) return periodTotal
+  if (mode === 'replace_if_higher') return Math.max(periodTotal, recoveryScore)
+  return (periodTotal + recoveryScore) / 2
+}
+
+/**
  * Resumen canónico de un periodo para una asignación/estudiante:
  * base formativa (promedio por insumo), examen, proyecto, sumativa (promedio de ambos)
  * y total ponderado. `hasSummative` se basa en que existan actividades de examen o proyecto.

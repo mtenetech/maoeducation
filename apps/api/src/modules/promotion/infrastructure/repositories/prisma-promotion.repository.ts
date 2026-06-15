@@ -3,6 +3,7 @@ import { BadRequestError, ConflictError, NotFoundError } from '../../../../share
 import {
   average,
   computePeriodSummary,
+  applyRecovery,
   activityKind,
   type InsumoGroupInput,
 } from '../../../../shared/domain/grade-math'
@@ -164,6 +165,19 @@ export class PrismaPromotionRepository {
       consume(standalone.map((a) => ({ insumoId: 'no-insumo', ...a })))
     }
 
+    // Recuperaciones pedagógicas (intra-trimestrales) — ajustan el total del período
+    const pedRecoveries = await prisma.pedagogicRecovery.findMany({
+      where: { institutionId, courseAssignmentId: { in: assignmentIds }, academicPeriodId: { in: periodIds }, studentId: { in: studentIds } },
+      select: { studentId: true, courseAssignmentId: true, academicPeriodId: true, score: true },
+    })
+    const fullConfig = await institutionRepo.getGradingConfig(institutionId)
+    const pedRecoveryMode = fullConfig.pedagogicRecovery?.mode ?? 'replace_if_higher'
+    const pedRecMap = new Map(
+      pedRecoveries
+        .filter((r) => r.score != null)
+        .map((r) => [`${r.studentId}:${r.courseAssignmentId}:${r.academicPeriodId}`, Number(r.score)]),
+    )
+
     const recoveries = await prisma.subjectRecovery.findMany({
       where: { institutionId, academicYearId: yearId, studentId: { in: studentIds } },
       select: { studentId: true, courseAssignmentId: true, type: true, score: true },
@@ -186,7 +200,9 @@ export class PrismaPromotionRepository {
           const annualByPeriod = periodIds.map((pId) => {
             const groups = bucket.get(key(sId, a.id, pId))
             if (!groups) return null
-            return computePeriodSummary([...groups.values()], a.examWeight).total
+            const rawTotal = computePeriodSummary([...groups.values()], a.examWeight).total
+            const pedRec = pedRecMap.get(`${sId}:${a.id}:${pId}`) ?? null
+            return applyRecovery(rawTotal, pedRec, pedRecoveryMode)
           })
           const annualAvg = average(annualByPeriod)
           const status = subjectStatus(annualAvg, config)

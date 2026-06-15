@@ -284,6 +284,9 @@ export const DEFAULT_GRADING_CONFIG = {
     maxFailedSubjects: 1,
   },
   defaultExamWeight: 30,
+  pedagogicRecovery: {
+    mode: 'replace_if_higher' as const,
+  },
 } as const
 
 // Materias cualitativas por defecto (se califican con notas; en la libreta se

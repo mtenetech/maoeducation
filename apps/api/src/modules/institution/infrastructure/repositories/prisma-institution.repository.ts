@@ -35,6 +35,10 @@ function extractGradingConfig(settings: unknown): GradingConfig {
         : (DEFAULT_GRADING_CONFIG.behaviorScale as unknown as GradingConfig['behaviorScale']),
     promotion: { ...DEFAULT_GRADING_CONFIG.promotion, ...(gc.promotion ?? {}) },
     defaultExamWeight: gc.defaultExamWeight ?? DEFAULT_GRADING_CONFIG.defaultExamWeight,
+    pedagogicRecovery: {
+      ...DEFAULT_GRADING_CONFIG.pedagogicRecovery,
+      ...(gc.pedagogicRecovery ?? {}),
+    },
   }
 }
 
@@ -113,6 +117,7 @@ export class PrismaInstitutionRepository {
       behaviorScale: dto.behaviorScale ?? current.behaviorScale,
       promotion: { ...current.promotion, ...(dto.promotion ?? {}) },
       defaultExamWeight: dto.defaultExamWeight ?? current.defaultExamWeight,
+      pedagogicRecovery: { ...current.pedagogicRecovery, ...(dto.pedagogicRecovery ?? {}) },
     }
 
     const updated = await prisma.institution.update({

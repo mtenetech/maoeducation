@@ -4,6 +4,7 @@ import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/shared/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select'
 import { PageLoader } from '@/shared/components/feedback/loading-spinner'
 import { useGradingConfig, useUpdateGradingConfig } from '../hooks/useSettings'
 import type { BehaviorLevel, GradingConfig, QualitativeLevel } from '../api/settings.api'
@@ -105,6 +106,40 @@ export function GradingConfigPage() {
             onChange={(v) => setCfg({ ...cfg, promotion: { ...cfg.promotion, passWithExam: v } })} />
           <Field label="Máx. materias reprobadas" value={cfg.promotion.maxFailedSubjects}
             onChange={(v) => setCfg({ ...cfg, promotion: { ...cfg.promotion, maxFailedSubjects: v } })} />
+        </CardContent>
+      </Card>
+
+      {/* Recuperación pedagógica */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Recuperación pedagógica</CardTitle>
+          <CardDescription>Cómo se aplica la nota de la prueba de recuperación al total del período</CardDescription>
+        </CardHeader>
+        <CardContent className="max-w-sm">
+          <div className="space-y-1.5">
+            <Label>Modo de cálculo</Label>
+            <Select
+              value={cfg.pedagogicRecovery?.mode ?? 'replace_if_higher'}
+              onValueChange={(v: 'replace_if_higher' | 'average') =>
+                setCfg({ ...cfg, pedagogicRecovery: { ...cfg.pedagogicRecovery, mode: v } })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="replace_if_higher">
+                  Reemplaza si es mayor (MINEDUC estándar)
+                </SelectItem>
+                <SelectItem value="average">
+                  Promedia nota original + recuperación
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1">
+              Afecta el total del período, el promedio anual y el boletín.
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

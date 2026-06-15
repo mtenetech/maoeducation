@@ -3,6 +3,7 @@ import { NotFoundError } from '../../../shared/domain/errors/app.errors'
 import {
   average,
   computePeriodSummary,
+  applyRecovery,
   activityKind,
   toQualitativeCode,
   type InsumoGroupInput,
@@ -641,6 +642,24 @@ export class PrismaReportRepository {
       })
     }
 
+    // Recuperaciones pedagógicas del estudiante en este año (por asignación × período)
+    const [pedRecoveries, gradingCfg] = await Promise.all([
+      assignmentIds.length > 0
+        ? prisma.pedagogicRecovery.findMany({
+            where: { institutionId, studentId: query.studentId, courseAssignmentId: { in: assignmentIds }, academicPeriodId: { in: periodIds } },
+            select: { courseAssignmentId: true, academicPeriodId: true, score: true },
+          })
+        : Promise.resolve([]),
+      prisma.institution.findUnique({ where: { id: institutionId }, select: { settings: true } }).then(
+        (i) => ((i?.settings as { gradingConfig?: { pedagogicRecovery?: { mode?: string } } } | null)?.gradingConfig?.pedagogicRecovery?.mode ?? 'replace_if_higher') as 'replace_if_higher' | 'average',
+      ),
+    ])
+    const pedRecMap = new Map(
+      pedRecoveries
+        .filter((r) => r.score != null)
+        .map((r) => [`${r.courseAssignmentId}:${r.academicPeriodId}`, Number(r.score)]),
+    )
+
     // Supletorios del estudiante en el año (por asignación)
     const supletorios = await prisma.subjectRecovery.findMany({
       where: { institutionId, academicYearId: query.yearId, studentId: query.studentId, type: 'supletorio' },
@@ -664,6 +683,8 @@ export class PrismaReportRepository {
       const periodGrades = periods.map((period) => {
         const groups = [...(bucket.get(`${assignment.id}:${period.id}`)?.values() ?? [])]
         const s = computePeriodSummary(groups, assignment.examWeight)
+        const pedRec = pedRecMap.get(`${assignment.id}:${period.id}`) ?? null
+        const effectiveTotal = applyRecovery(s.total, pedRec, gradingCfg)
 
         return {
           periodId: period.id,
@@ -671,9 +692,8 @@ export class PrismaReportRepository {
           regularAvg: s.insumosBase,
           examenAvg: s.examenAvg,
           proyectoAvg: s.proyectoAvg,
-          total: s.total,
-          // Para materias cualitativas: la letra equivalente del trimestre.
-          code: isQualitative ? toQualitativeCode(s.total, qualitativeValueScale) : null,
+          total: effectiveTotal,
+          code: isQualitative ? toQualitativeCode(effectiveTotal, qualitativeValueScale) : null,
         }
       })
 
