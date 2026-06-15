@@ -48,8 +48,10 @@ const createSchema = z.object({
 
 type CreateFormValues = z.infer<typeof createSchema>
 
-const fmtDate = (d: string) =>
-  new Date(d).toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' })
+const fmtDate = (d: string) => {
+  const [y, m, day] = d.slice(0, 10).split('-').map(Number)
+  return new Intl.DateTimeFormat('es-EC', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(y, m - 1, day))
+}
 
 const personName = (p: { profile: { firstName: string; lastName: string } } | null) =>
   p?.profile ? `${p.profile.firstName} ${p.profile.lastName}` : '—'

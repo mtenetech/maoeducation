@@ -17,8 +17,11 @@ import { downloadActaPdf } from '../api/parent-meetings.api'
 const personName = (p: { profile: { firstName: string; lastName: string } } | null | undefined) =>
   p?.profile ? `${p.profile.firstName} ${p.profile.lastName}` : '—'
 
-const fmtDate = (d: string | null) =>
-  d ? new Date(d).toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' }) : '—'
+const fmtDate = (d: string | null) => {
+  if (!d) return '—'
+  const [y, m, day] = d.slice(0, 10).split('-').map(Number)
+  return new Intl.DateTimeFormat('es-EC', { day: '2-digit', month: 'long', year: 'numeric' }).format(new Date(y, m - 1, day))
+}
 
 const fmtDateTime = (d: string | null) =>
   d ? new Date(d).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' }) : '—'

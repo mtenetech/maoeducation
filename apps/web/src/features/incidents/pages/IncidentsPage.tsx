@@ -241,11 +241,9 @@ export function IncidentsPage() {
       header: 'Fecha',
       cell: ({ row }) => {
         const date = row.original.incidentDate
-        return new Date(date).toLocaleDateString('es', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-        })
+        const [y, m, d] = date.slice(0, 10).split('-').map(Number)
+        return new Intl.DateTimeFormat('es', { day: '2-digit', month: 'short', year: 'numeric' })
+          .format(new Date(y, m - 1, d))
       },
     },
     {

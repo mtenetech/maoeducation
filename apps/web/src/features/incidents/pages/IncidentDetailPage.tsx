@@ -41,6 +41,12 @@ const personName = (p: { profile: { firstName: string; lastName: string } } | nu
 const fmt = (d: string | null | undefined) =>
   d ? new Date(d).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' }) : '—'
 
+const fmtDate = (d: string | null | undefined) => {
+  if (!d) return '—'
+  const [y, m, day] = d.slice(0, 10).split('-').map(Number)
+  return new Intl.DateTimeFormat('es-EC', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(y, m - 1, day))
+}
+
 export function IncidentDetailPage() {
   const { id = '' } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -120,7 +126,7 @@ export function IncidentDetailPage() {
           <Badge variant="secondary">{SEVERITY_LABELS[inc.severity] ?? inc.severity}</Badge>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
-          {inc.incidentType?.name ?? inc.category} · {new Date(inc.incidentDate).toLocaleDateString('es-EC')}
+          {inc.incidentType?.name ?? inc.category} · {fmtDate(inc.incidentDate)}
           {' · '}Reportado por {personName(inc.reporter)}
         </p>
       </div>
@@ -196,7 +202,7 @@ export function IncidentDetailPage() {
                   <div>
                     <p className="text-sm">{c.terms}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Seguimiento: {c.followUpDate ? new Date(c.followUpDate).toLocaleDateString('es-EC') : '—'}
+                      Seguimiento: {fmtDate(c.followUpDate)}
                       {' · '}{personName(c.creator)}
                     </p>
                   </div>
