@@ -33,9 +33,10 @@ import { useAuthStore } from '@/store/auth.store'
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('es-EC', {
+  const [y, m, d] = dateStr.slice(0, 10).split('-').map(Number)
+  return new Intl.DateTimeFormat('es-EC', {
     weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
-  })
+  }).format(new Date(y, m - 1, d))
 }
 
 function daysUntil(dateStr: string) {

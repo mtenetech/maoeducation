@@ -13,12 +13,17 @@ export function getErrorMessage(error: unknown): string {
   return 'Ocurrió un error inesperado'
 }
 
+// Date-only fields (e.g. @db.Date in Prisma) come back as UTC midnight.
+// Parsing with `new Date(isoString)` shifts them back 5h in UTC-5, showing
+// the previous day. We extract YYYY-MM-DD and build a local Date instead.
 export function formatDate(date: string | Date): string {
+  const iso = typeof date === 'string' ? date : date.toISOString()
+  const [y, m, d] = iso.slice(0, 10).split('-').map(Number)
   return new Intl.DateTimeFormat('es', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
-  }).format(new Date(date))
+  }).format(new Date(y, m - 1, d))
 }
 
 /**

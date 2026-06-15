@@ -4,7 +4,8 @@ export interface GradesReportQuery {
 }
 
 export interface AttendanceReportQuery {
-  courseAssignmentId: string
+  courseAssignmentId?: string
+  parallelId?: string
   startDate: string
   endDate: string
 }

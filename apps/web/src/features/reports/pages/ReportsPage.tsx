@@ -42,7 +42,7 @@ type Tab = 'bulletin' | 'grades' | 'attendance' | 'enrollment'
 interface Assignment {
   id: string
   subject: { name: string }
-  parallel: { name: string; level: { name: string } }
+  parallel: { id: string; name: string; level: { name: string; attendanceMode?: string } }
   academicYear: { id: string; name: string }
 }
 
@@ -955,9 +955,14 @@ function AttendanceReportTab() {
     queryFn: () => apiGet<Assignment[]>('academic/course-assignments'),
   })
 
+  const selectedAssignment = assignments.find((a) => a.id === assignmentId)
+  const isDailyMode = selectedAssignment?.parallel.level.attendanceMode === 'daily'
+
   const { data: report, isLoading } = useQuery({
     queryKey: ['report-attendance', assignmentId, startDate, endDate],
-    queryFn: () => getAttendanceReport({ courseAssignmentId: assignmentId, startDate, endDate }),
+    queryFn: () => isDailyMode
+      ? getAttendanceReport({ parallelId: selectedAssignment!.parallel.id, startDate, endDate })
+      : getAttendanceReport({ courseAssignmentId: assignmentId, startDate, endDate }),
     enabled: enabled && !!assignmentId && !!startDate && !!endDate,
   })
 
@@ -1176,7 +1181,7 @@ function EnrollmentReportView({ data }: { data: EnrollmentReportData }) {
                     <td className="border px-2 py-1">{enrollment.student.profile.dni ?? '—'}</td>
                     <td className="border px-2 py-1">
                       {enrollment.student.profile.birthDate
-                        ? new Date(enrollment.student.profile.birthDate).toLocaleDateString('es-ES')
+                        ? (() => { const [y,m,d] = enrollment.student.profile.birthDate.slice(0,10).split('-').map(Number); return new Intl.DateTimeFormat('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(y,m-1,d)) })()
                         : '—'}
                     </td>
                     <td className="border px-2 py-1">{enrollment.status}</td>

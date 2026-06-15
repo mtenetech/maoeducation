@@ -164,7 +164,7 @@ export function getGradesReport(params: { courseAssignmentId: string; periodId: 
   return apiGet<GradesReportData>('reports/grades', params)
 }
 
-export function getAttendanceReport(params: { courseAssignmentId: string; startDate: string; endDate: string }) {
+export function getAttendanceReport(params: { courseAssignmentId?: string; parallelId?: string; startDate: string; endDate: string }) {
   return apiGet<AttendanceReportData>('reports/attendance', params)
 }
 

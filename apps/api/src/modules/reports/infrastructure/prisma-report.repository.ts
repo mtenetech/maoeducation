@@ -270,6 +270,55 @@ export class PrismaReportRepository {
   }
 
   async getAttendanceReport(institutionId: string, query: AttendanceReportQuery) {
+    const dateRange = { gte: new Date(query.startDate), lte: new Date(query.endDate) }
+
+    // Modo diario: se pasa parallelId directamente (sin courseAssignment)
+    if (query.parallelId && !query.courseAssignmentId) {
+      const parallel = await prisma.parallel.findFirst({
+        where: { id: query.parallelId, institutionId },
+        include: { level: true, academicYear: { select: { id: true, name: true } } },
+      })
+      if (!parallel) throw new NotFoundError('Paralelo no encontrado')
+
+      const [records, enrollments] = await Promise.all([
+        prisma.attendanceRecord.findMany({
+          where: { institutionId, parallelId: query.parallelId, courseAssignmentId: null, date: dateRange },
+          include: { student: { select: { id: true, profile: { select: { firstName: true, lastName: true } } } } },
+          orderBy: [{ date: 'asc' }, { student: { profile: { lastName: 'asc' } } }],
+        }),
+        prisma.studentEnrollment.findMany({
+          where: { institutionId, parallelId: query.parallelId, academicYearId: parallel.academicYearId },
+          include: { student: { select: { id: true, profile: { select: { firstName: true, lastName: true } } } } },
+          orderBy: [{ student: { profile: { lastName: 'asc' } } }, { student: { profile: { firstName: 'asc' } } }],
+        }),
+      ])
+
+      const uniqueDates = [...new Set(records.map((r) => r.date.toISOString().split('T')[0]))].sort()
+      const recordMap = new Map<string, Map<string, string>>()
+      for (const r of records) {
+        const d = r.date.toISOString().split('T')[0]
+        if (!recordMap.has(r.studentId)) recordMap.set(r.studentId, new Map())
+        recordMap.get(r.studentId)!.set(d, r.status)
+      }
+
+      return {
+        assignment: {
+          id: parallel.id,
+          subject: { name: 'Asistencia diaria' },
+          parallel: { name: parallel.name, level: { name: parallel.level.name } },
+          academicYear: { id: parallel.academicYear.id, name: parallel.academicYear.name },
+        },
+        dates: uniqueDates,
+        students: enrollments.map((e) => ({
+          student: e.student,
+          records: Object.fromEntries(recordMap.get(e.studentId) ?? new Map()),
+        })),
+      }
+    }
+
+    // Modo por materia: courseAssignmentId requerido
+    if (!query.courseAssignmentId) throw new NotFoundError('Asignación no encontrada')
+
     const assignment = await prisma.courseAssignment.findFirst({
       where: { id: query.courseAssignmentId, institutionId },
       include: {
@@ -280,36 +329,25 @@ export class PrismaReportRepository {
     })
     if (!assignment) throw new NotFoundError('Asignación no encontrada')
 
-    const records = await prisma.attendanceRecord.findMany({
-      where: {
-        institutionId,
-        courseAssignmentId: query.courseAssignmentId,
-        date: { gte: new Date(query.startDate), lte: new Date(query.endDate) },
-      },
-      include: {
-        student: { select: { id: true, profile: { select: { firstName: true, lastName: true } } } },
-      },
-      orderBy: [{ date: 'asc' }, { student: { profile: { lastName: 'asc' } } }],
-    })
-
-    const enrollments = await prisma.studentEnrollment.findMany({
-      where: { institutionId, parallelId: assignment.parallelId, academicYearId: assignment.academicYearId },
-      include: {
-        student: { select: { id: true, profile: { select: { firstName: true, lastName: true } } } },
-      },
-      orderBy: [
-        { student: { profile: { lastName: 'asc' } } },
-        { student: { profile: { firstName: 'asc' } } },
-      ],
-    })
+    const [records, enrollments] = await Promise.all([
+      prisma.attendanceRecord.findMany({
+        where: { institutionId, courseAssignmentId: query.courseAssignmentId, date: dateRange },
+        include: { student: { select: { id: true, profile: { select: { firstName: true, lastName: true } } } } },
+        orderBy: [{ date: 'asc' }, { student: { profile: { lastName: 'asc' } } }],
+      }),
+      prisma.studentEnrollment.findMany({
+        where: { institutionId, parallelId: assignment.parallelId, academicYearId: assignment.academicYearId },
+        include: { student: { select: { id: true, profile: { select: { firstName: true, lastName: true } } } } },
+        orderBy: [{ student: { profile: { lastName: 'asc' } } }, { student: { profile: { firstName: 'asc' } } }],
+      }),
+    ])
 
     const uniqueDates = [...new Set(records.map((r) => r.date.toISOString().split('T')[0]))].sort()
-
     const recordMap = new Map<string, Map<string, string>>()
     for (const r of records) {
-      const dateStr = r.date.toISOString().split('T')[0]
+      const d = r.date.toISOString().split('T')[0]
       if (!recordMap.has(r.studentId)) recordMap.set(r.studentId, new Map())
-      recordMap.get(r.studentId)!.set(dateStr, r.status)
+      recordMap.get(r.studentId)!.set(d, r.status)
     }
 
     return {
@@ -659,10 +697,11 @@ export class PrismaReportRepository {
       where: {
         institutionId,
         studentId: query.studentId,
-        courseAssignment: {
-          parallelId: query.parallelId,
-          academicYearId: query.yearId,
-        },
+        // Cubrir ambos modos: por-materia (courseAssignment) y diario (parallelId)
+        OR: [
+          { courseAssignment: { parallelId: query.parallelId, academicYearId: query.yearId } },
+          { parallelId: query.parallelId, courseAssignmentId: null },
+        ],
         date: {
           gte: year.startDate,
           lte: year.endDate,

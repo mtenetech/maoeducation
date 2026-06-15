@@ -34,8 +34,11 @@ const STATUS_LABELS: Record<string, string> = {
   transferred: 'Trasladado',
 }
 
-const fmtDate = (d: string | null) =>
-  d ? new Date(d).toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
+const fmtDate = (d: string | null) => {
+  if (!d) return '—'
+  const [y, m, day] = d.slice(0, 10).split('-').map(Number)
+  return new Intl.DateTimeFormat('es-EC', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(y, m - 1, day))
+}
 
 const personName = (p: { profile: { firstName: string; lastName: string } | null } | null) =>
   p?.profile ? `${p.profile.firstName} ${p.profile.lastName}` : '—'
