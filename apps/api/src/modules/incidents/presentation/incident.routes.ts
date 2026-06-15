@@ -197,8 +197,10 @@ export default async function incidentRoutes(app: FastifyInstance) {
     { preHandler: [requirePermission('incidents', 'read')] },
     async (req, reply) => {
       const c = await repo.getCommitmentForPdf(req.params.id, req.params.cid, req.user.institutionId)
+      const instSettings = (c.institution.settings ?? {}) as { branding?: { logoUrl?: string | null } }
       const pdf = await buildActaPdf({
         institutionName: c.institution.name,
+        logoUrl: instSettings.branding?.logoUrl ?? null,
         studentName: personName(c.incident.student),
         studentDni: c.incident.student.profile?.dni ?? null,
         incidentTypeName: c.incident.incidentType?.name ?? c.incident.category,

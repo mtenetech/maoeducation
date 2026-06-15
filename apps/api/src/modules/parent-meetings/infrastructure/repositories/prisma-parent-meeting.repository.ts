@@ -203,7 +203,7 @@ export class PrismaParentMeetingRepository {
       include: {
         student: { select: personSelect },
         recorder: { select: personSelect },
-        institution: { select: { name: true } },
+        institution: { select: { name: true, settings: true } },
       },
     })
     if (!meeting) throw new NotFoundError('Atención no encontrada')

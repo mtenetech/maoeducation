@@ -1,7 +1,9 @@
 import PDFDocument from 'pdfkit'
+import { resolveLogo, drawHeader, drawWatermark } from '../../../../shared/infrastructure/services/pdf-helpers'
 
 export interface ActaAtencionPdfData {
   institutionName: string
+  logoUrl?: string | null
   meetingDate: Date
   meetingTime: string | null
   visitorName: string
@@ -30,11 +32,10 @@ export function buildActaAtencionPdf(data: ActaAtencionPdfData): Promise<Buffer>
     doc.on('end', () => resolve(Buffer.concat(chunks)))
     doc.on('error', reject)
 
-    // Encabezado
-    doc.fontSize(16).font('Helvetica-Bold').text(data.institutionName.toUpperCase(), { align: 'center' })
-    doc.moveDown(0.3)
-    doc.fontSize(13).text('ACTA DE ATENCIÓN A PADRES DE FAMILIA', { align: 'center' })
-    doc.moveDown(1)
+    const logo = resolveLogo(data.logoUrl)
+    drawWatermark(doc, logo)
+    drawHeader(doc, logo, data.institutionName, 'ACTA DE ATENCIÓN A PADRES DE FAMILIA')
+
 
     doc.fontSize(10).font('Helvetica')
     const fecha = data.meetingTime ? `${fmtDate(data.meetingDate)} — ${data.meetingTime}` : fmtDate(data.meetingDate)

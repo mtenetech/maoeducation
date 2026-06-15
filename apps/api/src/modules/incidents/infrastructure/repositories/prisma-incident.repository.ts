@@ -388,7 +388,7 @@ export class PrismaIncidentRepository {
             incidentType: { select: { name: true, severity: true } },
           },
         },
-        institution: { select: { name: true } },
+        institution: { select: { name: true, settings: true } },
       },
     })
     if (!commitment) throw new NotFoundError('Acta no encontrada')

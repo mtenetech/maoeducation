@@ -129,8 +129,10 @@ export default async function parentMeetingRoutes(app: FastifyInstance) {
       const m = await repo.getForActaPdf(req.params.id, req.user.institutionId)
       const signature = m.signatureKey ? await readBuffer(m.signatureKey) : null
 
+      const instSettings = (m.institution.settings ?? {}) as { branding?: { logoUrl?: string | null } }
       const pdf = await buildActaAtencionPdf({
         institutionName: m.institution.name,
+        logoUrl: instSettings.branding?.logoUrl ?? null,
         meetingDate: m.meetingDate,
         meetingTime: m.meetingTime,
         visitorName: m.visitorName,
