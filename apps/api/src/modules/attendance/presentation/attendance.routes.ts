@@ -79,6 +79,15 @@ export default async function attendanceRoutes(app: FastifyInstance) {
     },
   )
 
+  // GET /attendance/student/:studentId/absences
+  app.get<{ Params: { studentId: string } }>(
+    '/attendance/student/:studentId/absences',
+    async (req, reply) => {
+      const result = await repo.getStudentAbsences(req.user.institutionId, req.params.studentId)
+      return reply.status(200).send(result)
+    },
+  )
+
   // POST /attendance/justifications
   app.post<{ Body: CreateJustificationDto }>(
     '/attendance/justifications',

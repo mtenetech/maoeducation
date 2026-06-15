@@ -56,3 +56,32 @@ export function bulkSaveDailyAttendance(payload: {
 export function getAssignments(params?: Record<string, string>) {
   return apiGet<CourseAssignment[]>('academic/course-assignments', params)
 }
+
+export interface StudentSearchResult {
+  id: string
+  fullName: string
+  dni: string | null
+}
+
+export interface StudentAbsenceRecord {
+  id: string
+  date: string
+  status: 'absent' | 'late'
+  notes: string | null
+  subject: { name: string } | null
+}
+
+export interface StudentAbsencesData {
+  attendanceMode: 'per_subject' | 'daily'
+  parallelName: string
+  levelName: string
+  records: StudentAbsenceRecord[]
+}
+
+export function searchStudents(search: string) {
+  return apiGet<StudentSearchResult[]>('enrollments/students', search ? { search } : undefined)
+}
+
+export function getStudentAbsences(studentId: string) {
+  return apiGet<StudentAbsencesData>(`attendance/student/${studentId}/absences`)
+}

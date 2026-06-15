@@ -204,6 +204,43 @@ export class PrismaAttendanceRepository {
     return Array.from(grouped.values())
   }
 
+  async getStudentAbsences(institutionId: string, studentId: string) {
+    const enrollment = await prisma.studentEnrollment.findFirst({
+      where: { institutionId, studentId },
+      include: {
+        parallel: {
+          include: {
+            level: { select: { name: true, attendanceMode: true } },
+          },
+        },
+      },
+      orderBy: { enrolledAt: 'desc' },
+    })
+    if (!enrollment) throw new NotFoundError('Estudiante sin matrícula')
+
+    const records = await prisma.attendanceRecord.findMany({
+      where: { institutionId, studentId, status: { in: ['absent', 'late'] } },
+      include: {
+        courseAssignment: { include: { subject: { select: { name: true } } } },
+      },
+      orderBy: { date: 'desc' },
+    })
+
+    const { parallel } = enrollment
+    return {
+      attendanceMode: parallel.level.attendanceMode as 'per_subject' | 'daily',
+      parallelName: parallel.name,
+      levelName: parallel.level.name,
+      records: records.map((r) => ({
+        id: r.id,
+        date: r.date.toISOString().split('T')[0],
+        status: r.status as 'absent' | 'late',
+        notes: r.notes ?? null,
+        subject: r.courseAssignment ? { name: r.courseAssignment.subject.name } : null,
+      })),
+    }
+  }
+
   async createJustification(
     institutionId: string,
     dto: CreateJustificationDto,
