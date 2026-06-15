@@ -1,7 +1,9 @@
 import PDFDocument from 'pdfkit'
+import { resolveLogo, drawHeader, drawWatermark } from '../../../../shared/infrastructure/services/pdf-helpers'
 
 export interface ActaPdfData {
   institutionName: string
+  logoUrl?: string | null
   studentName: string
   studentDni: string | null
   incidentTypeName: string | null
@@ -26,11 +28,10 @@ export function buildActaPdf(data: ActaPdfData): Promise<Buffer> {
     doc.on('end', () => resolve(Buffer.concat(chunks)))
     doc.on('error', reject)
 
-    // Encabezado
-    doc.fontSize(16).font('Helvetica-Bold').text(data.institutionName.toUpperCase(), { align: 'center' })
-    doc.moveDown(0.3)
-    doc.fontSize(13).text('ACTA DE COMPROMISO', { align: 'center' })
-    doc.moveDown(1)
+    const logo = resolveLogo(data.logoUrl)
+    drawWatermark(doc, logo)
+    drawHeader(doc, logo, data.institutionName, 'ACTA DE COMPROMISO')
+
 
     doc.fontSize(10).font('Helvetica')
     doc.text(`Fecha: ${fmtDate(data.createdAt)}`)

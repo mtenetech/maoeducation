@@ -1,6 +1,5 @@
-import fs from 'fs'
-import path from 'path'
 import PDFDocument from 'pdfkit'
+import { resolveLogo, drawHeader, drawWatermark } from '../../../../shared/infrastructure/services/pdf-helpers'
 
 export interface EnrollmentCertificatePdfData {
   institutionName: string
@@ -25,23 +24,6 @@ function fmtDate(d: Date | null): string {
   return new Intl.DateTimeFormat('es-EC', { day: '2-digit', month: 'long', year: 'numeric' }).format(d)
 }
 
-/** Resuelve el logo a algo que pdfkit pueda embeber: Buffer (data URI) o ruta en disco. */
-function resolveLogo(logoUrl: string | null): Buffer | string | null {
-  if (!logoUrl) return null
-  const dm = /^data:[^;]+;base64,(.+)$/.exec(logoUrl)
-  if (dm) {
-    try {
-      return Buffer.from(dm[1], 'base64')
-    } catch {
-      return null
-    }
-  }
-  const m = /\/uploads\/(.+)$/.exec(logoUrl)
-  if (!m) return null
-  const p = path.join(process.cwd(), 'uploads', m[1])
-  return fs.existsSync(p) ? p : null
-}
-
 /** Genera el certificado de matrícula y lo devuelve como Buffer. */
 export function buildEnrollmentCertificatePdf(data: EnrollmentCertificatePdfData): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -51,22 +33,10 @@ export function buildEnrollmentCertificatePdf(data: EnrollmentCertificatePdfData
     doc.on('end', () => resolve(Buffer.concat(chunks)))
     doc.on('error', reject)
 
-    // Logo (opcional)
     const logo = resolveLogo(data.logoUrl)
-    if (logo) {
-      try {
-        doc.image(logo, doc.page.width / 2 - 30, doc.y, { width: 60, align: 'center' })
-        doc.moveDown(3.5)
-      } catch {
-        // si el logo no es válido, se omite
-      }
-    }
-
-    // Encabezado
-    doc.fontSize(16).font('Helvetica-Bold').text(data.institutionName.toUpperCase(), { align: 'center' })
-    doc.moveDown(0.3)
-    doc.fontSize(13).text('CERTIFICADO DE MATRÍCULA', { align: 'center' })
-    doc.moveDown(2)
+    drawWatermark(doc, logo)
+    drawHeader(doc, logo, data.institutionName, 'CERTIFICADO DE MATRÍCULA')
+    doc.moveDown(0.5)
 
     // Cuerpo
     doc.fontSize(11).font('Helvetica')
