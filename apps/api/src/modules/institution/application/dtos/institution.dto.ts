@@ -38,11 +38,19 @@ export interface PromotionConfig {
   maxFailedSubjects: number // materias reprobadas permitidas antes de repetir
 }
 
+export interface PedagogicRecoveryConfig {
+  /** Cómo se aplica la nota de recuperación al total del período:
+   *  - replace_if_higher: reemplaza si es mayor (MINEDUC estándar)
+   *  - average: promedia nota original + recuperación */
+  mode: 'replace_if_higher' | 'average'
+}
+
 export interface GradingConfig {
   qualitativeScale: QualitativeLevel[]
   behaviorScale: BehaviorLevel[]
   promotion: PromotionConfig
   defaultExamWeight: number
+  pedagogicRecovery: PedagogicRecoveryConfig
 }
 
 export interface UpdateGradingConfigDto {
@@ -50,4 +58,5 @@ export interface UpdateGradingConfigDto {
   behaviorScale?: BehaviorLevel[]
   promotion?: Partial<PromotionConfig>
   defaultExamWeight?: number
+  pedagogicRecovery?: Partial<PedagogicRecoveryConfig>
 }

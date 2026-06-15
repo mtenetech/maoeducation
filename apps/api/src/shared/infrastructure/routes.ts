@@ -22,6 +22,7 @@ export async function registerRoutes(app: FastifyInstance) {
   app.register(import('../../modules/anamnesis/presentation/anamnesis.routes'), { prefix: '/api/v1' })
   app.register(import('../../modules/behavior/presentation/behavior.routes'), { prefix: '/api/v1' })
   app.register(import('../../modules/promotion/presentation/promotion.routes'), { prefix: '/api/v1' })
+  app.register(import('../../modules/pedagogic-recovery/presentation/pedagogic-recovery.routes'), { prefix: '/api/v1' })
   app.register(import('../../modules/leads/presentation/lead.routes'), { prefix: '/api/v1' })
 
   // Health check

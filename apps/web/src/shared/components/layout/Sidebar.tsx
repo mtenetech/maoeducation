@@ -83,6 +83,12 @@ const NAV_ITEMS: NavItem[] = [
     permission: 'grades:write',
   },
   {
+    label: 'Recuperación',
+    icon: BookOpen,
+    path: '/pedagogic-recovery',
+    permission: 'grades:write',
+  },
+  {
     label: 'Promoción',
     icon: Award,
     path: '/promotion',

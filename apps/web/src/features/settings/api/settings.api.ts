@@ -26,11 +26,16 @@ export interface PromotionConfig {
   passWithExam: number
   maxFailedSubjects: number
 }
+export interface PedagogicRecoveryConfig {
+  mode: 'replace_if_higher' | 'average'
+}
+
 export interface GradingConfig {
   qualitativeScale: QualitativeLevel[]
   behaviorScale: BehaviorLevel[]
   promotion: PromotionConfig
   defaultExamWeight: number
+  pedagogicRecovery: PedagogicRecoveryConfig
 }
 
 export const settingsApi = {

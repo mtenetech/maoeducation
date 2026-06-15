@@ -155,6 +155,20 @@ export const router = createBrowserRouter([
           },
         ],
       },
+      // ---- Pedagogic Recovery (recuperación pedagógica) ----
+      {
+        path: 'pedagogic-recovery',
+        element: <PermissionGuard permission="grades:write" />,
+        children: [
+          {
+            index: true,
+            lazy: () =>
+              import('@/features/pedagogic-recovery/pages/PedagogicRecoveryPage').then((m) => ({
+                Component: m.PedagogicRecoveryPage,
+              })),
+          },
+        ],
+      },
       // ---- Promotion (promoción y recuperaciones) ----
       {
         path: 'promotion',
