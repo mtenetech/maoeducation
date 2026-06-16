@@ -112,12 +112,13 @@ async function sendAttendanceNotifications(
   date: string,
 ) {
   const absent = records.filter((r) => r.status === 'absent' || r.status === 'late')
-  const label = { absent: 'faltó', late: 'llegó tarde' }
+  const label: Record<string, string> = { absent: 'faltó', late: 'llegó tarde' }
   await Promise.allSettled(
     absent.map((r) =>
+      // notifyGuardiansOfStudent reemplaza "Tu representado" por el nombre real del alumno
       notifyGuardiansOfStudent(r.studentId, {
         title: 'Asistencia — Auleka',
-        body: `Tu representado ${label[r.status as 'absent' | 'late'] ?? r.status} el ${date}`,
+        body: `Tu representado ${label[r.status] ?? r.status} el ${date}`,
         url: '/attendance',
       }),
     ),

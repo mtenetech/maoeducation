@@ -44,14 +44,24 @@ export async function sendPushToUser(userId: string, payload: PushPayload): Prom
   }
 }
 
-/** Envía una notificación a todos los representantes de un estudiante. */
+/**
+ * Envía una notificación a todos los representantes de un estudiante.
+ * Resuelve el nombre del alumno para incluirlo automáticamente en el body.
+ */
 export async function notifyGuardiansOfStudent(
   studentId: string,
   payload: PushPayload,
 ): Promise<void> {
-  const links = await prisma.guardianStudent.findMany({
-    where: { studentId },
-    select: { guardianId: true },
-  })
-  await Promise.allSettled(links.map((l) => sendPushToUser(l.guardianId, payload)))
+  const [links, profile] = await Promise.all([
+    prisma.guardianStudent.findMany({ where: { studentId }, select: { guardianId: true } }),
+    prisma.profile.findUnique({ where: { userId: studentId }, select: { firstName: true, lastName: true } }),
+  ])
+  if (links.length === 0) return
+
+  const studentName = profile ? `${profile.firstName} ${profile.lastName}` : null
+  const personalizedPayload = studentName
+    ? { ...payload, body: payload.body.replace('Tu representado', studentName).replace('tu representado', studentName) }
+    : payload
+
+  await Promise.allSettled(links.map((l) => sendPushToUser(l.guardianId, personalizedPayload)))
 }

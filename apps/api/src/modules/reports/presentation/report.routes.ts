@@ -5,6 +5,7 @@ import { buildBulletinPdf } from '../application/services/bulletin-pdf.service'
 import { authMiddleware } from '../../../shared/infrastructure/middleware/auth.middleware'
 import { requirePermission } from '../../../shared/infrastructure/middleware/rbac.middleware'
 import { prisma } from '../../../shared/infrastructure/database/prisma'
+import { resolveGuardianStudentId } from '../../../shared/infrastructure/services/guardian-scope.service'
 import type {
   GradesReportQuery,
   AttendanceReportQuery,
@@ -114,16 +115,12 @@ export default async function reportRoutes(app: FastifyInstance) {
     },
   )
 
-  // GET /reports/my-grades?periodId=X  — student/guardian: all subjects compact grades
-  app.get<{ Querystring: { periodId: string } }>('/reports/my-grades', async (req, reply) => {
+  // GET /reports/my-grades?periodId=X&studentId=  — student/guardian
+  app.get<{ Querystring: { periodId: string; studentId?: string } }>('/reports/my-grades', async (req, reply) => {
     const { sub: userId, institutionId, roles } = req.user
     let studentId = userId
     if (roles.includes('guardian')) {
-      const link = await prisma.guardianStudent.findFirst({
-        where: { guardianId: userId },
-        select: { studentId: true },
-      })
-      if (link) studentId = link.studentId
+      studentId = await resolveGuardianStudentId(userId, req.query.studentId)
     }
     const result = await repo.getMyGrades(institutionId, studentId, req.query.periodId)
     return reply.send(result)

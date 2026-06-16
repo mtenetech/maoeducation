@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Menu, LogOut, KeyRound, Bell, BellOff } from 'lucide-react'
-import { usePushNotifications } from '@/shared/hooks/usePushNotifications'
+import { Menu, LogOut, KeyRound } from 'lucide-react'
+import { ChildSwitcher } from '@/features/guardian/components/ChildSwitcher'
 import { useNavigate } from 'react-router-dom'
 import { useUIStore } from '@/store/ui.store'
 import { useAuthStore } from '@/store/auth.store'
@@ -17,7 +17,6 @@ export function Topbar({ onMobileMenuClick }: TopbarProps) {
   const { user, clearAuth } = useAuthStore()
   const navigate = useNavigate()
   const [pwOpen, setPwOpen] = useState(false)
-  const push = usePushNotifications()
 
   async function handleLogout() {
     try { await apiPost('/auth/logout') } catch { /* ignore */ }
@@ -53,6 +52,7 @@ export function Topbar({ onMobileMenuClick }: TopbarProps) {
       </button>
 
       <div className="flex-1" />
+      <ChildSwitcher />
 
       {/* User menu */}
       <div className="flex items-center gap-3">
@@ -74,19 +74,6 @@ export function Topbar({ onMobileMenuClick }: TopbarProps) {
           <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold">
             {initials}
           </div>
-        )}
-
-        {push.state !== 'unsupported' && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={push.state === 'granted' ? push.unsubscribe : push.subscribe}
-            disabled={push.loading || push.state === 'denied'}
-            title={push.state === 'granted' ? 'Desactivar notificaciones' : push.state === 'denied' ? 'Notificaciones bloqueadas en el navegador' : 'Activar notificaciones push'}
-            className="h-8 w-8"
-          >
-            {push.state === 'granted' ? <Bell className="h-4 w-4 text-primary" /> : <BellOff className="h-4 w-4" />}
-          </Button>
         )}
 
         <Button

@@ -3,6 +3,7 @@ import { PrismaAcademicRepository } from '../infrastructure/repositories/prisma-
 import { authMiddleware } from '../../../shared/infrastructure/middleware/auth.middleware'
 import { requirePermission } from '../../../shared/infrastructure/middleware/rbac.middleware'
 import { prisma } from '../../../shared/infrastructure/database/prisma'
+import { resolveGuardianStudentId } from '../../../shared/infrastructure/services/guardian-scope.service'
 import type {
   CreateLevelDto,
   UpdateLevelDto,
@@ -201,18 +202,13 @@ export default async function academicRoutes(app: FastifyInstance) {
   )
 
   // Student/guardian: get their own course assignments from enrollment
-  app.get<{ Querystring: { academicYearId?: string } }>(
+  app.get<{ Querystring: { academicYearId?: string; studentId?: string } }>(
     '/academic/my-course-assignments',
     async (req, reply) => {
       const { sub: userId, institutionId, roles } = req.user
-      let studentId = userId
-      if (roles.includes('guardian')) {
-        const link = await prisma.guardianStudent.findFirst({
-          where: { guardianId: userId },
-          select: { studentId: true },
-        })
-        if (link) studentId = link.studentId
-      }
+      const studentId = roles.includes('guardian')
+        ? await resolveGuardianStudentId(userId, req.query.studentId)
+        : userId
 
       const years = await prisma.academicYear.findMany({
         where: { institutionId, isActive: true },

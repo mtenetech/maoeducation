@@ -27,6 +27,7 @@ import { getErrorMessage, cn } from '@/shared/lib/utils'
 import { activitiesApi, type StudentGrade, type GradeInput, type GradeStatus } from '@/features/activities/api/activities.api'
 import { useTeacherDefaults } from '@/features/academic/hooks/useTeacherDefaults'
 import { getGradesReport, getMyGrades, type GradesReportData, type MyGradesSubject } from '@/features/reports/api/reports.api'
+import { useGuardianStudentId } from '@/features/guardian/components/ChildSwitcher'
 import { academicApi, type AcademicPeriod } from '@/features/academic/api/academic.api'
 import { usePermissions } from '@/shared/hooks/usePermissions'
 
@@ -884,9 +885,10 @@ function AnnualDetailGrid({
 
 // ---- Student Grades View ----
 function StudentGradesView({ periodId }: { periodId: string }) {
+  const guardianStudentId = useGuardianStudentId()
   const { data: subjects, isLoading } = useQuery({
-    queryKey: ['my-grades', periodId],
-    queryFn: () => getMyGrades({ periodId }),
+    queryKey: ['my-grades', periodId, guardianStudentId],
+    queryFn: () => getMyGrades({ periodId, studentId: guardianStudentId }),
     enabled: !!periodId,
   })
 
@@ -998,10 +1000,11 @@ function StudentAnnualView({ periods }: { periods: AcademicPeriod[] }) {
     [periods],
   )
 
+  const guardianStudentId = useGuardianStudentId()
   const results = useQueries({
     queries: sortedPeriods.map((p) => ({
-      queryKey: ['my-grades', p.id],
-      queryFn: () => getMyGrades({ periodId: p.id }),
+      queryKey: ['my-grades', p.id, guardianStudentId],
+      queryFn: () => getMyGrades({ periodId: p.id, studentId: guardianStudentId }),
     })),
   })
 

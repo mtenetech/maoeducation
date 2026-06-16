@@ -3,12 +3,19 @@ import { PrismaGuardianRepository } from '../infrastructure/repositories/prisma-
 import { authMiddleware } from '../../../shared/infrastructure/middleware/auth.middleware'
 import { requirePermission } from '../../../shared/infrastructure/middleware/rbac.middleware'
 import { assertStudentFichaAccess } from '../../../shared/infrastructure/services/teacher-scope.service'
+import { getGuardianChildren } from '../../../shared/infrastructure/services/guardian-scope.service'
 import type { CreateGuardianDto, UpdateGuardianLinkDto } from '../application/dtos/guardian.dto'
 
 const repo = new PrismaGuardianRepository()
 
 export default async function guardianRoutes(app: FastifyInstance) {
   app.addHook('preHandler', authMiddleware)
+
+  // GET /guardian/my-students — lista de hijos del representante autenticado
+  app.get('/guardian/my-students', async (req, reply) => {
+    const children = await getGuardianChildren(req.user.sub)
+    return reply.send(children)
+  })
 
   app.get<{ Params: { id: string } }>(
     '/students/:id/guardians',

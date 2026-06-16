@@ -7,6 +7,7 @@ import { randomUUID } from 'crypto'
 import path from 'path'
 import { storage } from '../../../shared/infrastructure/services/storage.service'
 import { sendPushToUser } from '../../../shared/infrastructure/services/push.service'
+import { resolveGuardianStudentId } from '../../../shared/infrastructure/services/guardian-scope.service'
 
 const repo = new PrismaMessageRepository()
 
@@ -137,14 +138,9 @@ export default async function messageRoutes(app: FastifyInstance) {
       users = found.map(mapUser)
     } else if (isStudentOrGuardian) {
       // Student/guardian: teachers of their enrolled courses
-      let studentId = userId
-      if (isGuardian) {
-        const link = await prisma.guardianStudent.findFirst({
-          where: { guardianId: userId },
-          select: { studentId: true },
-        })
-        if (link) studentId = link.studentId
-      }
+      const studentId = isGuardian
+        ? await resolveGuardianStudentId(userId)
+        : userId
 
       const enrollments = await prisma.studentEnrollment.findMany({
         where: { institutionId, studentId },

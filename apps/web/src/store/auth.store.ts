@@ -28,9 +28,12 @@ export interface AuthUser {
 interface AuthState {
   user: AuthUser | null
   accessToken: string | null
+  // Para representantes con más de un hijo: el alumno activo seleccionado
+  guardianStudentId: string | null
   setAuth: (user: AuthUser, token: string) => void
   setAccessToken: (token: string) => void
   setInstitution: (institution: AuthInstitution) => void
+  setGuardianStudentId: (id: string) => void
   clearAuth: () => void
   isAuthenticated: () => boolean
 }
@@ -40,23 +43,21 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       user: null,
       accessToken: null,
+      guardianStudentId: null,
 
       setAuth: (user, accessToken) => set({ user, accessToken }),
-
       setAccessToken: (accessToken) => set({ accessToken }),
-
       setInstitution: (institution) => {
         const user = get().user
         if (user) set({ user: { ...user, institution } })
       },
-
-      clearAuth: () => set({ user: null, accessToken: null }),
-
+      setGuardianStudentId: (id) => set({ guardianStudentId: id }),
+      clearAuth: () => set({ user: null, accessToken: null, guardianStudentId: null }),
       isAuthenticated: () => !!get().accessToken && !!get().user,
     }),
     {
       name: 'mao-auth',
-      partialize: (s) => ({ user: s.user, accessToken: s.accessToken }),
+      partialize: (s) => ({ user: s.user, accessToken: s.accessToken, guardianStudentId: s.guardianStudentId }),
     },
   ),
 )
