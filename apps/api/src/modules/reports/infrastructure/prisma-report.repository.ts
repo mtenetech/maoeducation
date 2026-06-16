@@ -1,5 +1,6 @@
 import { prisma } from '../../../shared/infrastructure/database/prisma'
 import { NotFoundError } from '../../../shared/domain/errors/app.errors'
+import { resolveGuardianStudentId } from '../../../shared/infrastructure/services/guardian-scope.service'
 import {
   average,
   computePeriodSummary,
@@ -105,11 +106,7 @@ export class PrismaReportRepository {
       if (caller.roles.includes('student')) {
         studentIdFilter = caller.userId
       } else if (caller.roles.includes('guardian')) {
-        const link = await prisma.guardianStudent.findFirst({
-          where: { guardianId: caller.userId },
-          select: { studentId: true },
-        })
-        if (link) studentIdFilter = link.studentId
+        studentIdFilter = await resolveGuardianStudentId(caller.userId)
       }
     }
 

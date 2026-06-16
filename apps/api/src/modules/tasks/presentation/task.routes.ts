@@ -7,6 +7,7 @@ import { requirePermission } from '../../../shared/infrastructure/middleware/rba
 import { prisma } from '../../../shared/infrastructure/database/prisma'
 import { storage } from '../../../shared/infrastructure/services/storage.service'
 import { NotFoundError } from '../../../shared/domain/errors/app.errors'
+import { resolveGuardianStudentId } from '../../../shared/infrastructure/services/guardian-scope.service'
 import type { CreateTaskDto, UpdateTaskDto, ListTasksQueryDto } from '../application/dtos/task.dto'
 
 export default async function taskRoutes(app: FastifyInstance) {
@@ -29,15 +30,9 @@ export default async function taskRoutes(app: FastifyInstance) {
       } else if (isTeacher) {
         tasks = await repo.listForTeacher(institutionId, userId, req.query)
       } else {
-        // student / guardian → el representante ve las tareas de su estudiante vinculado
-        let studentId = userId
-        if (roles.includes('guardian')) {
-          const link = await prisma.guardianStudent.findFirst({
-            where: { guardianId: userId },
-            select: { studentId: true },
-          })
-          if (link) studentId = link.studentId
-        }
+        const studentId = roles.includes('guardian')
+          ? await resolveGuardianStudentId(userId, (req.query as { studentId?: string }).studentId)
+          : userId
         tasks = await repo.listForStudent(institutionId, studentId, req.query)
       }
       return reply.send(tasks)

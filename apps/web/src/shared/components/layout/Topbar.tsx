@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Menu, LogOut, KeyRound, Bell, BellOff } from 'lucide-react'
 import { usePushNotifications } from '@/shared/hooks/usePushNotifications'
+import { ChildSwitcher } from '@/features/guardian/components/ChildSwitcher'
 import { useNavigate } from 'react-router-dom'
 import { useUIStore } from '@/store/ui.store'
 import { useAuthStore } from '@/store/auth.store'
@@ -53,6 +54,7 @@ export function Topbar({ onMobileMenuClick }: TopbarProps) {
       </button>
 
       <div className="flex-1" />
+      <ChildSwitcher />
 
       {/* User menu */}
       <div className="flex items-center gap-3">

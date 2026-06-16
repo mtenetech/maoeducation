@@ -156,8 +156,10 @@ export interface StudentBulletinData {
   }
 }
 
-export function getMyGrades(params: { periodId: string }) {
-  return apiGet<MyGradesSubject[]>('reports/my-grades', params)
+export function getMyGrades(params: { periodId: string; studentId?: string | null }) {
+  const p: Record<string, string> = { periodId: params.periodId }
+  if (params.studentId) p.studentId = params.studentId
+  return apiGet<MyGradesSubject[]>('reports/my-grades', p)
 }
 
 export function getGradesReport(params: { courseAssignmentId: string; periodId: string }) {
