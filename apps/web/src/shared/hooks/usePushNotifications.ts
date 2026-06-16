@@ -19,8 +19,36 @@ export function usePushNotifications() {
       setState('unsupported')
       return
     }
-    setState(Notification.permission === 'granted' ? 'granted' : Notification.permission === 'denied' ? 'denied' : 'default')
+    const perm = Notification.permission
+    setState(perm === 'granted' ? 'granted' : perm === 'denied' ? 'denied' : 'default')
+
+    // Si el permiso ya está concedido en este dispositivo, sincronizar
+    // silenciosamente al backend para que lleguen notificaciones aunque el
+    // usuario no haya tocado "Activar" en esta sesión (p.ej. segundo teléfono).
+    if (perm === 'granted') {
+      syncToBackend()
+    }
   }, [])
+
+  async function syncToBackend() {
+    try {
+      const { publicKey } = await apiGet<{ publicKey: string | null }>('push/vapid-public-key')
+      if (!publicKey) return
+      const registration = await navigator.serviceWorker.ready
+      let sub = await registration.pushManager.getSubscription()
+      if (!sub) {
+        sub = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(publicKey),
+        })
+      }
+      const json = sub.toJSON()
+      await apiPost('push/subscribe', {
+        endpoint: sub.endpoint,
+        keys: { p256dh: json.keys!.p256dh, auth: json.keys!.auth },
+      })
+    } catch { /* silencioso — no bloquear la app */ }
+  }
 
   async function subscribe() {
     if (state !== 'default') return
@@ -33,13 +61,14 @@ export function usePushNotifications() {
       if (permission !== 'granted') { setState('denied'); return }
 
       const registration = await navigator.serviceWorker.ready
-      const existing = await registration.pushManager.getSubscription()
-      if (existing) await existing.unsubscribe()
-
-      const sub = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(publicKey),
-      })
+      // Reusar suscripción existente si hay una válida
+      let sub = await registration.pushManager.getSubscription()
+      if (!sub) {
+        sub = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(publicKey),
+        })
+      }
 
       const json = sub.toJSON()
       await apiPost('push/subscribe', {

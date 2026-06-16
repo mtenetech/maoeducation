@@ -441,6 +441,13 @@ export const router = createBrowserRouter([
             Component: m.InstitutionAdminsPage,
           })),
       },
+      {
+        path: 'leads',
+        lazy: () =>
+          import('@/features/platform/pages/LeadsPage').then((m) => ({
+            Component: m.LeadsPage,
+          })),
+      },
     ],
   },
   {

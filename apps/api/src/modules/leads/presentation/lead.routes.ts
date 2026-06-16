@@ -55,4 +55,17 @@ export default async function leadRoutes(app: FastifyInstance) {
   app.get('/leads', { preHandler: [platformAuthMiddleware] }, async (_req, reply) => {
     return reply.send(await repo.list())
   })
+
+  // PATCH /leads/:id/status — actualizar estado del lead.
+  app.patch<{ Params: { id: string }; Body: { status: string } }>(
+    '/leads/:id/status',
+    { preHandler: [platformAuthMiddleware] },
+    async (req, reply) => {
+      const valid = ['new', 'contacted', 'demo_scheduled', 'closed_won', 'closed_lost']
+      if (!valid.includes(req.body.status)) {
+        return reply.status(400).send({ message: 'Estado inválido' })
+      }
+      return reply.send(await repo.updateStatus(req.params.id, req.body.status))
+    },
+  )
 }

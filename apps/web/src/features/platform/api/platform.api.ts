@@ -55,6 +55,21 @@ export interface UpdateAdminPayload {
   password?: string
 }
 
+export interface Lead {
+  id: string
+  name: string
+  email: string
+  phone: string | null
+  institutionName: string | null
+  city: string | null
+  role: string | null
+  studentsCount: number | null
+  message: string | null
+  source: string
+  status: string
+  createdAt: string
+}
+
 export const platformApi = {
   login: (payload: PlatformLoginPayload) => platformPost<PlatformLoginResponse>('platform/login', payload),
 
@@ -69,4 +84,8 @@ export const platformApi = {
     platformPost<InstitutionAdmin>(`platform/institutions/${institutionId}/admins`, data),
   updateInstitutionAdmin: (institutionId: string, userId: string, data: UpdateAdminPayload) =>
     platformPatch<InstitutionAdmin>(`platform/institutions/${institutionId}/admins/${userId}`, data),
+
+  getLeads: () => platformGet<Lead[]>('leads'),
+  updateLeadStatus: (id: string, status: string) =>
+    platformPatch<Lead>(`leads/${id}/status`, { status }),
 }
