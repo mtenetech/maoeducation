@@ -23,4 +23,8 @@ export class PrismaLeadRepository implements ILeadRepository {
   async list(): Promise<Lead[]> {
     return prisma.lead.findMany({ orderBy: { createdAt: 'desc' } })
   }
+
+  async updateStatus(id: string, status: string): Promise<Lead> {
+    return prisma.lead.update({ where: { id }, data: { status } })
+  }
 }
