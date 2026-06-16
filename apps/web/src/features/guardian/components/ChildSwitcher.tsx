@@ -15,10 +15,10 @@ export function ChildSwitcher() {
   const { hasAnyRole } = usePermissions()
   const isGuardian = hasAnyRole('guardian')
 
-  const { guardianStudentId, setGuardianStudentId } = useAuthStore((s) => ({
-    guardianStudentId: s.guardianStudentId,
-    setGuardianStudentId: s.setGuardianStudentId,
-  }))
+  // Selectores separados — no crear objeto {} en el selector o Zustand
+  // dispara un re-render infinito (nueva referencia en cada render).
+  const guardianStudentId = useAuthStore((s) => s.guardianStudentId)
+  const setGuardianStudentId = useAuthStore((s) => s.setGuardianStudentId)
 
   const { data: children = [] } = useQuery({
     queryKey: ['guardian-children'],
