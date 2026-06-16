@@ -1,7 +1,7 @@
-const CACHE = 'auleka-v1'
-const PRECACHE = ['/', '/isotipo.svg', '/favicon.svg']
+const CACHE = 'auleka-v2'
+const PRECACHE = ['/isotipo.svg', '/favicon.svg']
 
-// ── Install: pre-cachear shell ────────────────────────────────────────────
+// ── Install: pre-cachear iconos (NO el HTML — tiene hashes de Vite que cambian por build) ──
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE).then((c) => c.addAll(PRECACHE)).then(() => self.skipWaiting()),
@@ -18,13 +18,35 @@ self.addEventListener('activate', (event) => {
   )
 })
 
-// ── Fetch: cache-first para assets estáticos, network-first para API ─────
+// ── Fetch ─────────────────────────────────────────────────────────────────
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return
   const url = new URL(event.request.url)
   if (url.pathname.startsWith('/api/')) return // nunca cachear API
+
+  // Navegación (HTML): network-first → siempre recibe el index.html correcto
+  // con los hashes actuales de Vite; cae al cache solo si no hay red.
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((res) => {
+          if (res.ok) caches.open(CACHE).then((c) => c.put(event.request, res.clone()))
+          return res
+        })
+        .catch(() => caches.match(event.request).then((cached) => cached ?? caches.match('/'))),
+    )
+    return
+  }
+
+  // Assets estáticos (JS/CSS/imágenes con hash): cache-first + cachear al vuelo
   event.respondWith(
-    caches.match(event.request).then((cached) => cached ?? fetch(event.request)),
+    caches.match(event.request).then((cached) => {
+      if (cached) return cached
+      return fetch(event.request).then((res) => {
+        if (res.ok) caches.open(CACHE).then((c) => c.put(event.request, res.clone()))
+        return res
+      })
+    }),
   )
 })
 
