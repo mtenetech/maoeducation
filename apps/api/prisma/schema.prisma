@@ -114,6 +114,7 @@ model User {
   recordedBehavior  BehaviorGrade[]   @relation("BehaviorRecorder")
 
   // Promoción y recuperaciones
+  pushSubscriptions          PushSubscription[]
   studentRecoveries          SubjectRecovery[]    @relation("StudentRecovery")
   recordedRecoveries         SubjectRecovery[]    @relation("RecoveryRecorder")
   studentPedagogicRecoveries PedagogicRecovery[]  @relation("StudentPedagogicRecovery")
@@ -473,6 +474,21 @@ model PedagogicRecovery {
   @@unique([studentId, courseAssignmentId, academicPeriodId])
   @@index([institutionId, academicPeriodId])
   @@map("pedagogic_recoveries")
+}
+
+// Suscripciones push para notificaciones web (PWA)
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  endpoint  String
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, endpoint])
+  @@map("push_subscriptions")
 }
 
 // Decisión de promoción del estudiante en el año lectivo

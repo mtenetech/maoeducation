@@ -13,6 +13,10 @@ const schema = z.object({
   // Orígenes permitidos por CORS en producción, separados por coma.
   // Ej: "https://auleka.com,https://app.auleka.com"
   CORS_ORIGINS:         z.string().optional(),
+  // Web Push (VAPID) — opcionales: si no están configuradas las notificaciones push se deshabilitan
+  VAPID_PUBLIC_KEY:     z.string().optional(),
+  VAPID_PRIVATE_KEY:    z.string().optional(),
+  VAPID_SUBJECT:        z.string().default('mailto:hola@auleka.com'),
 })
 
 const parsed = schema.safeParse(process.env)

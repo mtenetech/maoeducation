@@ -5,6 +5,7 @@ import { isPrivilegedStaff, assertStudentFichaAccess } from '../../../shared/inf
 import { prisma } from '../../../shared/infrastructure/database/prisma'
 import { ForbiddenError, BadRequestError } from '../../../shared/domain/errors/app.errors'
 import type { BulkAttendanceDto, CreateJustificationDto } from '../application/dtos/attendance.dto'
+import { notifyGuardiansOfStudent } from '../../../shared/infrastructure/services/push.service'
 
 const repo = new PrismaAttendanceRepository()
 
@@ -54,9 +55,12 @@ export default async function attendanceRoutes(app: FastifyInstance) {
           req.body.parallelId,
         )
         const result = await repo.bulkUpsertDaily(req.user.institutionId, req.body, req.user.sub)
+        // Notificar a representantes de alumnos ausentes/tardíos (fire-and-forget)
+        void sendAttendanceNotifications(req.body.records, req.body.date)
         return reply.status(200).send(result)
       }
       const result = await repo.bulkUpsert(req.user.institutionId, req.body, req.user.sub)
+      void sendAttendanceNotifications(req.body.records, req.body.date)
       return reply.status(200).send(result)
     },
   )
@@ -100,5 +104,22 @@ export default async function attendanceRoutes(app: FastifyInstance) {
       )
       return reply.status(201).send(result)
     },
+  )
+}
+
+async function sendAttendanceNotifications(
+  records: Array<{ studentId: string; status: string }>,
+  date: string,
+) {
+  const absent = records.filter((r) => r.status === 'absent' || r.status === 'late')
+  const label = { absent: 'faltó', late: 'llegó tarde' }
+  await Promise.allSettled(
+    absent.map((r) =>
+      notifyGuardiansOfStudent(r.studentId, {
+        title: 'Asistencia — Auleka',
+        body: `Tu representado ${label[r.status as 'absent' | 'late'] ?? r.status} el ${date}`,
+        url: '/attendance',
+      }),
+    ),
   )
 }

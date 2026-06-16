@@ -7,6 +7,7 @@ import { authMiddleware } from '../../../shared/infrastructure/middleware/auth.m
 import { requirePermission } from '../../../shared/infrastructure/middleware/rbac.middleware'
 import { storage } from '../../../shared/infrastructure/services/storage.service'
 import { buildActaPdf } from '../application/services/acta-pdf.service'
+import { notifyGuardiansOfStudent } from '../../../shared/infrastructure/services/push.service'
 import type {
   AddEventDto,
   AssignDeceDto,
@@ -86,8 +87,15 @@ export default async function incidentRoutes(app: FastifyInstance) {
   app.post<{ Body: CreateIncidentDto }>(
     '/incidents',
     { preHandler: [requirePermission('incidents', 'write')] },
-    async (req, reply) =>
-      reply.code(201).send(await repo.create(req.user.institutionId, req.body, req.user.sub)),
+    async (req, reply) => {
+      const incident = await repo.create(req.user.institutionId, req.body, req.user.sub)
+      void notifyGuardiansOfStudent(req.body.studentId, {
+        title: 'Incidente registrado — Auleka',
+        body: 'Se ha registrado un incidente para tu representado. Ingresa para ver el detalle.',
+        url: '/incidents',
+      })
+      return reply.code(201).send(incident)
+    },
   )
 
   app.get<{ Params: { id: string } }>(

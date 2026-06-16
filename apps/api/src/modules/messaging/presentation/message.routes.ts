@@ -6,6 +6,7 @@ import type { CreateThreadDto, ReplyDto } from '../application/dtos/message.dto'
 import { randomUUID } from 'crypto'
 import path from 'path'
 import { storage } from '../../../shared/infrastructure/services/storage.service'
+import { sendPushToUser } from '../../../shared/infrastructure/services/push.service'
 
 const repo = new PrismaMessageRepository()
 
@@ -43,6 +44,11 @@ export default async function messageRoutes(app: FastifyInstance) {
   // POST /messages/threads
   app.post<{ Body: CreateThreadDto }>('/messages/threads', async (req, reply) => {
     const result = await repo.createThread(req.user.institutionId, req.body, req.user.sub)
+    void Promise.allSettled(
+      req.body.recipientIds.map((id) =>
+        sendPushToUser(id, { title: 'Nuevo mensaje — Auleka', body: req.body.subject, url: '/messages' }),
+      ),
+    )
     return reply.status(201).send(result)
   })
 
@@ -51,6 +57,15 @@ export default async function messageRoutes(app: FastifyInstance) {
     '/messages/threads/:id/reply',
     async (req, reply) => {
       const result = await repo.reply(req.params.id, req.user.institutionId, req.body, req.user.sub)
+      // Notificar a los destinatarios del mensaje (excepto quien responde)
+      if (result?.recipients) {
+        const ids = (result.recipients as Array<{ recipientId: string }>)
+          .map((r) => r.recipientId)
+          .filter((id) => id !== req.user.sub)
+        void Promise.allSettled(
+          ids.map((id) => sendPushToUser(id, { title: 'Respuesta en mensaje — Auleka', body: req.body.body?.slice(0, 80) ?? 'Nueva respuesta', url: '/messages' })),
+        )
+      }
       return reply.status(201).send(result)
     },
   )
