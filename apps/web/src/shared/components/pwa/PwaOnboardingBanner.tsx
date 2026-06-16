@@ -1,0 +1,152 @@
+import { useState } from 'react'
+import { Bell, Smartphone, X, Share, Plus } from 'lucide-react'
+import { Button } from '@/shared/components/ui/button'
+import { usePushNotifications } from '@/shared/hooks/usePushNotifications'
+import { usePwaInstall } from '@/shared/hooks/usePwaInstall'
+
+const DISMISSED_KEY = 'pwa-banner-dismissed-until'
+
+function isDismissed() {
+  const until = localStorage.getItem(DISMISSED_KEY)
+  return until ? Date.now() < Number(until) : false
+}
+
+function dismiss() {
+  // No volver a mostrar por 30 días
+  localStorage.setItem(DISMISSED_KEY, String(Date.now() + 30 * 24 * 60 * 60 * 1000))
+}
+
+/**
+ * Banner de onboarding PWA — muestra las CTAs de notificaciones e instalación.
+ * Solo aparece cuando hay algo accionable (permisos no pedidos o app no instalada).
+ * Se oculta al presionar X y no vuelve por 30 días.
+ */
+export function PwaOnboardingBanner() {
+  const push = usePushNotifications()
+  const pwa = usePwaInstall()
+  const [hidden, setHidden] = useState(isDismissed)
+  const [showIosGuide, setShowIosGuide] = useState(false)
+
+  const needsNotif = push.state === 'default'
+  const needsInstall = !pwa.isInstalled && (pwa.canInstall || pwa.isIOS)
+
+  if (hidden || push.state === 'unsupported') return null
+  if (!needsNotif && !needsInstall) return null
+
+  function handleDismiss() {
+    dismiss()
+    setHidden(true)
+  }
+
+  return (
+    <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 relative">
+      <button
+        onClick={handleDismiss}
+        className="absolute top-3 right-3 text-muted-foreground hover:text-foreground transition-colors"
+        aria-label="Cerrar"
+      >
+        <X className="h-4 w-4" />
+      </button>
+
+      <p className="text-sm font-semibold text-foreground mb-3 pr-6">
+        Mejora tu experiencia en Auleka
+      </p>
+
+      <div className="flex flex-col gap-2.5">
+        {/* Notificaciones */}
+        {needsNotif && (
+          <div className="flex items-start gap-3 bg-background rounded-lg border p-3">
+            <div className="h-9 w-9 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+              <Bell className="h-4 w-4 text-amber-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium">Activa las notificaciones</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Recibe alertas al instante cuando tu hijo falta, llega tarde o hay un mensaje nuevo
+              </p>
+            </div>
+            <Button
+              size="sm"
+              onClick={push.subscribe}
+              disabled={push.loading}
+              className="shrink-0 mt-0.5"
+            >
+              {push.loading ? 'Activando…' : 'Activar'}
+            </Button>
+          </div>
+        )}
+
+        {/* Instalar PWA — Android */}
+        {needsInstall && pwa.canInstall && (
+          <div className="flex items-start gap-3 bg-background rounded-lg border p-3">
+            <div className="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+              <Smartphone className="h-4 w-4 text-blue-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium">Agrega a tu pantalla de inicio</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Instala Auleka como app — abre en un toque sin necesidad del navegador
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={pwa.install}
+              className="shrink-0 mt-0.5"
+            >
+              Instalar
+            </Button>
+          </div>
+        )}
+
+        {/* Instalar PWA — iOS */}
+        {needsInstall && pwa.isIOS && (
+          <div className="flex flex-col gap-2 bg-background rounded-lg border p-3">
+            <div className="flex items-start gap-3">
+              <div className="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                <Smartphone className="h-4 w-4 text-blue-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium">Agrega a tu pantalla de inicio</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  En iPhone/iPad, instala Auleka en 2 pasos
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowIosGuide((v) => !v)}
+                className="shrink-0 mt-0.5"
+              >
+                Ver cómo
+              </Button>
+            </div>
+
+            {showIosGuide && (
+              <div className="mt-1 ml-12 space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">1</span>
+                  <span className="flex items-center gap-1">
+                    Toca el botón <Share className="h-3.5 w-3.5 inline text-blue-500" /> <strong>Compartir</strong> en Safari
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">2</span>
+                  <span className="flex items-center gap-1">
+                    Selecciona <Plus className="h-3.5 w-3.5 inline" /> <strong>Agregar a pantalla de inicio</strong>
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {push.state === 'denied' && (
+          <p className="text-xs text-muted-foreground text-center">
+            Las notificaciones están bloqueadas. Para activarlas ve a la configuración de tu navegador y permite las notificaciones para este sitio.
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}

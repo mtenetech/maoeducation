@@ -7,6 +7,7 @@ import { Badge } from '@/shared/components/ui/badge'
 import { Users, BookOpen, GraduationCap, Calendar, AlertTriangle, MessageSquare, ClipboardList, TrendingUp } from 'lucide-react'
 import { apiGet } from '@/shared/lib/api-client'
 import { PageLoader } from '@/shared/components/feedback/loading-spinner'
+import { PwaOnboardingBanner } from '@/shared/components/pwa/PwaOnboardingBanner'
 
 interface DashboardStats {
   users: { total: number; students: number; teachers: number }
@@ -35,6 +36,9 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* Banner de onboarding PWA — notificaciones + agregar a inicio */}
+      <PwaOnboardingBanner />
+
       {/* Header */}
       <div>
         <h1 className="text-3xl font-semibold leading-tight sm:text-2xl">
