@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Bell, Smartphone, X, Share, Plus } from 'lucide-react'
+import { Bell, Smartphone, X, Share, Plus, MoreVertical } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { usePushNotifications } from '@/shared/hooks/usePushNotifications'
 import { usePwaInstall } from '@/shared/hooks/usePwaInstall'
@@ -26,9 +26,10 @@ export function PwaOnboardingBanner() {
   const pwa = usePwaInstall()
   const [hidden, setHidden] = useState(isDismissed)
   const [showIosGuide, setShowIosGuide] = useState(false)
+  const [showAndroidGuide, setShowAndroidGuide] = useState(false)
 
   const needsNotif = push.state === 'default'
-  const needsInstall = !pwa.isInstalled && (pwa.canInstall || pwa.isIOS)
+  const needsInstall = !pwa.isInstalled && (pwa.canInstall || pwa.isIOS || pwa.isAndroid)
 
   // Push no soportado en Safari iOS fuera de PWA → ocultar solo la sección
   // de notificaciones, pero mostrar igual el botón de instalar
@@ -55,7 +56,7 @@ export function PwaOnboardingBanner() {
       </button>
 
       <p className="text-sm font-semibold text-foreground mb-3 pr-6">
-        {pwa.isIOS && !pushSupported
+        {(pwa.isIOS || pwa.isAndroid) && !pushSupported
           ? '📱 Instala Auleka para recibir notificaciones'
           : 'Mejora tu experiencia en Auleka'}
       </p>
@@ -84,26 +85,64 @@ export function PwaOnboardingBanner() {
           </div>
         )}
 
-        {/* Instalar PWA — Android */}
+        {/* Instalar PWA — Android: botón nativo (Chrome detectó el prompt) */}
         {showInstall && pwa.canInstall && (
           <div className="flex items-start gap-3 bg-background rounded-lg border p-3">
             <div className="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
               <Smartphone className="h-4 w-4 text-blue-600" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium">Agrega a tu pantalla de inicio</p>
+              <p className="text-sm font-medium">Instala Auleka en tu Android</p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Instala Auleka como app — abre en un toque sin necesidad del navegador
+                Ábrela en un toque desde tu pantalla de inicio, sin el navegador
               </p>
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={pwa.install}
-              className="shrink-0 mt-0.5"
-            >
+            <Button size="sm" variant="outline" onClick={pwa.install} className="shrink-0 mt-0.5">
               Instalar
             </Button>
+          </div>
+        )}
+
+        {/* Instalar PWA — Android: guía manual (sin prompt nativo disponible) */}
+        {showInstall && pwa.isAndroid && !pwa.canInstall && (
+          <div className="flex flex-col gap-2 bg-background rounded-lg border p-3">
+            <div className="flex items-start gap-3">
+              <div className="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                <Smartphone className="h-4 w-4 text-blue-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium">Instala Auleka en tu Android</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Ábrela en un toque desde tu pantalla de inicio
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowAndroidGuide((v) => !v)}
+                className="shrink-0 mt-0.5"
+              >
+                Ver cómo
+              </Button>
+            </div>
+            {showAndroidGuide && (
+              <div className="mt-1 ml-12 space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">1</span>
+                  <span className="flex items-center gap-1.5">
+                    Toca <MoreVertical className="h-3.5 w-3.5 inline shrink-0" /> <strong>el menú</strong> (tres puntos arriba a la derecha)
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">2</span>
+                  <span>Selecciona <strong>"Agregar a pantalla de inicio"</strong></span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">3</span>
+                  <span>Toca <strong>"Agregar"</strong> en el diálogo que aparece</span>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
