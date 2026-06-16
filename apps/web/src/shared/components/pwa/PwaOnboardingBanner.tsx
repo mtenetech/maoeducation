@@ -30,8 +30,14 @@ export function PwaOnboardingBanner() {
   const needsNotif = push.state === 'default'
   const needsInstall = !pwa.isInstalled && (pwa.canInstall || pwa.isIOS)
 
-  if (hidden || push.state === 'unsupported') return null
-  if (!needsNotif && !needsInstall) return null
+  // Push no soportado en Safari iOS fuera de PWA → ocultar solo la sección
+  // de notificaciones, pero mostrar igual el botón de instalar
+  const pushSupported = push.state !== 'unsupported'
+  const showNotif   = pushSupported && needsNotif
+  const showInstall = needsInstall
+
+  if (hidden) return null
+  if (!showNotif && !showInstall) return null
 
   function handleDismiss() {
     dismiss()
@@ -49,12 +55,14 @@ export function PwaOnboardingBanner() {
       </button>
 
       <p className="text-sm font-semibold text-foreground mb-3 pr-6">
-        Mejora tu experiencia en Auleka
+        {pwa.isIOS && !pushSupported
+          ? '📱 Instala Auleka para recibir notificaciones'
+          : 'Mejora tu experiencia en Auleka'}
       </p>
 
       <div className="flex flex-col gap-2.5">
         {/* Notificaciones */}
-        {needsNotif && (
+        {showNotif && (
           <div className="flex items-start gap-3 bg-background rounded-lg border p-3">
             <div className="h-9 w-9 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
               <Bell className="h-4 w-4 text-amber-600" />
@@ -77,7 +85,7 @@ export function PwaOnboardingBanner() {
         )}
 
         {/* Instalar PWA — Android */}
-        {needsInstall && pwa.canInstall && (
+        {showInstall && pwa.canInstall && (
           <div className="flex items-start gap-3 bg-background rounded-lg border p-3">
             <div className="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
               <Smartphone className="h-4 w-4 text-blue-600" />
@@ -100,7 +108,7 @@ export function PwaOnboardingBanner() {
         )}
 
         {/* Instalar PWA — iOS */}
-        {needsInstall && pwa.isIOS && (
+        {showInstall && pwa.isIOS && (
           <div className="flex flex-col gap-2 bg-background rounded-lg border p-3">
             <div className="flex items-start gap-3">
               <div className="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
@@ -141,7 +149,7 @@ export function PwaOnboardingBanner() {
           </div>
         )}
 
-        {push.state === 'denied' && (
+        {pushSupported && push.state === 'denied' && (
           <p className="text-xs text-muted-foreground text-center">
             Las notificaciones están bloqueadas. Para activarlas ve a la configuración de tu navegador y permite las notificaciones para este sitio.
           </p>
