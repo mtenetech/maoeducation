@@ -33,10 +33,16 @@ export interface BulkCreateStudentsDto {
 
 export const personalApi = {
   register: (dto: PersonalRegisterDto) =>
-    apiClient.post('personal/register', { json: dto }).json<{ accessToken: string; user: unknown }>(),
+    apiClient.post('personal/register', { json: dto }).json<{ message: string }>(),
 
   login: (dto: { email: string; password: string }) =>
     apiClient.post('personal/login', { json: dto }).json<{ accessToken: string; user: unknown }>(),
+
+  verifyEmail: (token: string) =>
+    apiClient.get(`personal/verify-email?token=${token}`).json<{ message: string }>(),
+
+  resendVerification: (email: string) =>
+    apiClient.post('personal/resend-verification', { json: { email } }).json<{ message: string }>(),
 
   setup: (dto: PersonalSetupDto) =>
     apiClient.post('personal/setup', { json: dto }).json<{

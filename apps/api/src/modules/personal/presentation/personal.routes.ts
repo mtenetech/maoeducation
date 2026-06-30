@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify'
 import bcrypt from 'bcryptjs'
+import { randomBytes } from 'crypto'
 import { prisma } from '../../../shared/infrastructure/database/prisma'
 import { tokenService } from '../../../shared/infrastructure/services/token.service'
 import { authMiddleware } from '../../../shared/infrastructure/middleware/auth.middleware'
@@ -7,8 +8,17 @@ import { ConflictError, NotFoundError, UnauthorizedError } from '../../../shared
 import { bootstrapInstitution } from '../../platform/application/services/institution-bootstrap'
 import { buildAuthInstitution } from '../../auth/application/services/auth-institution.mapper'
 import { PrismaAuthUserRepository } from '../../auth/infrastructure/repositories/prisma-auth-user.repository'
+import { sendVerificationEmail } from '../../../shared/infrastructure/services/email.service'
 
 const userRepo = new PrismaAuthUserRepository()
+
+async function createVerificationToken(userId: string): Promise<string> {
+  const token = randomBytes(32).toString('hex')
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24h
+  await prisma.verificationToken.deleteMany({ where: { userId } })
+  await prisma.verificationToken.create({ data: { userId, token, expiresAt } })
+  return token
+}
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -132,9 +142,9 @@ export default async function personalRoutes(app: FastifyInstance) {
         return result
       })
 
-      const result = await buildLoginResponse(adminUserId)
-      reply.setCookie('refresh_token', result.refreshToken, COOKIE_OPTIONS)
-      return reply.status(201).send({ accessToken: result.accessToken, user: result.user })
+      const token = await createVerificationToken(adminUserId)
+      await sendVerificationEmail(email, firstName, token)
+      return reply.status(201).send({ message: 'Revisa tu correo para activar tu cuenta.' })
     },
   )
 
@@ -169,11 +179,67 @@ export default async function personalRoutes(app: FastifyInstance) {
       const valid = await bcrypt.compare(password, user.passwordHash)
       if (!valid) throw new UnauthorizedError('Credenciales inválidas')
 
+      if (!user.emailVerifiedAt) {
+        return reply.status(403).send({ code: 'EMAIL_NOT_VERIFIED', message: 'Confirma tu correo antes de ingresar.' })
+      }
+
       await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } })
 
       const result = await buildLoginResponse(user.id)
       reply.setCookie('refresh_token', result.refreshToken, COOKIE_OPTIONS)
       return reply.send({ accessToken: result.accessToken, user: result.user })
+    },
+  )
+
+  // ─── Verify email ─────────────────────────────────────────────────────────
+  app.get<{ Querystring: { token: string } }>(
+    '/personal/verify-email',
+    async (req, reply) => {
+      const { token } = req.query
+      if (!token) return reply.status(400).send({ message: 'Token requerido' })
+
+      const record = await prisma.verificationToken.findUnique({ where: { token } })
+      if (!record) return reply.status(400).send({ message: 'Enlace inválido o ya utilizado.' })
+      if (record.expiresAt < new Date()) {
+        await prisma.verificationToken.delete({ where: { token } })
+        return reply.status(400).send({ message: 'El enlace expiró. Solicita uno nuevo.' })
+      }
+
+      await prisma.$transaction([
+        prisma.user.update({ where: { id: record.userId }, data: { emailVerifiedAt: new Date() } }),
+        prisma.verificationToken.delete({ where: { token } }),
+      ])
+
+      return reply.send({ message: 'Correo verificado. Ya puedes iniciar sesión.' })
+    },
+  )
+
+  // ─── Resend verification ───────────────────────────────────────────────────
+  app.post<{ Body: { email: string } }>(
+    '/personal/resend-verification',
+    {
+      schema: {
+        body: { type: 'object', required: ['email'], properties: { email: { type: 'string' } } },
+      },
+    },
+    async (req, reply) => {
+      const { email } = req.body
+
+      const user = await prisma.user.findFirst({
+        where: { email, institution: { settings: { path: ['accountType'], equals: 'personal' } } },
+        include: { profile: true },
+      })
+
+      // Always return success to prevent user enumeration
+      if (!user || user.emailVerifiedAt) {
+        return reply.send({ message: 'Si el correo existe, recibirás un nuevo enlace.' })
+      }
+
+      const token = await createVerificationToken(user.id)
+      const firstName = user.profile?.firstName ?? 'Profe'
+      await sendVerificationEmail(email, firstName, token)
+
+      return reply.send({ message: 'Nuevo enlace enviado. Revisa tu bandeja.' })
     },
   )
 

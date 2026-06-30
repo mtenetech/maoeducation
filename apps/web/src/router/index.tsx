@@ -6,6 +6,8 @@ import { LoginPage } from '@/features/auth/pages/LoginPage'
 import { PersonalRegisterPage } from '@/features/personal/pages/PersonalRegisterPage'
 import { PersonalLoginPage } from '@/features/personal/pages/PersonalLoginPage'
 import { PersonalSetupPage } from '@/features/personal/pages/PersonalSetupPage'
+import PersonalCheckEmailPage from '@/features/personal/pages/PersonalCheckEmailPage'
+import PersonalVerifyEmailPage from '@/features/personal/pages/PersonalVerifyEmailPage'
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage'
 import { PlatformPrivateRoute } from './PlatformPrivateRoute'
 import { PlatformLayout } from '@/shared/components/layout/PlatformLayout'
@@ -23,6 +25,14 @@ export const router = createBrowserRouter([
   {
     path: '/personal/login',
     element: <PersonalLoginPage />,
+  },
+  {
+    path: '/personal/check-email',
+    element: <PersonalCheckEmailPage />,
+  },
+  {
+    path: '/personal/verify-email',
+    element: <PersonalVerifyEmailPage />,
   },
   {
     path: '/personal/setup',
