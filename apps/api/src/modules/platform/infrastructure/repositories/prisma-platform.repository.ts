@@ -74,6 +74,7 @@ export class PrismaPlatformRepository implements IPlatformRepository {
         name: true,
         code: true,
         isActive: true,
+        settings: true,
         createdAt: true,
         _count: { select: { users: true } },
       },
@@ -83,6 +84,7 @@ export class PrismaPlatformRepository implements IPlatformRepository {
       name: i.name,
       code: i.code,
       isActive: i.isActive,
+      settings: i.settings,
       userCount: i._count.users,
       createdAt: i.createdAt,
     }))

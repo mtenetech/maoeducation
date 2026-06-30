@@ -14,6 +14,7 @@ export interface AuthInstitutionDto {
   id: string
   name: string
   branding: InstitutionBrandingDto
+  modules: string[] | null
 }
 
 export interface AuthUserDto {

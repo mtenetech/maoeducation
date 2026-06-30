@@ -16,6 +16,7 @@ interface NavItem {
   icon: React.ElementType
   path: string
   permission?: string
+  module?: string
   children?: Array<{ label: string; path: string }>
 }
 
@@ -30,18 +31,21 @@ const NAV_ITEMS: NavItem[] = [
     icon: Users,
     path: '/users',
     permission: 'users:read',
+    module: 'users',
   },
   {
     label: 'Roles y Permisos',
     icon: ShieldCheck,
     path: '/roles',
     permission: 'users:manage',
+    module: 'roles',
   },
   {
     label: 'Configuración',
     icon: Settings,
     path: '/academic',
     permission: 'academic_config:manage',
+    module: 'academic',
     children: [
       { label: 'Niveles',    path: '/academic/levels' },
       { label: 'Materias',   path: '/academic/subjects' },
@@ -57,48 +61,56 @@ const NAV_ITEMS: NavItem[] = [
     icon: UserPlus,
     path: '/enrollment',
     permission: 'enrollment:read',
+    module: 'enrollment',
   },
   {
     label: 'Ficha de anamnesis',
     icon: ClipboardCheck,
     path: '/settings/anamnesis',
     permission: 'anamnesis:manage',
+    module: 'anamnesis',
   },
   {
     label: 'Actividades',
     icon: BookOpen,
     path: '/activities',
     permission: 'activities:read',
+    module: 'activities',
   },
   {
     label: 'Calificaciones',
     icon: GraduationCap,
     path: '/grades',
     permission: 'grades:read',
+    module: 'grades',
   },
   {
     label: 'Comportamiento',
     icon: Smile,
     path: '/behavior',
     permission: 'grades:write',
+    module: 'behavior',
   },
   {
     label: 'Recuperación',
     icon: BookOpen,
     path: '/pedagogic-recovery',
     permission: 'grades:write',
+    module: 'pedagogic_recovery',
   },
   {
     label: 'Promoción',
     icon: Award,
     path: '/promotion',
     permission: 'grades:read',
+    module: 'promotion',
   },
   {
     label: 'Asistencia',
     icon: ClipboardList,
     path: '/attendance',
     permission: 'attendance:write',
+    module: 'attendance',
     children: [
       { label: 'Registro', path: '/attendance' },
       { label: 'Justificaciones', path: '/attendance/justifications' },
@@ -109,6 +121,7 @@ const NAV_ITEMS: NavItem[] = [
     icon: AlertTriangle,
     path: '/incidents',
     permission: 'incidents:read',
+    module: 'incidents',
     children: [
       { label: 'Casos', path: '/incidents' },
       { label: 'Tipos de falta', path: '/incidents/types' },
@@ -119,44 +132,52 @@ const NAV_ITEMS: NavItem[] = [
     icon: HeartHandshake,
     path: '/parent-meetings',
     permission: 'parent_meetings:read',
+    module: 'parent_meetings',
   },
   {
     label: 'Carpeta del Estudiante',
     icon: FolderOpen,
     path: '/student-folder',
     permission: 'student_folder:read',
+    module: 'student_folder',
   },
   {
     label: 'Mensajes',
     icon: MessageSquare,
     path: '/messages',
+    module: 'messages',
   },
   {
     label: 'Tareas',
     icon: ClipboardCheck,
     path: '/tasks',
+    module: 'tasks',
   },
   {
     label: 'Calendario',
     icon: CalendarDays,
     path: '/calendar',
+    module: 'calendar',
   },
   {
     label: 'Horario',
     icon: Calendar,
     path: '/schedules',
+    module: 'schedules',
   },
   {
     label: 'Reportes',
     icon: FileText,
     path: '/reports',
     permission: 'reports:read',
+    module: 'reports',
   },
   {
     label: 'Personalización',
     icon: Palette,
     path: '/settings/branding',
     permission: 'institution_config:manage',
+    module: 'branding',
   },
 ]
 
@@ -172,8 +193,12 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const [expanded, setExpanded] = useState<string | null>(null)
   const institution = useAuthStore((s) => s.user?.institution ?? null)
 
+  const enabledModules = institution?.modules ?? null
+
   const visible = NAV_ITEMS.filter(
-    (item) => !item.permission || hasPermission(item.permission),
+    (item) =>
+      (!item.permission || hasPermission(item.permission)) &&
+      (!item.module || !enabledModules || enabledModules.includes(item.module)),
   )
 
   const sidebarContent = (

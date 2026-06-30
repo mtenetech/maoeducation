@@ -117,6 +117,7 @@ export default async function personalRoutes(app: FastifyInstance) {
             settings: {
               accountType: 'personal',
               setupComplete: false,
+              modules: ['academic', 'enrollment', 'activities', 'grades', 'attendance', 'reports', 'branding'],
             } as unknown as Parameters<typeof tx.institution.update>[0]['data']['settings'],
           },
         })

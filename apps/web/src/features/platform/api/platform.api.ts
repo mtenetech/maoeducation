@@ -18,6 +18,7 @@ export interface Institution {
   isActive: boolean
   userCount: number
   createdAt: string
+  settings?: Record<string, unknown>
 }
 
 export interface CreateInstitutionPayload {
@@ -84,6 +85,9 @@ export const platformApi = {
     platformPost<InstitutionAdmin>(`platform/institutions/${institutionId}/admins`, data),
   updateInstitutionAdmin: (institutionId: string, userId: string, data: UpdateAdminPayload) =>
     platformPatch<InstitutionAdmin>(`platform/institutions/${institutionId}/admins/${userId}`, data),
+
+  updateInstitutionModules: (id: string, modules: string[]) =>
+    platformPatch<{ id: string; modules: string[] }>(`platform/institutions/${id}/modules`, { modules }),
 
   getLeads: () => platformGet<Lead[]>('leads'),
   updateLeadStatus: (id: string, status: string) =>

@@ -15,6 +15,7 @@ function syncStore(settings: InstitutionSettings) {
     id: settings.id,
     name: settings.name,
     branding: settings.branding,
+    modules: null,
   })
 }
 

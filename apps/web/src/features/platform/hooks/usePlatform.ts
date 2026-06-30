@@ -9,6 +9,7 @@ import {
   type CreateInstitutionPayload,
   type PlatformLoginPayload,
   type UpdateAdminPayload,
+  type Institution,
 } from '../api/platform.api'
 
 export const platformKeys = {
@@ -92,4 +93,23 @@ export function useUpdateInstitutionAdmin(institutionId: string) {
     },
     onError: (err) => toast.error(getErrorMessage(err)),
   })
+}
+
+export function useUpdateInstitutionModules() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, modules }: { id: string; modules: string[] }) =>
+      platformApi.updateInstitutionModules(id, modules),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: platformKeys.institutions })
+      toast.success('Módulos actualizados')
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  })
+}
+
+export function useInstitutionModules(institution: Institution | null) {
+  const settings = institution?.settings as Record<string, unknown> | undefined
+  const modules = settings?.modules as string[] | undefined
+  return modules ?? null
 }
