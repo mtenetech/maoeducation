@@ -1,4 +1,5 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
+import { prisma } from '../../../shared/infrastructure/database/prisma'
 import { tokenService } from '../../../shared/infrastructure/services/token.service'
 import { platformAuthMiddleware } from '../../../shared/infrastructure/middleware/platform-auth.middleware'
 import { UnauthorizedError } from '../../../shared/domain/errors/app.errors'
@@ -117,6 +118,34 @@ export default async function platformRoutes(app: FastifyInstance) {
     protectedOpts,
     async (req, reply) => {
       return reply.send(await toggleInstitution.execute(req.params.id))
+    },
+  )
+
+  app.patch<{ Params: { id: string }; Body: { modules: string[] } }>(
+    '/platform/institutions/:id/modules',
+    {
+      ...protectedOpts,
+      schema: {
+        body: {
+          type: 'object',
+          required: ['modules'],
+          properties: { modules: { type: 'array', items: { type: 'string' } } },
+        },
+      },
+    },
+    async (req, reply) => {
+      const institution = await prisma.institution.findUnique({
+        where: { id: req.params.id },
+        select: { settings: true },
+      })
+      if (!institution) return reply.status(404).send({ message: 'Institución no encontrada' })
+      const current = (institution.settings ?? {}) as Record<string, unknown>
+      const updated = await prisma.institution.update({
+        where: { id: req.params.id },
+        data: { settings: { ...current, modules: req.body.modules } as unknown as Parameters<typeof prisma.institution.update>[0]['data']['settings'] },
+        select: { id: true, settings: true },
+      })
+      return reply.send({ id: updated.id, modules: (updated.settings as Record<string, unknown>).modules })
     },
   )
 

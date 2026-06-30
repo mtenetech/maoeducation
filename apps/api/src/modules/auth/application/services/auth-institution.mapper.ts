@@ -16,5 +16,6 @@ export function buildAuthInstitution(institution: {
       primaryColor: (branding.primaryColor as string | undefined) ?? null,
       sidebarColor: (branding.sidebarColor as string | undefined) ?? null,
     },
+    modules: (settings.modules as string[] | undefined) ?? null,
   }
 }

@@ -11,6 +11,7 @@ export interface AuthInstitution {
   id: string
   name: string
   branding: InstitutionBranding
+  modules: string[] | null
 }
 
 export interface AuthUser {

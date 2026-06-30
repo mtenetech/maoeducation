@@ -17,6 +17,8 @@ const schema = z.object({
   VAPID_PUBLIC_KEY:     z.string().optional(),
   VAPID_PRIVATE_KEY:    z.string().optional(),
   VAPID_SUBJECT:        z.string().default('mailto:hola@auleka.com'),
+  RESEND_API_KEY:       z.string().optional(),
+  APP_URL:              z.string().default('https://app.auleka.com'),
 })
 
 const parsed = schema.safeParse(process.env)
