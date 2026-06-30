@@ -6,6 +6,7 @@ import type {
   BulkEnrollmentDto,
   UpdateEnrollmentStatusDto,
   CreateStudentEnrollmentDto,
+  BulkCreateStudentsDto,
 } from '../../application/dtos/enrollment.dto'
 
 const LIST_INCLUDE = {
@@ -253,6 +254,86 @@ export class PrismaEnrollmentRepository {
       created: newStudentIds.length,
       skipped: enrolledSet.size,
       enrollments,
+    }
+  }
+
+  async bulkCreateStudents(institutionId: string, dto: BulkCreateStudentsDto) {
+    const [parallel, year] = await Promise.all([
+      prisma.parallel.findFirst({ where: { id: dto.parallelId, institutionId } }),
+      prisma.academicYear.findFirst({ where: { id: dto.academicYearId, institutionId } }),
+    ])
+    if (!parallel) throw new NotFoundError('Paralelo no encontrado')
+    if (!year) throw new NotFoundError('Año académico no encontrado')
+
+    const studentRole = await prisma.role.findFirst({
+      where: { institutionId, name: 'student' },
+      select: { id: true },
+    })
+    if (!studentRole) throw new NotFoundError('Rol de estudiante no configurado')
+
+    const results: Array<{ firstName: string; lastName: string; dni: string; status: 'created' | 'skipped'; reason?: string }> = []
+
+    for (const s of dto.students) {
+      const dni = s.dni?.trim()
+      const firstName = s.firstName?.trim()
+      const lastName = s.lastName?.trim()
+
+      if (!firstName || !lastName) {
+        results.push({ firstName: firstName ?? '', lastName: lastName ?? '', dni: dni ?? '', status: 'skipped', reason: 'Nombre incompleto' })
+        continue
+      }
+
+      // Skip duplicate DNI within institution
+      const existing = await prisma.profile.findFirst({
+        where: { dni, user: { institutionId } },
+        select: { id: true },
+      })
+      if (existing) {
+        results.push({ firstName, lastName, dni, status: 'skipped', reason: 'Cédula ya registrada' })
+        continue
+      }
+
+      try {
+        const email = dni || `${firstName.toLowerCase()}.${lastName.toLowerCase()}.${Date.now()}`
+        const passwordHash = await bcrypt.hash(dni || email, 12)
+
+        await prisma.$transaction(async (tx) => {
+          const user = await tx.user.create({
+            data: {
+              institutionId,
+              email,
+              passwordHash,
+              profile: {
+                create: {
+                  firstName,
+                  lastName,
+                  dni: dni || undefined,
+                  birthDate: s.birthDate ? new Date(s.birthDate) : undefined,
+                },
+              },
+            },
+          })
+          await tx.userRole.create({ data: { userId: user.id, roleId: studentRole.id } })
+          await tx.studentEnrollment.create({
+            data: {
+              institutionId,
+              studentId: user.id,
+              parallelId: dto.parallelId,
+              academicYearId: dto.academicYearId,
+              status: 'active',
+            },
+          })
+        })
+        results.push({ firstName, lastName, dni, status: 'created' })
+      } catch {
+        results.push({ firstName, lastName, dni, status: 'skipped', reason: 'Error al crear' })
+      }
+    }
+
+    return {
+      created: results.filter((r) => r.status === 'created').length,
+      skipped: results.filter((r) => r.status === 'skipped').length,
+      results,
     }
   }
 

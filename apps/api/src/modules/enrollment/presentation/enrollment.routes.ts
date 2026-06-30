@@ -13,6 +13,7 @@ import type {
   BulkEnrollmentDto,
   UpdateEnrollmentStatusDto,
   CreateStudentEnrollmentDto,
+  BulkCreateStudentsDto,
 } from '../application/dtos/enrollment.dto'
 
 const repo = new PrismaEnrollmentRepository()
@@ -100,6 +101,16 @@ export default async function enrollmentRoutes(app: FastifyInstance) {
     async (req, reply) => {
       await assertParallelInScope(req, req.body.parallelId)
       const result = await repo.bulkCreate(req.user.institutionId, req.body)
+      return reply.status(201).send(result)
+    },
+  )
+
+  app.post<{ Body: BulkCreateStudentsDto }>(
+    '/enrollments/students/bulk',
+    { preHandler: [requirePermission('enrollment', 'manage', 'own')] },
+    async (req, reply) => {
+      await assertParallelInScope(req, req.body.parallelId)
+      const result = await repo.bulkCreateStudents(req.user.institutionId, req.body)
       return reply.status(201).send(result)
     },
   )

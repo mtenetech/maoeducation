@@ -23,3 +23,15 @@ export interface CreateStudentEnrollmentDto {
   parallelId: string
   academicYearId: string
 }
+
+/** Crear N estudiantes nuevos y matricularlos (importación masiva desde Excel). */
+export interface BulkCreateStudentsDto {
+  students: Array<{
+    firstName: string
+    lastName: string
+    dni: string
+    birthDate?: string
+  }>
+  parallelId: string
+  academicYearId: string
+}

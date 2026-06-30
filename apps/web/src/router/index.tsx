@@ -3,6 +3,9 @@ import { AppLayout } from '@/shared/components/layout/AppLayout'
 import { PrivateRoute } from './PrivateRoute'
 import { PermissionGuard } from './PermissionGuard'
 import { LoginPage } from '@/features/auth/pages/LoginPage'
+import { PersonalRegisterPage } from '@/features/personal/pages/PersonalRegisterPage'
+import { PersonalLoginPage } from '@/features/personal/pages/PersonalLoginPage'
+import { PersonalSetupPage } from '@/features/personal/pages/PersonalSetupPage'
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage'
 import { PlatformPrivateRoute } from './PlatformPrivateRoute'
 import { PlatformLayout } from '@/shared/components/layout/PlatformLayout'
@@ -12,6 +15,22 @@ export const router = createBrowserRouter([
   {
     path: '/login',
     element: <LoginPage />,
+  },
+  {
+    path: '/personal/register',
+    element: <PersonalRegisterPage />,
+  },
+  {
+    path: '/personal/login',
+    element: <PersonalLoginPage />,
+  },
+  {
+    path: '/personal/setup',
+    element: (
+      <PrivateRoute>
+        <PersonalSetupPage />
+      </PrivateRoute>
+    ),
   },
   {
     path: '/',
