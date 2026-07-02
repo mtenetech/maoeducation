@@ -1067,6 +1067,20 @@ model Lead {
   @@map("leads")
 }
 
+// Vista de página de la landing (auleka.com). Tracker propio, sin PII: visitorId
+// es un hash anónimo generado en el cliente (localStorage), no un identificador real.
+model PageView {
+  id        String   @id @default(uuid())
+  path      String   @db.VarChar(255)
+  referrer  String?  @db.VarChar(500)
+  visitorId String?  @map("visitor_id") @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([path, createdAt])
+  @@map("page_views")
+}
+
 model VerificationToken {
   id        String   @id @default(uuid())
   userId    String   @map("user_id")
