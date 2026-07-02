@@ -477,6 +477,13 @@ export const router = createBrowserRouter([
             Component: m.LeadsPage,
           })),
       },
+      {
+        path: 'stats',
+        lazy: () =>
+          import('@/features/platform/pages/StatsPage').then((m) => ({
+            Component: m.StatsPage,
+          })),
+      },
     ],
   },
   {

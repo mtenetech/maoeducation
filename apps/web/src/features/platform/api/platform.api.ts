@@ -56,6 +56,33 @@ export interface UpdateAdminPayload {
   password?: string
 }
 
+export interface StatsOverview {
+  institutions: { total: number; personal: number; schools: number }
+  users: { total: number }
+  leads: { total: number; byStatus: { status: string; count: number }[] }
+  signups: {
+    institutions: { date: string; count: number }[]
+    users: { date: string; count: number }[]
+  }
+  pageViews: {
+    total30d: number
+    series: { date: string; count: number }[]
+    topPages: { path: string; count: number }[]
+  }
+}
+
+export interface PlatformUser {
+  id: string
+  email: string
+  isActive: boolean
+  fullName: string
+  roles: string[]
+  institutionId: string
+  institutionName: string
+  accountType: 'personal' | 'school'
+  createdAt: string
+}
+
 export interface Lead {
   id: string
   name: string
@@ -92,4 +119,8 @@ export const platformApi = {
   getLeads: () => platformGet<Lead[]>('leads'),
   updateLeadStatus: (id: string, status: string) =>
     platformPatch<Lead>(`leads/${id}/status`, { status }),
+
+  getStatsOverview: () => platformGet<StatsOverview>('platform/stats/overview'),
+  getPlatformUsers: (params: { page?: number; limit?: number; search?: string }) =>
+    platformGet<{ data: PlatformUser[]; total: number }>('platform/users', params),
 }
