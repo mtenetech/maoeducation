@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react'
-import { Button } from '@/shared/components/ui/button'
 import { personalApi } from '../api/personal.api'
 
 type State = 'loading' | 'success' | 'error'
@@ -44,9 +43,12 @@ export default function PersonalVerifyEmailPage() {
             </div>
             <h1 className="text-2xl font-bold text-slate-900 mb-2">¡Correo confirmado!</h1>
             <p className="text-slate-500 mb-8">{message}</p>
-            <Button asChild className="w-full bg-blue-600 hover:bg-blue-700">
-              <Link to="/personal/login">Iniciar sesión</Link>
-            </Button>
+            <Link
+              to="/personal/login"
+              className="inline-block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-3 px-6 rounded-lg transition-colors"
+            >
+              Iniciar sesión
+            </Link>
           </>
         )}
         {state === 'error' && (
