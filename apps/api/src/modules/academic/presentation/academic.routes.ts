@@ -11,6 +11,7 @@ import type {
   UpdateSubjectDto,
   CreateAcademicYearDto,
   CreateAcademicPeriodDto,
+  UpdateAcademicPeriodDto,
   CreateParallelDto,
   UpdateParallelDto,
   CreateCourseAssignmentDto,
@@ -144,6 +145,15 @@ export default async function academicRoutes(app: FastifyInstance) {
     async (req, reply) => {
       const period = await repo.createPeriod(req.params.yearId, req.user.institutionId, req.body)
       return reply.status(201).send(period)
+    },
+  )
+
+  app.put<{ Params: { id: string }; Body: UpdateAcademicPeriodDto }>(
+    '/academic/periods/:id',
+    { preHandler: [requirePermission('academic_config', 'manage')] },
+    async (req, reply) => {
+      const period = await repo.updatePeriod(req.params.id, req.user.institutionId, req.body)
+      return reply.send(period)
     },
   )
 

@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { type ColumnDef } from '@tanstack/react-table'
-import { Plus, Check, ChevronDown, ChevronRight, CalendarDays, Lock, LockOpen } from 'lucide-react'
+import { Plus, Check, ChevronDown, ChevronRight, CalendarDays, Lock, LockOpen, Pencil } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
@@ -25,6 +25,7 @@ import {
   useActivateYear,
   usePeriods,
   useCreatePeriod,
+  useUpdatePeriod,
   useSetPeriodClosure,
 } from '../hooks/useAcademic'
 
@@ -41,8 +42,10 @@ type PeriodForm = z.infer<typeof periodSchema>
 function PeriodsPanel({ yearId }: { yearId: string }) {
   const { data: periods = [], isLoading } = usePeriods(yearId)
   const createPeriod = useCreatePeriod(yearId)
+  const updatePeriod = useUpdatePeriod(yearId)
   const setClosure = useSetPeriodClosure(yearId)
   const [open, setOpen] = React.useState(false)
+  const [editingPeriod, setEditingPeriod] = React.useState<AcademicPeriod | null>(null)
 
   const form = useForm<PeriodForm>({
     resolver: zodResolver(periodSchema),
@@ -54,12 +57,35 @@ function PeriodsPanel({ yearId }: { yearId: string }) {
     },
   })
 
+  const editForm = useForm<PeriodForm>({
+    resolver: zodResolver(periodSchema),
+    defaultValues: { name: '', order: 1, startDate: '', endDate: '' },
+  })
+
   React.useEffect(() => {
     if (open) form.setValue('order', periods.length + 1)
   }, [open, periods.length, form])
 
   function onSubmit(values: PeriodForm) {
     createPeriod.mutate(values, { onSuccess: () => { setOpen(false); form.reset() } })
+  }
+
+  function openEdit(period: AcademicPeriod) {
+    editForm.reset({
+      name: period.name,
+      order: period.periodNumber,
+      startDate: period.startDate.slice(0, 10),
+      endDate: period.endDate.slice(0, 10),
+    })
+    setEditingPeriod(period)
+  }
+
+  function onEditSubmit(values: PeriodForm) {
+    if (!editingPeriod) return
+    updatePeriod.mutate(
+      { periodId: editingPeriod.id, data: values },
+      { onSuccess: () => setEditingPeriod(null) },
+    )
   }
 
   const columns: ColumnDef<AcademicPeriod, unknown>[] = [
@@ -102,6 +128,16 @@ function PeriodsPanel({ yearId }: { yearId: string }) {
         return (
           <div className="flex items-center gap-2">
             {closed && <Badge variant="warning">Cerrado</Badge>}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2 text-xs"
+              onClick={() => openEdit(row.original)}
+              title="Editar período"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              Editar
+            </Button>
             <Button
               size="sm"
               variant="ghost"
@@ -188,6 +224,58 @@ function PeriodsPanel({ yearId }: { yearId: string }) {
               </Button>
               <Button type="submit" loading={createPeriod.isPending}>
                 Crear período
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editingPeriod} onOpenChange={(v) => !v && setEditingPeriod(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Período Académico</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nombre</Label>
+              <Input
+                {...editForm.register('name')}
+                placeholder="Ej: Primer Trimestre, Quimestre 1"
+              />
+              {editForm.formState.errors.name && (
+                <p className="text-xs text-destructive">{editForm.formState.errors.name.message}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label>Número de orden</Label>
+              <Input type="number" {...editForm.register('order')} min={1} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Fecha inicio</Label>
+                <Input type="date" {...editForm.register('startDate')} />
+                {editForm.formState.errors.startDate && (
+                  <p className="text-xs text-destructive">
+                    {editForm.formState.errors.startDate.message}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Fecha fin</Label>
+                <Input type="date" {...editForm.register('endDate')} />
+                {editForm.formState.errors.endDate && (
+                  <p className="text-xs text-destructive">
+                    {editForm.formState.errors.endDate.message}
+                  </p>
+                )}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEditingPeriod(null)}>
+                Cancelar
+              </Button>
+              <Button type="submit" loading={updatePeriod.isPending}>
+                Guardar cambios
               </Button>
             </DialogFooter>
           </form>
