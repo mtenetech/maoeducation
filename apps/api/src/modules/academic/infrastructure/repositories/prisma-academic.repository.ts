@@ -7,6 +7,7 @@ import type {
   UpdateSubjectDto,
   CreateAcademicYearDto,
   CreateAcademicPeriodDto,
+  UpdateAcademicPeriodDto,
   CreateParallelDto,
   UpdateParallelDto,
   CreateCourseAssignmentDto,
@@ -224,6 +225,24 @@ export class PrismaAcademicRepository {
         periodNumber: dto.order,
         startDate: new Date(dto.startDate),
         endDate: new Date(dto.endDate),
+      },
+      include: { scheme: true },
+    })
+  }
+
+  async updatePeriod(periodId: string, institutionId: string, dto: UpdateAcademicPeriodDto) {
+    const period = await prisma.academicPeriod.findFirst({
+      where: { id: periodId, academicYear: { institutionId } },
+    })
+    if (!period) throw new NotFoundError('Período no encontrado')
+
+    return prisma.academicPeriod.update({
+      where: { id: periodId },
+      data: {
+        ...(dto.name !== undefined && { name: dto.name }),
+        ...(dto.order !== undefined && { periodNumber: dto.order }),
+        ...(dto.startDate !== undefined && { startDate: new Date(dto.startDate) }),
+        ...(dto.endDate !== undefined && { endDate: new Date(dto.endDate) }),
       },
       include: { scheme: true },
     })

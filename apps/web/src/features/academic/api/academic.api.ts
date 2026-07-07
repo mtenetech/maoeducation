@@ -104,6 +104,8 @@ export const academicApi = {
     apiGet<AcademicPeriod[]>(`academic/years/${yearId}/periods`),
   createPeriod: (yearId: string, data: { name: string; order: number; startDate: string; endDate: string; schemeId?: string }) =>
     apiPost<AcademicPeriod>(`academic/years/${yearId}/periods`, data),
+  updatePeriod: (periodId: string, data: Partial<{ name: string; order: number; startDate: string; endDate: string }>) =>
+    apiPut<AcademicPeriod>(`academic/periods/${periodId}`, data),
   setPeriodClosure: (periodId: string, isClosed: boolean) =>
     apiPatch<AcademicPeriod>(`academic/periods/${periodId}/closure`, { isClosed }),
 

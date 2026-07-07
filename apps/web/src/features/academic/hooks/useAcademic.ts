@@ -149,6 +149,19 @@ export function useCreatePeriod(yearId: string) {
   })
 }
 
+export function useUpdatePeriod(yearId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ periodId, data }: { periodId: string; data: Parameters<typeof academicApi.updatePeriod>[1] }) =>
+      academicApi.updatePeriod(periodId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: academicKeys.periods(yearId) })
+      toast.success('Período actualizado correctamente')
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  })
+}
+
 export function useSetPeriodClosure(yearId: string) {
   const qc = useQueryClient()
   return useMutation({

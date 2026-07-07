@@ -41,6 +41,13 @@ export interface CreateAcademicPeriodDto {
   schemeId?: string
 }
 
+export interface UpdateAcademicPeriodDto {
+  name?: string
+  order?: number
+  startDate?: string
+  endDate?: string
+}
+
 export interface CreateParallelDto {
   name: string
   levelId: string
