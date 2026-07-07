@@ -26,6 +26,7 @@ import {
   usePeriods,
   useCreatePeriod,
   useUpdatePeriod,
+  useActivatePeriod,
   useSetPeriodClosure,
 } from '../hooks/useAcademic'
 
@@ -43,6 +44,7 @@ function PeriodsPanel({ yearId }: { yearId: string }) {
   const { data: periods = [], isLoading } = usePeriods(yearId)
   const createPeriod = useCreatePeriod(yearId)
   const updatePeriod = useUpdatePeriod(yearId)
+  const activatePeriod = useActivatePeriod(yearId)
   const setClosure = useSetPeriodClosure(yearId)
   const [open, setOpen] = React.useState(false)
   const [editingPeriod, setEditingPeriod] = React.useState<AcademicPeriod | null>(null)
@@ -115,9 +117,23 @@ function PeriodsPanel({ yearId }: { yearId: string }) {
       accessorKey: 'isActive',
       header: 'Estado',
       cell: ({ row }) => (
-        <Badge variant={row.original.isActive ? 'success' : 'secondary'}>
-          {row.original.isActive ? 'Activo' : 'Inactivo'}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant={row.original.isActive ? 'success' : 'secondary'}>
+            {row.original.isActive ? 'Activo' : 'Inactivo'}
+          </Badge>
+          {!row.original.isActive && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2 text-xs"
+              disabled={activatePeriod.isPending}
+              onClick={() => activatePeriod.mutate(row.original.id)}
+              title="Activar período (desactiva los demás del año)"
+            >
+              Activar
+            </Button>
+          )}
+        </div>
       ),
     },
     {

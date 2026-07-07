@@ -157,6 +157,15 @@ export default async function academicRoutes(app: FastifyInstance) {
     },
   )
 
+  app.patch<{ Params: { id: string } }>(
+    '/academic/periods/:id/activate',
+    { preHandler: [requirePermission('academic_config', 'manage')] },
+    async (req, reply) => {
+      const period = await repo.activatePeriod(req.params.id, req.user.institutionId)
+      return reply.send(period)
+    },
+  )
+
   app.patch<{ Params: { id: string }; Body: { isClosed: boolean } }>(
     '/academic/periods/:id/closure',
     { preHandler: [requirePermission('academic_config', 'manage')] },
