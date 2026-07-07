@@ -1,5 +1,6 @@
 import { platformGet, platformPost, platformPatch } from '@/shared/lib/platform-api-client'
 import type { PlatformAdmin } from '@/store/platformAuth.store'
+import type { AuthUser } from '@/store/auth.store'
 
 export interface PlatformLoginPayload {
   email: string
@@ -123,4 +124,6 @@ export const platformApi = {
   getStatsOverview: () => platformGet<StatsOverview>('platform/stats/overview'),
   getPlatformUsers: (params: { page?: number; limit?: number; search?: string }) =>
     platformGet<{ data: PlatformUser[]; total: number }>('platform/users', params),
+  impersonateUser: (userId: string) =>
+    platformPost<{ accessToken: string; user: AuthUser }>(`platform/users/${userId}/impersonate`),
 }

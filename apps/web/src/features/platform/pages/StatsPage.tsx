@@ -1,12 +1,15 @@
 import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { type ColumnDef } from '@tanstack/react-table'
-import { Building2, Eye, MessageSquare, Users } from 'lucide-react'
+import { Building2, Eye, LogIn, MessageSquare, Users } from 'lucide-react'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { toast } from 'sonner'
 import { Badge } from '@/shared/components/ui/badge'
 import { Button } from '@/shared/components/ui/button'
 import { DataTable } from '@/shared/components/ui/data-table'
 import { PageLoader } from '@/shared/components/feedback/loading-spinner'
+import { useAuthStore } from '@/store/auth.store'
+import { getErrorMessage } from '@/shared/lib/utils'
 import { platformApi, type PlatformUser } from '../api/platform.api'
 
 const USERS_PAGE_SIZE = 20
@@ -63,6 +66,16 @@ export function StatsPage() {
     queryFn: () => platformApi.getPlatformUsers({ search: search || undefined, page, limit: USERS_PAGE_SIZE }),
   })
 
+  const setAuth = useAuthStore((s) => s.setAuth)
+  const { mutate: impersonate, isPending: isImpersonating } = useMutation({
+    mutationFn: (userId: string) => platformApi.impersonateUser(userId),
+    onSuccess: (data) => {
+      setAuth(data.user, data.accessToken)
+      window.location.href = '/dashboard'
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  })
+
   const signupsSeries = useMemo(
     () => (stats ? mergeSeries(stats.signups.institutions, stats.signups.users, 'institutions', 'users') : []),
     [stats],
@@ -99,6 +112,25 @@ export function StatsPage() {
       accessorKey: 'createdAt',
       header: 'Registrado',
       cell: ({ row }) => <span className="text-sm text-slate-500">{fmtDateTime(row.original.createdAt)}</span>,
+    },
+    {
+      id: 'actions',
+      header: '',
+      cell: ({ row }) => (
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={isImpersonating}
+          onClick={() => {
+            if (window.confirm(`¿Ingresar como ${row.original.fullName}? Verás la app exactamente como este usuario.`)) {
+              impersonate(row.original.id)
+            }
+          }}
+        >
+          <LogIn className="w-4 h-4 mr-1.5" />
+          Ingresar como
+        </Button>
+      ),
     },
   ]
 

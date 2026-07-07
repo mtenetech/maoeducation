@@ -4,6 +4,7 @@ import { personalApi, PersonalRegisterDto } from '../api/personal.api'
 import { useAuthStore } from '@/store/auth.store'
 import { toast } from 'sonner'
 import { getErrorMessage } from '@/shared/lib/utils'
+import { setLoginTypePreference } from '@/shared/lib/login-preference'
 
 export function usePersonalRegister() {
   const navigate = useNavigate()
@@ -25,9 +26,11 @@ export function usePersonalLogin() {
     mutationFn: (dto: { email: string; password: string }) => personalApi.login(dto),
     onSuccess: (data) => {
       const d = data as { accessToken: string; user: Parameters<typeof setAuth>[0] }
+      setLoginTypePreference('personal')
       setAuth(d.user, d.accessToken)
       navigate('/dashboard', { replace: true })
     },
+    onError: (err) => toast.error(getErrorMessage(err)),
   })
 }
 

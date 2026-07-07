@@ -1,6 +1,9 @@
 import { FastifyInstance } from 'fastify'
 import { prisma } from '../../../shared/infrastructure/database/prisma'
 import { platformAuthMiddleware } from '../../../shared/infrastructure/middleware/platform-auth.middleware'
+import { tokenService } from '../../../shared/infrastructure/services/token.service'
+import { PrismaAuthUserRepository } from '../../auth/infrastructure/repositories/prisma-auth-user.repository'
+import { ImpersonateUserUseCase } from '../application/use-cases/impersonate-user.use-case'
 
 interface DailyCount {
   date: Date
@@ -9,6 +12,17 @@ interface DailyCount {
 
 function toSeries(rows: DailyCount[]) {
   return rows.map((r) => ({ date: r.date.toISOString().slice(0, 10), count: Number(r.count) }))
+}
+
+const impersonateUseCase = new ImpersonateUserUseCase(new PrismaAuthUserRepository(), tokenService)
+
+const REFRESH_COOKIE = 'refresh_token'
+const REFRESH_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'strict' as const,
+  path: '/api/v1/auth',
+  maxAge: 60 * 60 * 24 * 7,
 }
 
 export default async function platformStatsRoutes(app: FastifyInstance) {
@@ -140,6 +154,20 @@ export default async function platformStatsRoutes(app: FastifyInstance) {
         })),
         total,
       })
+    },
+  )
+
+  app.post<{ Params: { id: string } }>(
+    '/platform/users/:id/impersonate',
+    protectedOpts,
+    async (req, reply) => {
+      const result = await impersonateUseCase.execute(req.params.id)
+      req.log.info(
+        { adminId: req.platformAdmin.sub, targetUserId: req.params.id },
+        'platform admin impersonated user',
+      )
+      reply.setCookie(REFRESH_COOKIE, result.refreshToken, REFRESH_COOKIE_OPTIONS)
+      return reply.send({ accessToken: result.accessToken, user: result.user })
     },
   )
 }
