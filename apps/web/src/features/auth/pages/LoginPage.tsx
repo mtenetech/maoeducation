@@ -1,22 +1,29 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Navigate } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { Eye, EyeOff, Check } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import { useLogin } from '../hooks/useLogin'
+import { usePersonalLogin } from '@/features/personal/hooks/usePersonalAuth'
 import { useAuthStore } from '@/store/auth.store'
+import { getLoginTypePreference, type LoginType } from '@/shared/lib/login-preference'
 
-const loginSchema = z.object({
+const institutionSchema = z.object({
   institutionCode: z.string().min(1, 'Requerido'),
   email:           z.string().min(1, 'Requerido'),
   password:        z.string().min(1, 'Requerido'),
 })
+const personalSchema = z.object({
+  email:    z.string().min(1, 'Requerido'),
+  password: z.string().min(1, 'Requerido'),
+})
 
-type LoginForm = z.infer<typeof loginSchema>
+type InstitutionForm = z.infer<typeof institutionSchema>
+type PersonalForm = z.infer<typeof personalSchema>
 
 const FEATURES = [
   'Calificaciones y asistencia en tiempo real',
@@ -27,19 +34,23 @@ const FEATURES = [
 
 export function LoginPage() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated())
-  const { mutate: login, isPending } = useLogin()
+  const [searchParams] = useSearchParams()
+  const forcedType = searchParams.get('type') === 'personal' ? 'personal' : null
+  const [loginType, setLoginType] = useState<LoginType>(forcedType ?? getLoginTypePreference())
   const [showPassword, setShowPassword] = useState(false)
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<LoginForm>({
-    resolver: zodResolver(loginSchema),
+  const { mutate: loginInstitution, isPending: isInstitutionPending } = useLogin()
+  const { mutate: loginPersonal, isPending: isPersonalPending } = usePersonalLogin()
+
+  const institutionForm = useForm<InstitutionForm>({
+    resolver: zodResolver(institutionSchema),
     defaultValues: { institutionCode: 'ESCUELA_DEMO' },
   })
+  const personalForm = useForm<PersonalForm>({ resolver: zodResolver(personalSchema) })
 
   if (isAuthenticated) return <Navigate to="/dashboard" replace />
+
+  const isPersonal = loginType === 'personal'
 
   return (
     <div className="min-h-screen flex">
@@ -84,7 +95,7 @@ export function LoginPage() {
 
       {/* Right: login form */}
       <div className="flex-1 flex flex-col items-center justify-center p-8 bg-white">
-        <div className="w-full max-w-sm space-y-8">
+        <div className="w-full max-w-sm space-y-6">
           {/* Header */}
           <div className="flex flex-col items-center gap-3">
             <img src="/isotipo.svg" alt="Auleka" className="h-16 w-16" />
@@ -94,60 +105,125 @@ export function LoginPage() {
             </div>
           </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit((data) => login(data))} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="institutionCode">Código de institución</Label>
-              <Input
-                id="institutionCode"
-                placeholder="ESCUELA_DEMO"
-                {...register('institutionCode')}
-              />
-              {errors.institutionCode && (
-                <p className="text-xs text-destructive">{errors.institutionCode.message}</p>
-              )}
-            </div>
+          {/* Selector de tipo de cuenta */}
+          <div className="grid grid-cols-2 gap-1 p-1 bg-gray-100 rounded-lg">
+            <button
+              type="button"
+              onClick={() => setLoginType('institution')}
+              className={`text-sm font-medium py-2 rounded-md transition-colors ${
+                !isPersonal ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Mi institución
+            </button>
+            <button
+              type="button"
+              onClick={() => setLoginType('personal')}
+              className={`text-sm font-medium py-2 rounded-md transition-colors ${
+                isPersonal ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Profesor personal
+            </button>
+          </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="email">Correo o cédula</Label>
-              <Input
-                id="email"
-                type="text"
-                placeholder="correo@escuela.edu o cédula"
-                {...register('email')}
-              />
-              {errors.email && (
-                <p className="text-xs text-destructive">{errors.email.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="password">Contraseña</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  {...register('password')}
-                  className="pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+          {isPersonal ? (
+            <form key="personal" onSubmit={personalForm.handleSubmit((data) => loginPersonal(data))} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="p-email">Correo electrónico</Label>
+                <Input id="p-email" type="email" placeholder="profe@ejemplo.com" {...personalForm.register('email')} />
+                {personalForm.formState.errors.email && (
+                  <p className="text-xs text-destructive">{personalForm.formState.errors.email.message}</p>
+                )}
               </div>
-              {errors.password && (
-                <p className="text-xs text-destructive">{errors.password.message}</p>
-              )}
-            </div>
 
-            <Button type="submit" loading={isPending} className="w-full mt-2">
-              Ingresar
-            </Button>
-          </form>
+              <div className="space-y-1.5">
+                <Label htmlFor="p-password">Contraseña</Label>
+                <div className="relative">
+                  <Input
+                    id="p-password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    className="pr-10"
+                    {...personalForm.register('password')}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {personalForm.formState.errors.password && (
+                  <p className="text-xs text-destructive">{personalForm.formState.errors.password.message}</p>
+                )}
+              </div>
+
+              <Button type="submit" loading={isPersonalPending} className="w-full mt-2">
+                Ingresar
+              </Button>
+
+              <p className="text-center text-sm text-muted-foreground">
+                ¿No tienes cuenta?{' '}
+                <Link to="/personal/register" className="text-primary hover:underline">Regístrate gratis</Link>
+              </p>
+            </form>
+          ) : (
+            <form key="institution" onSubmit={institutionForm.handleSubmit((data) => loginInstitution(data))} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="institutionCode">Código de institución</Label>
+                <Input
+                  id="institutionCode"
+                  placeholder="ESCUELA_DEMO"
+                  {...institutionForm.register('institutionCode')}
+                />
+                {institutionForm.formState.errors.institutionCode && (
+                  <p className="text-xs text-destructive">{institutionForm.formState.errors.institutionCode.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="email">Correo o cédula</Label>
+                <Input
+                  id="email"
+                  type="text"
+                  placeholder="correo@escuela.edu o cédula"
+                  {...institutionForm.register('email')}
+                />
+                {institutionForm.formState.errors.email && (
+                  <p className="text-xs text-destructive">{institutionForm.formState.errors.email.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="password">Contraseña</Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    {...institutionForm.register('password')}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {institutionForm.formState.errors.password && (
+                  <p className="text-xs text-destructive">{institutionForm.formState.errors.password.message}</p>
+                )}
+              </div>
+
+              <Button type="submit" loading={isInstitutionPending} className="w-full mt-2">
+                Ingresar
+              </Button>
+            </form>
+          )}
 
           <p className="text-center text-xs text-muted-foreground">
             © {new Date().getFullYear()} Auleka
