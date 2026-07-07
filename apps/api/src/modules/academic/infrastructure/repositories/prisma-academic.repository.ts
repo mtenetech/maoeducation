@@ -248,6 +248,26 @@ export class PrismaAcademicRepository {
     })
   }
 
+  async activatePeriod(periodId: string, institutionId: string) {
+    const period = await prisma.academicPeriod.findFirst({
+      where: { id: periodId, academicYear: { institutionId } },
+    })
+    if (!period) throw new NotFoundError('Período no encontrado')
+
+    const result = await prisma.$transaction([
+      prisma.academicPeriod.updateMany({
+        where: { academicYearId: period.academicYearId, isActive: true },
+        data: { isActive: false },
+      }),
+      prisma.academicPeriod.update({
+        where: { id: periodId },
+        data: { isActive: true },
+        include: { scheme: true },
+      }),
+    ])
+    return result[1]
+  }
+
   async getDefaultScheme(institutionId: string) {
     return prisma.academicPeriodScheme.findFirst({
       where: { institutionId, isDefault: true },

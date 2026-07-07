@@ -106,6 +106,8 @@ export const academicApi = {
     apiPost<AcademicPeriod>(`academic/years/${yearId}/periods`, data),
   updatePeriod: (periodId: string, data: Partial<{ name: string; order: number; startDate: string; endDate: string }>) =>
     apiPut<AcademicPeriod>(`academic/periods/${periodId}`, data),
+  activatePeriod: (periodId: string) =>
+    apiPatch<AcademicPeriod>(`academic/periods/${periodId}/activate`),
   setPeriodClosure: (periodId: string, isClosed: boolean) =>
     apiPatch<AcademicPeriod>(`academic/periods/${periodId}/closure`, { isClosed }),
 
